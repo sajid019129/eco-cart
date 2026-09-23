@@ -5,16 +5,16 @@ require('dotenv').config();
 
 const app = express();
 
-app.use(express.json());
 app.use(cors());
+app.use(express.json());
 
-mongoose.connect(process.env.MONGO_URI)
+const mongoURI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/eco-cart';
+
+mongoose.connect(mongoURI)
   .then(() => console.log('MongoDB Connected Successfully!'))
-  .catch((err) => console.error('MongoDB Connection Error:', err));
+  .catch((err) => console.log('MongoDB Connection Error:', err));
 
-app.get('/', (req, res) => {
-  res.send('Eco-Cart Backend is Running');
-});
+app.use('/api/auth', require('./routes/auth'));
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
