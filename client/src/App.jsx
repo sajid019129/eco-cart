@@ -4,6 +4,7 @@ import axios from 'axios';
 import Navbar from './components/Navbar';
 import AddProduct from './components/AddProduct';
 import ProductSearch from './components/ProductSearch';
+import Cart from './components/Cart';
 import Login from './pages/Login';
 import Register from './pages/Register';
 
@@ -21,7 +22,7 @@ function Home() {
   );
 }
 
-// Products & Search Page (Sprint 2 Feature)
+// Products & Search Page
 function ProductsPage() {
   const [products, setProducts] = useState([]);
 
@@ -59,14 +60,20 @@ function ProductsPage() {
 }
 
 function App() {
+  const [user, setUser] = useState(() => {
+    const savedUser = localStorage.getItem('user');
+    return savedUser ? JSON.parse(savedUser) : null;
+  });
+
   return (
     <div>
-      <Navbar />
+      <Navbar user={user} setUser={setUser} />
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/products" element={<ProductsPage />} />
         <Route path="/add-product" element={<AddProduct />} />
-        <Route path="/login" element={<Login />} />
+        <Route path="/cart" element={<Cart />} />
+        <Route path="/login" element={<Login setUser={setUser} />} />
         <Route path="/register" element={<Register />} />
       </Routes>
     </div>

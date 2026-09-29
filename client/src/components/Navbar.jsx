@@ -16,8 +16,11 @@ function Navbar({ user, setUser }) {
       <Link to="/" style={styles.logo}>Eco-Cart</Link>
       <div style={styles.links}>
         <Link to="/" style={styles.link}>Home</Link>
+        <Link to="/products" style={styles.link}>Products</Link>
+        <Link to="/cart" style={styles.link}>Cart</Link>
         {user ? (
           <>
+            <Link to="/add-product" style={styles.link}>Add Product</Link>
             <span style={styles.userGreeting}>Hi, {user.name}</span>
             <button onClick={handleLogout} style={styles.logoutBtn}>Logout</button>
           </>
