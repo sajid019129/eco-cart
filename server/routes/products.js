@@ -29,7 +29,21 @@ router.post('/', async (req, res) => {
 
 router.get('/', async (req, res) => {
   try {
-    const products = await Product.find().populate('category', 'name');
+    const { searchTerm, category } = req.query;
+    let filter = {};
+
+    if (searchTerm) {
+      filter.title = { $regex: searchTerm, $options: 'i' };
+    }
+
+    if (category) {
+      const categoryDoc = await Category.findOne({ name: category });
+      if (categoryDoc) {
+        filter.category = categoryDoc._id;
+      }
+    }
+
+    const products = await Product.find(filter).populate('category', 'name');
     res.json(products);
   } catch (err) {
     res.status(500).json({ error: err.message });
