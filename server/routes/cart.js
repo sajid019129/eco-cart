@@ -67,4 +67,18 @@ router.delete('/remove/:userId/:productId', async (req, res) => {
   }
 });
 
+router.post('/checkout', async (req, res) => {
+  const { userId } = req.body;
+  try {
+    let cart = await Cart.findOne({ user: userId });
+    if (!cart) return res.status(404).json({ message: 'Cart not found' });
+
+    cart.items = [];
+    await cart.save();
+    res.status(200).json({ message: 'Checkout successful', cart });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
