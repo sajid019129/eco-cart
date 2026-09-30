@@ -1,59 +1,152 @@
 import React, { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
 
 function Login({ setUser }) {
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError('');
+    setLoading(true);
+
     try {
       const res = await axios.post('http://localhost:5000/api/auth/login', formData);
-      localStorage.setItem('token', res.data.token);
-      localStorage.setItem('user', JSON.stringify(res.data.user));
-      setUser(res.data.user);
+      const userData = res.data.user || res.data;
+      
+      // Save user session in localStorage
+      localStorage.setItem('user', JSON.stringify(userData));
+      if (res.data.token) {
+        localStorage.setItem('token', res.data.token);
+      }
+
+      if (setUser) setUser(userData);
       navigate('/');
     } catch (err) {
-      setError(err.response?.data?.message || 'Login failed');
+      console.error('Login Error:', err.response || err.message);
+      setError(err.response?.data?.message || 'Invalid email or password');
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div style={styles.container}>
-      <form onSubmit={handleSubmit} style={styles.form} autoComplete="off">
-        <h2>Login to Eco-Cart</h2>
-        {error && <p style={{ color: 'red' }}>{error}</p>}
-        <input 
-          type="email" 
-          placeholder="Email" 
-          value={formData.email} 
-          onChange={(e) => setFormData({ ...formData, email: e.target.value })} 
-          required 
-          style={styles.input}
-          autoComplete="off"
-        />
-        <input 
-          type="password" 
-          placeholder="Password" 
-          value={formData.password} 
-          onChange={(e) => setFormData({ ...formData, password: e.target.value })} 
-          required 
-          style={styles.input}
-          autoComplete="new-password"
-        />
-        <button type="submit" style={styles.button}>Login</button>
-      </form>
+    <div style={styles.pageContainer}>
+      <div style={styles.card}>
+        <h2 style={styles.title}>Login to Eco-Cart</h2>
+        
+        {error && <div style={styles.errorAlert}>{error}</div>}
+
+        <form onSubmit={handleSubmit} style={styles.form}>
+          <input
+            type="email"
+            name="email"
+            placeholder="Email"
+            value={formData.email}
+            onChange={handleChange}
+            required
+            style={styles.input}
+          />
+          <input
+            type="password"
+            name="password"
+            placeholder="Password"
+            value={formData.password}
+            onChange={handleChange}
+            required
+            style={styles.input}
+          />
+          <button type="submit" disabled={loading} style={styles.button}>
+            {loading ? 'Logging in...' : 'Login'}
+          </button>
+        </form>
+
+        <p style={styles.footerText}>
+          Don't have an account? <Link to="/register" style={styles.link}>Register here</Link>
+        </p>
+      </div>
     </div>
   );
 }
 
 const styles = {
-  container: { display: 'flex', justifyContent: 'center', marginTop: '3rem' },
-  form: { display: 'flex', flexDirection: 'column', gap: '1rem', width: '300px', padding: '2rem', border: '1px solid #ccc', borderRadius: '8px', backgroundColor: '#fff' },
-  input: { padding: '0.5rem', fontSize: '1rem' },
-  button: { padding: '0.5rem', backgroundColor: '#2e7d32', color: '#fff', border: 'none', cursor: 'pointer', borderRadius: '4px' }
+  pageContainer: {
+    backgroundColor: '#f4f7f6',
+    minHeight: 'calc(100vh - 70px)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '20px',
+    fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+  },
+  card: {
+    backgroundColor: '#ffffff',
+    padding: '40px 35px',
+    borderRadius: '12px',
+    boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+    width: '100%',
+    maxWidth: '420px',
+    boxSizing: 'border-box',
+  },
+  title: {
+    fontSize: '1.8rem',
+    fontWeight: '700',
+    color: '#2b2b2b',
+    textAlign: 'center',
+    marginBottom: '25px',
+  },
+  form: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '15px',
+  },
+  input: {
+    width: '100%',
+    padding: '12px 15px',
+    borderRadius: '6px',
+    border: '1px solid #ccc',
+    fontSize: '0.95rem',
+    outline: 'none',
+    boxSizing: 'border-box',
+  },
+  button: {
+    backgroundColor: '#2d6a4f',
+    color: '#ffffff',
+    border: 'none',
+    padding: '12px',
+    borderRadius: '6px',
+    fontWeight: 'bold',
+    fontSize: '1rem',
+    cursor: 'pointer',
+    marginTop: '10px',
+  },
+  errorAlert: {
+    backgroundColor: '#ffedd5',
+    color: '#c2410c',
+    padding: '10px 12px',
+    borderRadius: '6px',
+    fontSize: '0.9rem',
+    marginBottom: '15px',
+    textAlign: 'center',
+  },
+  footerText: {
+    marginTop: '20px',
+    textAlign: 'center',
+    fontSize: '0.9rem',
+    color: '#666',
+  },
+  link: {
+    color: '#2d6a4f',
+    fontWeight: 'bold',
+    textDecoration: 'none',
+  }
 };
 
 export default Login;

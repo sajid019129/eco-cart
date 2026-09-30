@@ -8,7 +8,7 @@ const ProductSchema = new mongoose.Schema({
   },
   description: {
     type: String,
-    required: true
+    default: ''
   },
   price: {
     type: Number,
@@ -22,13 +22,12 @@ const ProductSchema = new mongoose.Schema({
   },
   stock: {
     type: Number,
-    required: true,
-    default: 0
+    default: 1
   },
   seller: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true
+    required: false // Optional to prevent missing user ID crash
   },
   ecoRating: {
     type: Number,

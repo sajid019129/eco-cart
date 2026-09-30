@@ -7,7 +7,10 @@ const app = express();
 
 // Middleware
 app.use(cors());
-app.use(express.json());
+
+// Increase request size limits to handle image Base64 strings
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 // Database Connection
 const mongoURI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/eco-cart';

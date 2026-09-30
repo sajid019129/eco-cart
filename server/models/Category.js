@@ -6,7 +6,15 @@ const CategorySchema = new mongoose.Schema({
     required: true,
     unique: true,
     trim: true,
-    enum: ['Medicine', 'Food', 'Electronics', 'Stationery', 'Books', 'Miscellaneous']
+    enum: [
+      'Medicine', 
+      'Food', 
+      'Electronics (Phone/Laptop)', 
+      'Electronics', 
+      'Stationery', 
+      'Books', 
+      'Miscellaneous'
+    ]
   },
   description: {
     type: String,

@@ -7,33 +7,42 @@ router.post('/', async (req, res) => {
   try {
     const { title, description, price, category, stock, seller, ecoRating, ecoTags } = req.body;
 
-    if (!title || !price || !category) {
+    if (!title || price === undefined || price === null || !category) {
       return res.status(400).json({ error: 'Title, price, and category are required fields.' });
     }
 
-    if (typeof price !== 'number' || price <= 0) {
-      return res.status(400).json({ error: 'Price must be a positive number.' });
+    const numericPrice = Number(price);
+    if (isNaN(numericPrice) || numericPrice < 0) {
+      return res.status(400).json({ error: 'Price must be a valid non-negative number.' });
     }
 
+    // Find or create Category
     let categoryDoc = await Category.findOne({ name: category });
     if (!categoryDoc) {
       categoryDoc = await Category.create({ name: category });
     }
 
-    const product = new Product({
+    const productData = {
       title,
-      description,
-      price,
+      description: description || '',
+      price: numericPrice,
       category: categoryDoc._id,
-      stock,
-      seller: seller || '650000000000000000000001',
-      ecoRating: ecoRating || 5,
+      stock: stock ? Number(stock) : 1,
+      ecoRating: ecoRating ? Number(ecoRating) : 5,
       ecoTags: ecoTags || []
-    });
+    };
 
+    // Attach seller if valid ID string was passed
+    if (seller && seller.length === 24) {
+      productData.seller = seller;
+    }
+
+    const product = new Product(productData);
     await product.save();
+    
     res.status(201).json(product);
   } catch (err) {
+    console.error('Failed to add product:', err);
     res.status(500).json({ error: 'Failed to add product', details: err.message });
   }
 });
