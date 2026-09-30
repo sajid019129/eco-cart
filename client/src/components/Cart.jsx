@@ -4,6 +4,7 @@ import axios from 'axios';
 function Cart() {
   const [cart, setCart] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [checkoutMessage, setCheckoutMessage] = useState('');
 
   const storedUser = localStorage.getItem('user');
   const user = storedUser ? JSON.parse(storedUser) : null;
@@ -53,6 +54,16 @@ function Cart() {
     }
   };
 
+  const handleCheckout = async () => {
+    try {
+      await axios.post('http://localhost:5000/api/cart/checkout', { userId });
+      setCheckoutMessage('Order placed successfully! Thank you for supporting sustainable shopping.');
+      fetchCart();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   if (!userId) {
     return (
       <div style={{ textAlign: 'center', marginTop: '50px' }}>
@@ -74,6 +85,11 @@ function Cart() {
   return (
     <div style={{ maxWidth: '800px', margin: '40px auto', padding: '20px' }}>
       <h2>Your Shopping Cart</h2>
+      {checkoutMessage && (
+        <div style={{ padding: '15px', backgroundColor: '#d4edda', color: '#155724', borderRadius: '5px', margin: '20px 0' }}>
+          {checkoutMessage}
+        </div>
+      )}
       {items.length === 0 ? (
         <p>Your cart is empty.</p>
       ) : (
@@ -96,6 +112,9 @@ function Cart() {
           </div>
           <div style={{ marginTop: '20px', textAlign: 'right' }}>
             <h3>Total: ${totalPrice.toFixed(2)}</h3>
+            <button onClick={handleCheckout} className="btn" style={{ marginTop: '15px', width: 'auto', padding: '10px 25px' }}>
+              Proceed to Checkout
+            </button>
           </div>
         </div>
       )}
