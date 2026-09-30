@@ -1,7 +1,13 @@
 const { Builder, By, until } = require('selenium-webdriver');
+const edge = require('selenium-webdriver/edge');
 
 (async function runTests() {
-  let driver = await new Builder().forBrowser('chrome').build();
+  let options = new edge.Options();
+  let driver = await new Builder()
+    .forBrowser('MicrosoftEdge')
+    .setEdgeOptions(options)
+    .build();
+
   try {
     await driver.get('http://localhost:5173/login');
     await driver.findElement(By.name('email')).sendKeys('test@example.com');
