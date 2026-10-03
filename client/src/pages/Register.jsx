@@ -1,198 +1,115 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import axios from 'axios';
 
-// Professional SVG Cliparts (Data URIs)
-const MALE_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='50' fill='%232d6a4f'/><circle cx='50' cy='38' r='18' fill='%23ffffff'/><path d='M20,88 C20,68 32,58 50,58 C68,58 80,68 80,88 Z' fill='%23ffffff'/></svg>";
-const FEMALE_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='50' fill='%2352b788'/><circle cx='50' cy='38' r='16' fill='%23ffffff'/><path d='M22,88 C22,68 34,58 50,58 C66,58 78,68 78,88 Z' fill='%23ffffff'/><path d='M32,32 C30,45 35,52 35,52 C35,52 40,45 38,32 Z' fill='%232d6a4f'/></svg>";
-
-function Register({ setUser }) {
-  const navigate = useNavigate();
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
-    gender: 'male',
-  });
-  const [preview, setPreview] = useState(null);
+const Register = () => {
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [avatar, setAvatar] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
-
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => setPreview(reader.result);
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleSubmit = async (e) => {
+  const handleRegister = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
-    const avatarUrl = preview || (formData.gender === 'female' ? FEMALE_AVATAR : MALE_AVATAR);
-
-    const userData = {
-      name: formData.name,
-      email: formData.email,
-      password: formData.password,
-      gender: formData.gender,
-      avatar: avatarUrl,
-    };
-
     try {
-      // POST registration data directly to backend express auth route
-      const res = await axios.post('http://localhost:5000/api/auth/register', userData);
-      
-      if (res.data.token) {
-        localStorage.setItem('token', res.data.token);
-      }
-      
-      const loggedInUser = res.data.user || userData;
-      localStorage.setItem('user', JSON.stringify(loggedInUser));
-      
-      if (setUser) setUser(loggedInUser);
+      const res = await fetch('http://localhost:5000/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, password, avatar })
+      });
 
-      // Successfully saved user in MongoDB Atlas -> redirect to login
-      navigate('/login');
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || 'Registration failed');
+      }
+
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      navigate('/');
+      window.location.reload();
     } catch (err) {
-      console.error('Registration Error:', err.response || err.message);
-      setError(
-        err.response?.data?.message || 
-        'Registration failed. Please check server logs or network status.'
-      );
+      setError(err.message);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div style={styles.container}>
-      <div style={styles.card}>
-        <h2 style={styles.title}>Create your Eco-Cart Account</h2>
-        {error && <p style={styles.error}>{error}</p>}
+    <div className="auth-container">
+      <div className="auth-card">
+        <h2>Create an Account</h2>
+        <p className="auth-subtitle">Join our second-hand marketplace to start buying and selling.</p>
 
-        <form onSubmit={handleSubmit} style={styles.form}>
-          <div style={styles.field}>
-            <label style={styles.label}>Full Name</label>
+        {error && <div className="alert alert-danger">{error}</div>}
+
+        <form onSubmit={handleRegister}>
+          <div className="form-group">
+            <label>Full Name</label>
             <input
               type="text"
               name="name"
+              className="form-input"
+              placeholder="Enter your full name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
               required
-              value={formData.name}
-              onChange={handleChange}
-              style={styles.input}
-              placeholder="John Doe"
             />
           </div>
 
-          <div style={styles.field}>
-            <label style={styles.label}>Email Address</label>
+          <div className="form-group">
+            <label>Email Address</label>
             <input
               type="email"
               name="email"
+              className="form-input"
+              placeholder="Enter your email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               required
-              value={formData.email}
-              onChange={handleChange}
-              style={styles.input}
-              placeholder="user@example.com"
             />
           </div>
 
-          <div style={styles.field}>
-            <label style={styles.label}>Password</label>
+          <div className="form-group">
+            <label>Password</label>
             <input
               type="password"
               name="password"
+              className="form-input"
+              placeholder="Create a password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
               required
-              value={formData.password}
-              onChange={handleChange}
-              style={styles.input}
             />
           </div>
 
-          <div style={styles.field}>
-            <label style={styles.label}>Profile Picture (Optional)</label>
+          <div className="form-group">
+            <label>Avatar / Profile Image URL (Optional)</label>
             <input
-              type="file"
-              accept="image/*"
-              onChange={handleFileChange}
-              style={styles.fileInput}
+              type="text"
+              className="form-input"
+              placeholder="https://example.com/your-avatar.png"
+              value={avatar}
+              onChange={(e) => setAvatar(e.target.value)}
             />
+            <small className="form-help">Leave blank to use the standard default avatar.</small>
           </div>
 
-          {!preview && (
-            <div style={styles.field}>
-              <label style={styles.label}>Gender (for default avatar)</label>
-              <div style={styles.genderGroup}>
-                <label style={styles.radioLabel}>
-                  <input
-                    type="radio"
-                    name="gender"
-                    value="male"
-                    checked={formData.gender === 'male'}
-                    onChange={handleChange}
-                  /> Male
-                </label>
-                <label style={styles.radioLabel}>
-                  <input
-                    type="radio"
-                    name="gender"
-                    value="female"
-                    checked={formData.gender === 'female'}
-                    onChange={handleChange}
-                  /> Female
-                </label>
-              </div>
-            </div>
-          )}
-
-          <div style={styles.previewBox}>
-            <span style={styles.previewLabel}>Selected Avatar Preview:</span>
-            <img
-              src={preview || (formData.gender === 'female' ? FEMALE_AVATAR : MALE_AVATAR)}
-              alt="Avatar Preview"
-              style={styles.avatarPreview}
-            />
-          </div>
-
-          <button type="submit" disabled={loading} style={styles.submitBtn}>
+          <button type="submit" className="btn btn-primary btn-block" disabled={loading}>
             {loading ? 'Creating Account...' : 'Register'}
           </button>
         </form>
 
-        <p style={styles.footerText}>
-          Already have an account? <Link to="/login" style={styles.link}>Login here</Link>
-        </p>
+        <div className="auth-footer">
+          Already have an account? <Link to="/login">Sign In</Link>
+        </div>
       </div>
     </div>
   );
-}
-
-const styles = {
-  container: { minHeight: '80vh', display: 'flex', justifyContent: 'center', alignItems: 'center', backgroundColor: '#f4f7f6', padding: '20px' },
-  card: { backgroundColor: '#ffffff', padding: '30px', borderRadius: '10px', boxShadow: '0 4px 15px rgba(0,0,0,0.1)', width: '100%', maxWidth: '420px' },
-  title: { color: '#1b4332', textAlign: 'center', marginBottom: '20px' },
-  form: { display: 'flex', flexDirection: 'column', gap: '15px' },
-  field: { display: 'flex', flexDirection: 'column', gap: '5px' },
-  label: { fontSize: '0.9rem', fontWeight: 'bold', color: '#2d6a4f' },
-  input: { padding: '10px', borderRadius: '5px', border: '1px solid #ccc', fontSize: '0.95rem' },
-  fileInput: { fontSize: '0.85rem' },
-  genderGroup: { display: 'flex', gap: '20px', marginTop: '5px' },
-  radioLabel: { fontSize: '0.9rem', cursor: 'pointer', color: '#333' },
-  previewBox: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#e8f5e9', padding: '10px 15px', borderRadius: '8px' },
-  previewLabel: { fontSize: '0.85rem', color: '#2d6a4f', fontWeight: '600' },
-  avatarPreview: { width: '42px', height: '42px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #52b788' },
-  submitBtn: { backgroundColor: '#2d6a4f', color: '#fff', border: 'none', padding: '12px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', fontSize: '1rem', marginTop: '10px' },
-  error: { color: '#d90429', fontSize: '0.85rem', textAlign: 'center' },
-  footerText: { textAlign: 'center', fontSize: '0.9rem', marginTop: '15px', color: '#555' },
-  link: { color: '#2d6a4f', fontWeight: 'bold', textDecoration: 'none' },
 };
 
 export default Register;
