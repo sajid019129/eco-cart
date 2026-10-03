@@ -13,6 +13,7 @@ const CategorySchema = new mongoose.Schema({
       'Electronics', 
       'Stationery', 
       'Books', 
+      'Clothes',
       'Miscellaneous'
     ]
   },
@@ -20,6 +21,7 @@ const CategorySchema = new mongoose.Schema({
     type: String,
     default: ''
   }
-}, { timestamps: true });
+},
+{ timestamps: true });
 
 module.exports = mongoose.model('Category', CategorySchema);

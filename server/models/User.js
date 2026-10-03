@@ -16,8 +16,17 @@ const userSchema = new mongoose.Schema({
   },
   avatar: {
     type: String,
-    default: ''
+    default: 'https://cdn-icons-png.flaticon.com/512/149/149071.png'
+  },
+  resetPasswordToken: {
+    type: String,
+    default: null
+  },
+  resetPasswordExpires: {
+    type: Date,
+    default: null
   }
-}, { timestamps: true });
+},
+{ timestamps: true });
 
 module.exports = mongoose.model('User', userSchema);
