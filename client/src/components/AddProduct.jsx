@@ -1,244 +1,236 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
 
-function AddProduct({ user }) {
-  const navigate = useNavigate();
-  const [formData, setFormData] = useState({
-    title: '',
-    price: '',
-    category: 'Electronics',
-    description: '',
-    ecoRating: '5'
-  });
-  const [loading, setLoading] = useState(false);
+const AddProduct = () => {
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [price, setPrice] = useState('');
+  const [originalPrice, setOriginalPrice] = useState('');
+  const [category, setCategory] = useState('Clothes');
+  const [stock, setStock] = useState('1');
+  const [condition, setCondition] = useState('Gently Used');
+  const [imageUrls, setImageUrls] = useState(['']);
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
-  const categories = [
-    'Medicine',
-    'Food',
-    'Electronics',
-    'Stationery',
-    'Books',
-    'Miscellaneous'
-  ];
+  const handleImageUrlChange = (index, value) => {
+    const updated = [...imageUrls];
+    updated[index] = value;
+    setImageUrls(updated);
+  };
 
-  const activeUser = user || JSON.parse(localStorage.getItem('user'));
+  const addImageField = () => {
+    if (imageUrls.length >= 20) {
+      setError('You can upload a maximum of 20 images.');
+      return;
+    }
+    setImageUrls([...imageUrls, '']);
+  };
 
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+  const removeImageField = (index) => {
+    if (imageUrls.length === 1) return;
+    const updated = imageUrls.filter((_, i) => i !== index);
+    setImageUrls(updated);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
     setError('');
 
-    const payload = {
-      title: formData.title,
-      price: Number(formData.price),
-      category: formData.category,
-      description: formData.description,
-      ecoRating: Number(formData.ecoRating),
-      seller: activeUser?.id || activeUser?._id || null
-    };
+    const userStr = localStorage.getItem('user');
+    if (!userStr) {
+      setError('You must be logged in to list a product.');
+      return;
+    }
+    const user = JSON.parse(userStr);
+
+    const validImages = imageUrls.filter(url => url.trim() !== '');
+
+    setLoading(true);
 
     try {
-      const token = localStorage.getItem('token');
-      await axios.post('http://localhost:5000/api/products', payload, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      const res = await fetch('http://localhost:5000/api/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title,
+          description,
+          price: Number(price),
+          originalPrice: originalPrice ? Number(originalPrice) : null,
+          category,
+          stock: Number(stock),
+          condition,
+          seller: user.id || user._id,
+          images: validImages
+        })
       });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to list product');
+      }
+
       navigate('/products');
     } catch (err) {
-      console.error('Submit error:', err.response?.data);
-      const errMsg = err.response?.data?.error || err.response?.data?.details || 'Failed to list product.';
-      setError(errMsg);
+      setError(err.message);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div style={styles.pageContainer}>
-      <div style={styles.card}>
-        <h2 style={styles.title}>Post Item for Sale 📦</h2>
-        <p style={styles.subtitle}>List your surplus or eco-friendly items for the community.</p>
+    <div className="auth-container">
+      <div className="auth-card" style={{ maxWidth: '600px' }}>
+        <h2>Post Item for Sale</h2>
+        <p className="auth-subtitle">Declutter and sell your pre-owned items to buyers.</p>
 
-        {error && <div style={styles.errorAlert}>{error}</div>}
+        {error && <div className="alert alert-danger">{error}</div>}
 
-        <form onSubmit={handleSubmit} style={styles.form}>
-          <div style={styles.fieldGroup}>
-            <label style={styles.label}>Product Title</label>
+        <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label>Product Title *</label>
             <input
               type="text"
               name="title"
-              placeholder="e.g. Dell XPS Laptop / College Textbooks"
-              value={formData.title}
-              onChange={handleChange}
+              className="form-input"
+              placeholder="e.g. Denim Jacket, iPhone 12, Vintage Watch"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
               required
-              style={styles.input}
             />
           </div>
 
-          <div style={styles.rowGroup}>
-            <div style={{ ...styles.fieldGroup, flex: 1 }}>
-              <label style={styles.label}>Price ($)</label>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div className="form-group">
+              <label>Selling Price ($) *</label>
               <input
                 type="number"
                 name="price"
-                placeholder="0.00"
-                value={formData.price}
-                onChange={handleChange}
-                required
+                className="form-input"
+                placeholder="25"
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
                 min="0"
                 step="0.01"
-                style={styles.input}
+                required
               />
             </div>
 
-            <div style={{ ...styles.fieldGroup, flex: 1 }}>
-              <label style={styles.label}>Category</label>
-              <select
-                name="category"
-                value={formData.category}
-                onChange={handleChange}
-                style={styles.select}
-              >
-                {categories.map((cat) => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-              </select>
+            <div className="form-group">
+              <label>Original / Previous Price ($)</label>
+              <input
+                type="number"
+                className="form-input"
+                placeholder="50 (Optional)"
+                value={originalPrice}
+                onChange={(e) => setOriginalPrice(e.target.value)}
+                min="0"
+                step="0.01"
+              />
+              <small className="form-help">Shows a discount cut-mark if set higher than selling price.</small>
             </div>
           </div>
 
-          <div style={styles.fieldGroup}>
-            <label style={styles.label}>Eco Sustainability Score (1 - 5)</label>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div className="form-group">
+              <label>Category *</label>
+              <select
+                className="form-select"
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+              >
+                <option value="Clothes">Clothes</option>
+                <option value="Electronics">Electronics</option>
+                <option value="Electronics (Phone/Laptop)">Electronics (Phone/Laptop)</option>
+                <option value="Books">Books</option>
+                <option value="Stationery">Stationery</option>
+                <option value="Food">Food</option>
+                <option value="Medicine">Medicine</option>
+                <option value="Miscellaneous">Miscellaneous</option>
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label>Stock Quantity *</label>
+              <input
+                type="number"
+                className="form-input"
+                value={stock}
+                onChange={(e) => setStock(e.target.value)}
+                min="0"
+                required
+              />
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label>Item Condition *</label>
             <select
-              name="ecoRating"
-              value={formData.ecoRating}
-              onChange={handleChange}
-              style={styles.select}
+              className="form-select"
+              value={condition}
+              onChange={(e) => setCondition(e.target.value)}
             >
-              <option value="5">🌱 5 - Extremely Sustainable / Recycled</option>
-              <option value="4">🌱 4 - High Reusability</option>
-              <option value="3">🌱 3 - Moderate Sustainability</option>
-              <option value="2">🌱 2 - Low Eco Score</option>
-              <option value="1">🌱 1 - Standard Secondhand</option>
+              <option value="Brand New">Brand New</option>
+              <option value="Like New">Like New</option>
+              <option value="Gently Used">Gently Used</option>
+              <option value="Heavily Used">Heavily Used</option>
             </select>
           </div>
 
-          <div style={styles.fieldGroup}>
-            <label style={styles.label}>Description</label>
+          <div className="form-group">
+            <label>Description</label>
             <textarea
-              name="description"
-              placeholder="Provide condition, specs, or details about the item..."
-              value={formData.description}
-              onChange={handleChange}
-              rows="4"
-              style={styles.textarea}
+              className="form-textarea"
+              rows="3"
+              placeholder="Describe the condition, usage period, or reason for selling..."
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
             ></textarea>
           </div>
 
-          <button type="submit" disabled={loading} style={styles.button}>
-            {loading ? 'Publishing Item...' : '+ Publish Product Listing'}
+          <div className="form-group">
+            <label>Product Images (Up to 20 URLs)</label>
+            {imageUrls.map((url, index) => (
+              <div key={index} style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder={`Image URL #${index + 1}`}
+                  value={url}
+                  onChange={(e) => handleImageUrlChange(index, e.target.value)}
+                />
+                {imageUrls.length > 1 && (
+                  <button
+                    type="button"
+                    className="btn btn-danger"
+                    onClick={() => removeImageField(index)}
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+            ))}
+            {imageUrls.length < 20 && (
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={addImageField}
+                style={{ fontSize: '0.85rem' }}
+              >
+                + Add Another Image ({imageUrls.length}/20)
+              </button>
+            )}
+          </div>
+
+          <button type="submit" className="btn btn-primary btn-block" disabled={loading}>
+            {loading ? 'Posting...' : 'Publish Listing'}
           </button>
         </form>
       </div>
     </div>
   );
-}
-
-const styles = {
-  pageContainer: {
-    backgroundColor: '#f4f7f6',
-    minHeight: 'calc(100vh - 70px)',
-    padding: '40px 20px',
-    display: 'flex',
-    justifyContent: 'center',
-    fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
-  },
-  card: {
-    backgroundColor: '#ffffff',
-    padding: '40px',
-    borderRadius: '12px',
-    boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-    width: '100%',
-    maxWidth: '580px',
-  },
-  title: {
-    fontSize: '1.8rem',
-    fontWeight: '700',
-    color: '#1b4332',
-    margin: '0 0 6px 0',
-  },
-  subtitle: {
-    fontSize: '0.95rem',
-    color: '#666',
-    marginBottom: '25px',
-  },
-  form: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '18px',
-  },
-  rowGroup: {
-    display: 'flex',
-    gap: '15px',
-    flexWrap: 'wrap',
-  },
-  fieldGroup: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '6px',
-  },
-  label: {
-    fontSize: '0.9rem',
-    fontWeight: '600',
-    color: '#333',
-  },
-  input: {
-    padding: '12px 14px',
-    borderRadius: '6px',
-    border: '1px solid #ccc',
-    fontSize: '0.95rem',
-    outline: 'none',
-  },
-  select: {
-    padding: '12px 14px',
-    borderRadius: '6px',
-    border: '1px solid #ccc',
-    fontSize: '0.95rem',
-    backgroundColor: '#fff',
-    cursor: 'pointer',
-  },
-  textarea: {
-    padding: '12px 14px',
-    borderRadius: '6px',
-    border: '1px solid #ccc',
-    fontSize: '0.95rem',
-    outline: 'none',
-    resize: 'vertical',
-    fontFamily: 'inherit',
-  },
-  button: {
-    backgroundColor: '#2d6a4f',
-    color: '#ffffff',
-    border: 'none',
-    padding: '14px',
-    borderRadius: '6px',
-    fontWeight: 'bold',
-    fontSize: '1rem',
-    cursor: 'pointer',
-    marginTop: '10px',
-  },
-  errorAlert: {
-    backgroundColor: '#ffedd5',
-    color: '#c2410c',
-    padding: '10px 12px',
-    borderRadius: '6px',
-    fontSize: '0.9rem',
-    marginBottom: '15px',
-  }
 };
 
 export default AddProduct;
