@@ -3,9 +3,10 @@ const router = express.Router();
 const Product = require('../models/Product');
 const Category = require('../models/Category');
 
+// POST /api/products (Add new product)
 router.post('/', async (req, res) => {
   try {
-    const { title, description, price, category, stock, seller, ecoRating, ecoTags } = req.body;
+    const { title, description, price, originalPrice, category, stock, seller, images, condition } = req.body;
 
     if (!title || price === undefined || price === null || !category) {
       return res.status(400).json({ error: 'Title, price, and category are required fields.' });
@@ -16,23 +17,38 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Price must be a valid non-negative number.' });
     }
 
-    // Find or create Category
+    let parsedOriginalPrice = null;
+    if (originalPrice !== undefined && originalPrice !== null && originalPrice !== '') {
+      parsedOriginalPrice = Number(originalPrice);
+      if (isNaN(parsedOriginalPrice) || parsedOriginalPrice < 0) {
+        parsedOriginalPrice = null;
+      }
+    }
+
     let categoryDoc = await Category.findOne({ name: category });
     if (!categoryDoc) {
       categoryDoc = await Category.create({ name: category });
+    }
+
+    // Process and validate images array (up to 20 images max)
+    let processedImages = [];
+    if (Array.isArray(images)) {
+      processedImages = images.slice(0, 20);
+    } else if (typeof images === 'string' && images.trim() !== '') {
+      processedImages = [images];
     }
 
     const productData = {
       title,
       description: description || '',
       price: numericPrice,
+      originalPrice: parsedOriginalPrice,
       category: categoryDoc._id,
-      stock: stock ? Number(stock) : 1,
-      ecoRating: ecoRating ? Number(ecoRating) : 5,
-      ecoTags: ecoTags || []
+      stock: stock !== undefined && stock !== null ? Math.max(0, Number(stock)) : 1,
+      images: processedImages,
+      condition: condition || 'Gently Used'
     };
 
-    // Attach seller if valid ID string was passed
     if (seller && seller.length === 24) {
       productData.seller = seller;
     }
@@ -40,13 +56,18 @@ router.post('/', async (req, res) => {
     const product = new Product(productData);
     await product.save();
     
-    res.status(201).json(product);
+    const populatedProduct = await Product.findById(product._id)
+      .populate('category', 'name')
+      .populate('seller', 'name email avatar');
+
+    res.status(201).json(populatedProduct);
   } catch (err) {
     console.error('Failed to add product:', err);
     res.status(500).json({ error: 'Failed to add product', details: err.message });
   }
 });
 
+// GET /api/products (Fetch products sorted so active items come before sold out items)
 router.get('/', async (req, res) => {
   try {
     const { searchTerm, category } = req.query;
@@ -63,16 +84,47 @@ router.get('/', async (req, res) => {
       }
     }
 
-    const products = await Product.find(filter).populate('category', 'name');
-    res.json(products);
+    const products = await Product.find(filter)
+      .populate('category', 'name')
+      .populate('seller', 'name email avatar')
+      .sort({ createdAt: -1 });
+
+    // Custom sort: active stock > 0 stays on top; sold-out items (stock === 0) sink to bottom
+    const sortedProducts = products.sort((a, b) => {
+      const aInStock = a.stock > 0 ? 1 : 0;
+      const bInStock = b.stock > 0 ? 1 : 0;
+      return bInStock - aInStock;
+    });
+
+    res.json(sortedProducts);
   } catch (err) {
     res.status(500).json({ error: 'Failed to retrieve products', details: err.message });
   }
 });
 
+// PUT /api/products/:id (Update product)
 router.put('/:id', async (req, res) => {
   try {
-    const updatedProduct = await Product.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const { images, price, originalPrice, stock } = req.body;
+    let updateData = { ...req.body };
+
+    if (price !== undefined) {
+      updateData.price = Number(price);
+    }
+    if (originalPrice !== undefined && originalPrice !== null) {
+      updateData.originalPrice = originalPrice === '' ? null : Number(originalPrice);
+    }
+    if (stock !== undefined) {
+      updateData.stock = Math.max(0, Number(stock));
+    }
+    if (Array.isArray(images)) {
+      updateData.images = images.slice(0, 20);
+    }
+
+    const updatedProduct = await Product.findByIdAndUpdate(req.params.id, updateData, { new: true })
+      .populate('category', 'name')
+      .populate('seller', 'name email avatar');
+
     if (!updatedProduct) {
       return res.status(404).json({ error: 'Product not found' });
     }
@@ -82,6 +134,7 @@ router.put('/:id', async (req, res) => {
   }
 });
 
+// DELETE /api/products/:id (Delete product)
 router.delete('/:id', async (req, res) => {
   try {
     const deletedProduct = await Product.findByIdAndDelete(req.params.id);
