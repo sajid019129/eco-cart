@@ -11,7 +11,7 @@ const Home = () => {
         textAlign: 'center',
         marginBottom: '1rem'
       }}>
-        <h1 style={{ fontSize: '2.2rem', marginBottom: '0.5rem' }}>Second-Hand & Declutter Marketplace</h1>
+        <h1 style={{ fontSize: '2.2rem', marginBottom: '0.5rem' }}>Eco-Cart Marketplace</h1>
         <p style={{ fontSize: '1.1rem', opacity: 0.9 }}>Buy gently used goods or post your pre-loved items for sale in seconds.</p>
       </div>
 

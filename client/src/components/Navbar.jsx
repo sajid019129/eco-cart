@@ -16,7 +16,7 @@ const Navbar = () => {
   return (
     <nav className="navbar">
       <Link to="/" className="navbar-brand">
-        🛍️ ResaleMarket
+        🌱 Eco-Cart
       </Link>
 
       <div className="navbar-links">
