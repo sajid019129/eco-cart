@@ -15,11 +15,6 @@ const ProductSchema = new mongoose.Schema({
     required: true,
     min: 0
   },
-  originalPrice: {
-    type: Number,
-    default: null,
-    min: 0
-  },
   category: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Category',
@@ -27,24 +22,22 @@ const ProductSchema = new mongoose.Schema({
   },
   stock: {
     type: Number,
-    required: true,
-    default: 1,
-    min: 0
+    default: 1
   },
   seller: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: false
+    required: false // Optional to prevent missing user ID crash
   },
-  images: [{
+  ecoRating: {
+    type: Number,
+    default: 5,
+    min: 1,
+    max: 5
+  },
+  ecoTags: [{
     type: String
-  }],
-  condition: {
-    type: String,
-    enum: ['Like New', 'Gently Used', 'Heavily Used', 'Brand New'],
-    default: 'Gently Used'
-  }
-},
-{ timestamps: true });
+  }]
+}, { timestamps: true });
 
 module.exports = mongoose.model('Product', ProductSchema);
