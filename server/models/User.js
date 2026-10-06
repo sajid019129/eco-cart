@@ -17,8 +17,15 @@ const userSchema = new mongoose.Schema({
   avatar: {
     type: String,
     default: ''
+  },
+  resetOtp: {
+    type: String,
+    default: null
+  },
+  resetOtpExpires: {
+    type: Date,
+    default: null
   }
-},
-{ timestamps: true });
+}, { timestamps: true });
 
 module.exports = mongoose.model('User', userSchema);

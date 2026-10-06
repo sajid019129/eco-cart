@@ -21,7 +21,6 @@ function Login({ setUser }) {
       const res = await axios.post('http://localhost:5000/api/auth/login', formData);
       const userData = res.data.user || res.data;
       
-      // Save user session in localStorage
       localStorage.setItem('user', JSON.stringify(userData));
       if (res.data.token) {
         localStorage.setItem('token', res.data.token);
@@ -63,6 +62,11 @@ function Login({ setUser }) {
             required
             style={styles.input}
           />
+
+          <div style={styles.forgotBox}>
+            <Link to="/forgot-password" style={styles.forgotLink}>Forgot Password?</Link>
+          </div>
+
           <button type="submit" disabled={loading} style={styles.button}>
             {loading ? 'Logging in...' : 'Login'}
           </button>
@@ -116,6 +120,17 @@ const styles = {
     outline: 'none',
     boxSizing: 'border-box',
   },
+  forgotBox: {
+    display: 'flex',
+    justifyContent: 'flex-end',
+    marginTop: '-5px',
+  },
+  forgotLink: {
+    color: '#2d6a4f',
+    fontSize: '0.85rem',
+    fontWeight: '600',
+    textDecoration: 'none',
+  },
   button: {
     backgroundColor: '#2d6a4f',
     color: '#ffffff',
@@ -125,7 +140,7 @@ const styles = {
     fontWeight: 'bold',
     fontSize: '1rem',
     cursor: 'pointer',
-    marginTop: '10px',
+    marginTop: '5px',
   },
   errorAlert: {
     backgroundColor: '#ffedd5',

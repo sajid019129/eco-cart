@@ -6,6 +6,7 @@ import AddProduct from './components/AddProduct';
 import Cart from './components/Cart';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import ForgotPassword from './pages/ForgotPassword';
 
 const getCategoryName = (category) => {
   if (!category) return 'Miscellaneous';
@@ -437,6 +438,7 @@ function App() {
 
           <Route path="/login" element={<Login setUser={setUser} />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
         </Routes>
       </main>
     </div>
