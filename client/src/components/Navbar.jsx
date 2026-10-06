@@ -176,7 +176,7 @@ const Navbar = ({ user, setUser, cartCount = 0 }) => {
 
       <nav className="navbar-container">
         <Link to="/" className="nav-logo">
-          Eco-Cart 🌿
+          Eco-Cart 🛍️
         </Link>
 
         <div className="nav-links">

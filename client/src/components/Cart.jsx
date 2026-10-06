@@ -9,7 +9,6 @@ function Cart({ user, cart, setCart }) {
   const activeUser = user || JSON.parse(localStorage.getItem('user') || 'null');
   const userId = activeUser?.id || activeUser?._id;
 
-  // Sync state between DB API and local state
   const syncCart = (items) => {
     setCartItems(items);
     if (setCart) setCart(items);
@@ -18,7 +17,7 @@ function Cart({ user, cart, setCart }) {
 
   const fetchCart = () => {
     const savedCart = JSON.parse(localStorage.getItem('cart') || '[]');
-    
+
     if (!userId) {
       setCartItems(savedCart);
       setLoading(false);

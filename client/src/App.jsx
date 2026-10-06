@@ -17,9 +17,10 @@ const getCategoryIcon = (category) => {
   const catName = getCategoryName(category).toLowerCase();
   if (catName.includes('medicine')) return '💊';
   if (catName.includes('food')) return '🍎';
-  if (catName.includes('electronic') || catName.includes('phone') || catName.includes('laptop')) return '💻';
+  if (catName.includes('electronic')) return '💻';
   if (catName.includes('stationery')) return '✏️';
   if (catName.includes('book')) return '📚';
+  if (catName.includes('clothing')) return '👕';
   return '📦';
 };
 
@@ -153,6 +154,7 @@ function ProductsPage({ user, onAddToCart }) {
     'Electronics',
     'Stationery',
     'Books',
+    'Clothing',
     'Miscellaneous'
   ];
 
@@ -223,7 +225,7 @@ function ProductsPage({ user, onAddToCart }) {
       <section style={prodStyles.headerBanner}>
         <div style={prodStyles.bannerContent}>
           <h2 style={prodStyles.bannerTitle}>Explore Eco-Cart Marketplace 🛍️</h2>
-          <p style={prodStyles.bannerSubtitle}>Browse sustainable and decluttered items directly from sellers.</p>
+          <p style={prodStyles.bannerSubtitle}>Browse sustainable and decluttered items directly from sellers</p>
         </div>
       </section>
 
@@ -232,7 +234,7 @@ function ProductsPage({ user, onAddToCart }) {
           <div style={prodStyles.searchGroup}>
             <input
               type="text"
-              placeholder="Search electronics, books, stationery..."
+              placeholder="Search electronics, books, stationery, clothing..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               style={prodStyles.searchInput}

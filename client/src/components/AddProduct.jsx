@@ -20,6 +20,7 @@ function AddProduct({ user }) {
     'Electronics',
     'Stationery',
     'Books',
+    'Clothing',
     'Miscellaneous'
   ];
 
@@ -119,11 +120,11 @@ function AddProduct({ user }) {
               onChange={handleChange}
               style={styles.select}
             >
-              <option value="5">🌱 5 - Extremely Sustainable / Recycled</option>
-              <option value="4">🌱 4 - High Reusability</option>
-              <option value="3">🌱 3 - Moderate Sustainability</option>
-              <option value="2">🌱 2 - Low Eco Score</option>
-              <option value="1">🌱 1 - Standard Secondhand</option>
+              <option value="5">5 - Extremely Sustainable / Recycled</option>
+              <option value="4">4 - High Reusability</option>
+              <option value="3">3 - Moderate Sustainability</option>
+              <option value="2">2 - Low Eco Score</option>
+              <option value="1">1 - Standard Secondhand</option>
             </select>
           </div>
 

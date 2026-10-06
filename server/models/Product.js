@@ -27,7 +27,7 @@ const ProductSchema = new mongoose.Schema({
   seller: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: false // Optional to prevent missing user ID crash
+    required: false
   },
   ecoRating: {
     type: Number,

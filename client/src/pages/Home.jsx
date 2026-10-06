@@ -4,7 +4,7 @@ function Home({ user }) {
   return (
     <div>
       <div style={styles.hero}>
-        <h1 style={styles.title}>Welcome to Eco-Cart</h1>
+        <h1 style={styles.title}>Eco-Cart 🛍️</h1>
         <p style={styles.subtitle}>From Surplus To Sustainable</p>
         {user && (
           <p style={styles.welcomeUser}>

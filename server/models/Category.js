@@ -7,12 +7,12 @@ const CategorySchema = new mongoose.Schema({
     unique: true,
     trim: true,
     enum: [
-      'Medicine', 
-      'Food', 
-      'Electronics (Phone/Laptop)', 
-      'Electronics', 
-      'Stationery', 
-      'Books', 
+      'Medicine',
+      'Food',
+      'Electronics',
+      'Stationery',
+      'Books',
+      'Clothing',
       'Miscellaneous'
     ]
   },

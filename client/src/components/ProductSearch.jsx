@@ -4,7 +4,7 @@ const ProductSearch = ({ onSearch }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [category, setCategory] = useState('');
 
-  const categories = ['All', 'Medicine', 'Food', 'Electronics', 'Stationery', 'Books', 'Miscellaneous'];
+  const categories = ['All', 'Medicine', 'Food', 'Electronics', 'Stationery', 'Books', 'Clothing', 'Miscellaneous'];
 
   const handleSearch = (e) => {
     e.preventDefault();
