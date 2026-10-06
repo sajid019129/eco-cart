@@ -2,9 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 
-// Professional SVG Cliparts (Data URIs)
-const MALE_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='50' fill='%232d6a4f'/><circle cx='50' cy='38' r='18' fill='%23ffffff'/><path d='M20,88 C20,68 32,58 50,58 C68,58 80,68 80,88 Z' fill='%23ffffff'/></svg>";
-const FEMALE_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='50' fill='%2352b788'/><circle cx='50' cy='38' r='16' fill='%23ffffff'/><path d='M22,88 C22,68 34,58 50,58 C66,58 78,68 78,88 Z' fill='%23ffffff'/><path d='M32,32 C30,45 35,52 35,52 C35,52 40,45 38,32 Z' fill='%232d6a4f'/></svg>";
+const DEFAULT_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='50' fill='%232d6a4f'/><circle cx='50' cy='38' r='18' fill='%23ffffff'/><path d='M20,88 C20,68 32,58 50,58 C68,58 80,68 80,88 Z' fill='%23ffffff'/></svg>";
 
 function Register({ setUser }) {
   const navigate = useNavigate();
@@ -12,7 +10,6 @@ function Register({ setUser }) {
     name: '',
     email: '',
     password: '',
-    gender: 'male',
   });
   const [preview, setPreview] = useState(null);
   const [error, setError] = useState('');
@@ -36,18 +33,16 @@ function Register({ setUser }) {
     setError('');
     setLoading(true);
 
-    const avatarUrl = preview || (formData.gender === 'female' ? FEMALE_AVATAR : MALE_AVATAR);
+    const avatarUrl = preview || DEFAULT_AVATAR;
 
     const userData = {
       name: formData.name,
       email: formData.email,
       password: formData.password,
-      gender: formData.gender,
       avatar: avatarUrl,
     };
 
     try {
-      // POST registration data directly to backend express auth route
       const res = await axios.post('http://localhost:5000/api/auth/register', userData);
       
       if (res.data.token) {
@@ -59,7 +54,6 @@ function Register({ setUser }) {
       
       if (setUser) setUser(loggedInUser);
 
-      // Successfully saved user in MongoDB Atlas -> redirect to login
       navigate('/login');
     } catch (err) {
       console.error('Registration Error:', err.response || err.message);
@@ -127,36 +121,10 @@ function Register({ setUser }) {
             />
           </div>
 
-          {!preview && (
-            <div style={styles.field}>
-              <label style={styles.label}>Gender (for default avatar)</label>
-              <div style={styles.genderGroup}>
-                <label style={styles.radioLabel}>
-                  <input
-                    type="radio"
-                    name="gender"
-                    value="male"
-                    checked={formData.gender === 'male'}
-                    onChange={handleChange}
-                  /> Male
-                </label>
-                <label style={styles.radioLabel}>
-                  <input
-                    type="radio"
-                    name="gender"
-                    value="female"
-                    checked={formData.gender === 'female'}
-                    onChange={handleChange}
-                  /> Female
-                </label>
-              </div>
-            </div>
-          )}
-
           <div style={styles.previewBox}>
             <span style={styles.previewLabel}>Selected Avatar Preview:</span>
             <img
-              src={preview || (formData.gender === 'female' ? FEMALE_AVATAR : MALE_AVATAR)}
+              src={preview || DEFAULT_AVATAR}
               alt="Avatar Preview"
               style={styles.avatarPreview}
             />
@@ -184,8 +152,6 @@ const styles = {
   label: { fontSize: '0.9rem', fontWeight: 'bold', color: '#2d6a4f' },
   input: { padding: '10px', borderRadius: '5px', border: '1px solid #ccc', fontSize: '0.95rem' },
   fileInput: { fontSize: '0.85rem' },
-  genderGroup: { display: 'flex', gap: '20px', marginTop: '5px' },
-  radioLabel: { fontSize: '0.9rem', cursor: 'pointer', color: '#333' },
   previewBox: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#e8f5e9', padding: '10px 15px', borderRadius: '8px' },
   previewLabel: { fontSize: '0.85rem', color: '#2d6a4f', fontWeight: '600' },
   avatarPreview: { width: '42px', height: '42px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #52b788' },
