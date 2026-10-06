@@ -32,7 +32,6 @@ const ProtectedRoute = ({ user, children }) => {
   return children;
 };
 
-// Daraz-Style Notification Toast
 const NotificationToast = ({ message, onClose }) => {
   if (!message) return null;
   return (
@@ -61,7 +60,7 @@ function Home({ user }) {
     <div style={styles.container}>
       <section style={styles.hero}>
         <div style={styles.heroContent}>
-          <h1 style={styles.heroTitle}>Eco-Cart 🌿</h1>
+          <h1 style={styles.heroTitle}>Eco-Cart 🛍️</h1>
           <p style={styles.heroSubtitle}>From Surplus To Sustainable</p>
           
           {user ? (
@@ -115,7 +114,7 @@ function Home({ user }) {
                     </p>
                     <div style={styles.cardFooter}>
                       <span style={styles.price}>${p.price}</span>
-                      <span style={styles.rating}>🌱 {p.ecoRating || 5}/5 Eco</span>
+                      <span style={styles.rating}>{p.ecoRating || 5}/5 Eco</span>
                     </div>
                     <button 
                       onClick={() => navigate('/products')} 
@@ -147,7 +146,6 @@ function ProductsPage({ user, onAddToCart }) {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Standard category list matching database category strings exactly
   const categories = [
     'All',
     'Medicine',
@@ -169,7 +167,6 @@ function ProductsPage({ user, onAddToCart }) {
       }
       const res = await axios.get('http://localhost:5000/api/products', { params });
       
-      // Client-side fallback filter to strictly guarantee non-matching items are excluded
       let filtered = res.data;
       if (catFilter && catFilter !== 'All') {
         filtered = filtered.filter((item) => {
@@ -297,7 +294,7 @@ function ProductsPage({ user, onAddToCart }) {
                     </p>
                     <div style={prodStyles.itemMeta}>
                       <span style={prodStyles.priceTag}>${p.price}</span>
-                      <span style={prodStyles.ecoTag}>🌱 {p.ecoRating || 5}/5 Eco</span>
+                      <span style={prodStyles.ecoTag}>{p.ecoRating || 5}/5 Eco</span>
                     </div>
 
                     <div style={prodStyles.actionButtonGroup}>
