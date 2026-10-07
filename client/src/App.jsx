@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import { Routes, Route, Link, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import axios from 'axios';
 import Navbar from './components/Navbar';
@@ -104,20 +105,52 @@ function Home({ user }) {
           {featuredProducts.length > 0 ? (
             featuredProducts.map((p) => {
               const catName = getCategoryName(p.category);
+              const isSoldOut = (p.stock === undefined || p.stock === null) ? false : p.stock <= 0;
+              
+              const currentPrice = Number(p.price || 0);
+              const previousPrice = Number(p.originalPrice || p.previousPrice || 0);
+              const hasDiscount = previousPrice > currentPrice;
+              const discountPercent = hasDiscount
+                ? Math.round(((previousPrice - currentPrice) / previousPrice) * 100)
+                : 0;
+
               return (
-                <div key={p._id} style={styles.card}>
+                <div key={p._id} style={{ ...styles.card, ...(isSoldOut ? styles.soldOutCard : {}) }}>
                   <div style={styles.imagePlaceholder}>
-                    {getCategoryIcon(p.category)} {catName}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      {getCategoryIcon(p.category)} {catName}
+                      {p.condition && (
+                        <span style={styles.conditionTagHeader}>{p.condition}</span>
+                      )}
+                    </div>
+                    {isSoldOut && <span style={styles.soldOutBadge}>Sold out</span>}
                   </div>
                   <div style={styles.cardBody}>
                     <h3 style={styles.cardTitle}>{p.title}</h3>
                     <p style={styles.cardDesc}>
-                      {p.description ? p.description.substring(0, 60) + '...' : 'No description provided.'}
+                      {p.description || 'No description provided.'}
                     </p>
-                    <div style={styles.cardFooter}>
-                      <span style={styles.price}>${p.price}</span>
-                      <span style={styles.rating}>{p.ecoRating || 5}/5 Eco</span>
+
+                    <div style={styles.priceRow}>
+                      <span style={styles.price}>৳{currentPrice}</span>
+
+                      {hasDiscount && (
+                        <>
+                          <span style={styles.strikethroughPrice}>
+                            ৳{previousPrice}
+                            <span style={styles.diagonalCutLine} />
+                          </span>
+                          <span style={styles.discountBadge}>
+                            {discountPercent}% discount!
+                          </span>
+                        </>
+                      )}
+
+                      <span style={{ ...styles.stockText, color: isSoldOut ? '#d32f2f' : '#2e7d32', marginLeft: 'auto' }}>
+                        {isSoldOut ? 'Out of Stock' : `Remaining Stock: ${p.stock ?? 1}`}
+                      </span>
                     </div>
+
                     <button 
                       onClick={() => navigate('/products')} 
                       style={styles.buyBtn}
@@ -147,6 +180,12 @@ function ProductsPage({ user, onAddToCart }) {
   const [products, setProducts] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // Restock & Edit Modal states
+  const [editingProduct, setEditingProduct] = useState(null);
+  const [editStock, setEditStock] = useState(0);
+  const [editPrice, setEditPrice] = useState(0);
+  const [editOriginalPrice, setEditOriginalPrice] = useState('');
 
   const categories = [
     'All',
@@ -163,7 +202,7 @@ function ProductsPage({ user, onAddToCart }) {
     try {
       const params = {};
       if (searchFilter.trim()) {
-        params.search = searchFilter.trim();
+        params.searchTerm = searchFilter.trim();
       }
       if (catFilter && catFilter !== 'All') {
         params.category = catFilter;
@@ -220,6 +259,46 @@ function ProductsPage({ user, onAddToCart }) {
     onAddToCart(product, true);
     navigate('/cart');
   };
+
+  const handleOpenEdit = (product) => {
+    setEditingProduct(product);
+    setEditStock(product.stock ?? 1);
+    setEditPrice(Math.round(product.price ?? 0));
+    setEditOriginalPrice(
+      product.originalPrice || product.previousPrice 
+        ? Math.round(product.originalPrice || product.previousPrice) 
+        : ''
+    );
+  };
+
+  const handleSaveEdit = async (e) => {
+    e.preventDefault();
+    try {
+      const payload = {
+        stock: Number(editStock),
+        price: Math.round(Number(editPrice)),
+        originalPrice: editOriginalPrice ? Math.round(Number(editOriginalPrice)) : null
+      };
+
+      const res = await axios.put(`http://localhost:5000/api/products/${editingProduct._id}`, payload);
+      setProducts(products.map(p => p._id === res.data._id ? res.data : p));
+      setEditingProduct(null);
+    } catch (err) {
+      alert('Failed to update product details.');
+    }
+  };
+
+  const handleDeleteProduct = async (productId) => {
+    if (!window.confirm('Are you sure you want to delete this listing?')) return;
+    try {
+      await axios.delete(`http://localhost:5000/api/products/${productId}`);
+      setProducts(products.filter(p => p._id !== productId));
+    } catch (err) {
+      alert('Failed to delete product.');
+    }
+  };
+
+  const currentUserId = user?.id || user?._id;
 
   return (
     <div style={prodStyles.pageWrapper}>
@@ -283,38 +362,91 @@ function ProductsPage({ user, onAddToCart }) {
           {products.length > 0 ? (
             products.map((p) => {
               const catName = getCategoryName(p.category);
+              const sellerId = typeof p.seller === 'object' ? p.seller?._id : p.seller;
+              const isOwner = Boolean(currentUserId && sellerId && String(currentUserId) === String(sellerId));
+              const isSoldOut = p.stock <= 0;
+
+              const currentPrice = Number(p.price || 0);
+              const previousPrice = Number(p.originalPrice || p.previousPrice || 0);
+              const hasDiscount = previousPrice > currentPrice;
+              const discountPercent = hasDiscount
+                ? Math.round(((previousPrice - currentPrice) / previousPrice) * 100)
+                : 0;
+
               return (
-                <div key={p._id} style={prodStyles.productCard}>
+                <div 
+                  key={p._id} 
+                  style={{
+                    ...prodStyles.productCard,
+                    ...(isSoldOut ? prodStyles.soldOutCard : {})
+                  }}
+                >
                   <div style={prodStyles.cardHeaderImage}>
-                    <span style={prodStyles.categoryBadge}>
-                      {getCategoryIcon(p.category)} {catName}
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={prodStyles.categoryBadge}>
+                        {getCategoryIcon(p.category)} {catName}
+                      </span>
+                      {p.condition && (
+                        <span style={prodStyles.conditionBadge}>
+                          {p.condition}
+                        </span>
+                      )}
+                    </div>
+                    {isSoldOut && <span style={prodStyles.soldOutBadge}>Sold out</span>}
                   </div>
+
                   <div style={prodStyles.cardBody}>
                     <h4 style={prodStyles.itemTitle}>{p.title}</h4>
                     <p style={prodStyles.itemDesc}>
-                      {p.description ? p.description.substring(0, 75) + '...' : 'No description available.'}
+                      {p.description || 'No description available.'}
                     </p>
+
                     <div style={prodStyles.itemMeta}>
-                      <span style={prodStyles.priceTag}>${p.price}</span>
-                      <span style={prodStyles.ecoTag}>{p.ecoRating || 5}/5 Eco</span>
+                      <span style={prodStyles.priceTag}>৳{currentPrice}</span>
+
+                      {hasDiscount && (
+                        <>
+                          <span style={prodStyles.strikethroughPrice}>
+                            ৳{previousPrice}
+                            <span style={prodStyles.diagonalCutLine} />
+                          </span>
+                          <span style={prodStyles.discountBadge}>
+                            {discountPercent}% discount!
+                          </span>
+                        </>
+                      )}
+
+                      <span style={{ ...prodStyles.stockBadge, color: isSoldOut ? '#d32f2f' : '#2e7d32', marginLeft: 'auto' }}>
+                        {isSoldOut ? 'Out of Stock' : `Remaining Stock: ${p.stock}`}
+                      </span>
                     </div>
 
-                    <div style={prodStyles.actionButtonGroup}>
-                      <button 
-                        onClick={() => handleAddToCart(p)} 
-                        style={prodStyles.addToCartBtn}
-                      >
-                        Add to Cart 🛒
+                    {isOwner ? (
+                      <div style={prodStyles.ownerBox}>
+                        <p style={prodStyles.ownerNotice}>You are selling this product</p>
+                        <div style={prodStyles.ownerActionGroup}>
+                          <button onClick={() => handleOpenEdit(p)} style={prodStyles.editBtn}>
+                            Restock / Edit
+                          </button>
+                          <button onClick={() => handleDeleteProduct(p._id)} style={prodStyles.deleteBtn}>
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    ) : isSoldOut ? (
+                      <button disabled style={prodStyles.singleSoldOutBtn}>
+                        Sold out
                       </button>
-                      <button 
-                        onClick={() => handleBuyNow(p)} 
-                        style={prodStyles.buyNowBtn}
-                      >
-                        Buy Now ⚡
-                      </button>
-                    </div>
-
+                    ) : (
+                      <div style={prodStyles.actionButtonGroup}>
+                        <button onClick={() => handleAddToCart(p)} style={prodStyles.addToCartBtn}>
+                          Add to Cart 🛒
+                        </button>
+                        <button onClick={() => handleBuyNow(p)} style={prodStyles.buyNowBtn}>
+                          Buy Now ⚡
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               );
@@ -338,6 +470,58 @@ function ProductsPage({ user, onAddToCart }) {
           )}
         </div>
       </div>
+
+      {/* Render modal directly into document body */}
+      {editingProduct && ReactDOM.createPortal(
+        <div style={prodStyles.modalOverlay}>
+          <div style={prodStyles.modal}>
+            <h3 style={{ margin: '0 0 15px 0', color: '#1b4332' }}>Restock & Manage Listing</h3>
+            <form onSubmit={handleSaveEdit} style={prodStyles.modalForm}>
+              <label style={prodStyles.modalLabel}>
+                Stock Amount:
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={editStock}
+                  onChange={(e) => setEditStock(e.target.value)}
+                  style={prodStyles.modalInput}
+                  required
+                />
+              </label>
+              <label style={prodStyles.modalLabel}>
+                Selling Price in BDT (৳):
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={editPrice}
+                  onChange={(e) => setEditPrice(e.target.value)}
+                  style={prodStyles.modalInput}
+                  required
+                />
+              </label>
+              <label style={prodStyles.modalLabel}>
+                Original / Previous Price in BDT (৳):
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  placeholder="Leave blank if no discount"
+                  value={editOriginalPrice}
+                  onChange={(e) => setEditOriginalPrice(e.target.value)}
+                  style={prodStyles.modalInput}
+                />
+              </label>
+              <div style={prodStyles.modalButtons}>
+                <button type="submit" style={prodStyles.saveBtn}>Save Changes</button>
+                <button type="button" onClick={() => setEditingProduct(null)} style={prodStyles.cancelBtn}>Cancel</button>
+              </div>
+            </form>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }
@@ -608,6 +792,21 @@ const styles = {
     boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
     display: 'flex',
     flexDirection: 'column',
+    position: 'relative'
+  },
+  soldOutCard: {
+    backgroundColor: '#f8f8f8',
+    opacity: 0.85
+  },
+  soldOutBadge: {
+    backgroundColor: '#e63946',
+    color: '#ffffff',
+    fontSize: '0.75rem',
+    fontWeight: 'bold',
+    padding: '3px 8px',
+    borderRadius: '4px',
+    textTransform: 'uppercase',
+    marginLeft: 'auto'
   },
   imagePlaceholder: {
     height: '150px',
@@ -615,10 +814,18 @@ const styles = {
     color: '#1b4332',
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
+    padding: '0 15px',
     fontSize: '1.2rem',
     fontWeight: 'bold',
-    gap: '8px',
+  },
+  conditionTagHeader: {
+    fontSize: '0.7rem',
+    backgroundColor: '#ffffff',
+    color: '#2d6a4f',
+    padding: '2px 6px',
+    borderRadius: '4px',
+    fontWeight: '600'
   },
   cardBody: {
     padding: '18px',
@@ -637,10 +844,11 @@ const styles = {
     marginBottom: '15px',
     flexGrow: 1,
   },
-  cardFooter: {
+  priceRow: {
     display: 'flex',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    gap: '8px',
+    flexWrap: 'wrap',
     marginBottom: '15px',
   },
   price: {
@@ -648,10 +856,34 @@ const styles = {
     fontWeight: 'bold',
     color: '#2d6a4f',
   },
-  rating: {
-    fontSize: '0.9rem',
-    color: '#e76f51',
+  strikethroughPrice: {
+    fontSize: '0.92rem',
+    color: '#a0aec0',
+    position: 'relative',
+    display: 'inline-block',
+    padding: '0 2px'
+  },
+  diagonalCutLine: {
+    position: 'absolute',
+    top: '50%',
+    left: 0,
+    width: '100%',
+    height: '1.5px',
+    backgroundColor: '#e53e3e',
+    transform: 'rotate(-15deg)',
+    transformOrigin: 'center'
+  },
+  discountBadge: {
+    backgroundColor: '#feebc8',
+    color: '#c05621',
+    fontSize: '0.75rem',
     fontWeight: 'bold',
+    padding: '2px 6px',
+    borderRadius: '4px'
+  },
+  stockText: {
+    fontSize: '0.85rem',
+    fontWeight: 'bold'
   },
   buyBtn: {
     backgroundColor: '#1b4332',
@@ -795,14 +1027,29 @@ const prodStyles = {
     display: 'flex',
     flexDirection: 'column',
     border: '1px solid #e0e0e0',
+    position: 'relative'
+  },
+  soldOutCard: {
+    backgroundColor: '#f5f5f5',
+    borderColor: '#d0d0d0'
+  },
+  soldOutBadge: {
+    backgroundColor: '#d32f2f',
+    color: '#ffffff',
+    fontSize: '0.75rem',
+    fontWeight: 'bold',
+    padding: '4px 8px',
+    borderRadius: '4px',
+    textTransform: 'uppercase',
+    marginLeft: 'auto'
   },
   cardHeaderImage: {
     height: '140px',
     backgroundColor: '#d8f3dc',
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'center',
-    padding: '10px',
+    justifyContent: 'space-between',
+    padding: '10px 15px',
   },
   categoryBadge: {
     backgroundColor: '#ffffff',
@@ -812,6 +1059,14 @@ const prodStyles = {
     fontWeight: 'bold',
     fontSize: '0.9rem',
     boxShadow: '0 2px 5px rgba(0,0,0,0.05)',
+  },
+  conditionBadge: {
+    backgroundColor: '#edf2f7',
+    color: '#2d3748',
+    fontSize: '0.75rem',
+    fontWeight: '600',
+    padding: '4px 8px',
+    borderRadius: '6px'
   },
   cardBody: {
     padding: '18px',
@@ -833,8 +1088,9 @@ const prodStyles = {
   },
   itemMeta: {
     display: 'flex',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    gap: '8px',
+    flexWrap: 'wrap',
     marginBottom: '15px',
   },
   priceTag: {
@@ -842,11 +1098,35 @@ const prodStyles = {
     fontWeight: 'bold',
     color: '#2d6a4f',
   },
-  ecoTag: {
-    fontSize: '0.85rem',
-    color: '#2b9348',
+  strikethroughPrice: {
+    fontSize: '0.9rem',
+    color: '#a0aec0',
+    position: 'relative',
+    display: 'inline-block',
+    padding: '0 2px'
+  },
+  diagonalCutLine: {
+    position: 'absolute',
+    top: '50%',
+    left: 0,
+    width: '100%',
+    height: '1.5px',
+    backgroundColor: '#e53e3e',
+    transform: 'rotate(-15deg)',
+    transformOrigin: 'center'
+  },
+  discountBadge: {
+    backgroundColor: '#feebc8',
+    color: '#c05621',
+    fontSize: '0.75rem',
     fontWeight: 'bold',
-    backgroundColor: '#f0fff4',
+    padding: '2px 6px',
+    borderRadius: '4px'
+  },
+  stockBadge: {
+    fontSize: '0.85rem',
+    fontWeight: 'bold',
+    backgroundColor: '#f0f0f0',
     padding: '4px 8px',
     borderRadius: '4px',
   },
@@ -876,6 +1156,126 @@ const prodStyles = {
     fontWeight: 'bold',
     cursor: 'pointer',
     fontSize: '0.85rem',
+  },
+  singleSoldOutBtn: {
+    width: '100%',
+    backgroundColor: '#e0e0e0',
+    color: '#757575',
+    border: 'none',
+    padding: '10px',
+    borderRadius: '6px',
+    fontWeight: 'bold',
+    cursor: 'not-allowed',
+    fontSize: '0.9rem',
+    marginTop: 'auto',
+  },
+  disabledBtn: {
+    backgroundColor: '#e0e0e0',
+    color: '#9e9e9e',
+    borderColor: '#e0e0e0',
+    cursor: 'not-allowed'
+  },
+  ownerBox: {
+    borderTop: '1px solid #eeeeee',
+    paddingTop: '10px',
+    marginTop: 'auto'
+  },
+  ownerNotice: {
+    fontSize: '0.8rem',
+    color: '#1976d2',
+    fontWeight: 'bold',
+    margin: '0 0 8px 0',
+    textAlign: 'center'
+  },
+  ownerActionGroup: {
+    display: 'flex',
+    gap: '8px'
+  },
+  editBtn: {
+    flex: 1,
+    backgroundColor: '#1976d2',
+    color: '#ffffff',
+    border: 'none',
+    padding: '8px',
+    borderRadius: '6px',
+    fontWeight: 'bold',
+    cursor: 'pointer',
+    fontSize: '0.85rem'
+  },
+  deleteBtn: {
+    flex: 1,
+    backgroundColor: '#d32f2f',
+    color: '#ffffff',
+    border: 'none',
+    padding: '8px',
+    borderRadius: '6px',
+    fontWeight: 'bold',
+    cursor: 'pointer',
+    fontSize: '0.85rem'
+  },
+  modalOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    width: '100vw',
+    height: '100vh',
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 99999
+  },
+  modal: {
+    backgroundColor: '#ffffff',
+    padding: '24px',
+    borderRadius: '10px',
+    width: '350px',
+    boxShadow: '0 8px 24px rgba(0,0,0,0.3)'
+  },
+  modalForm: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '15px'
+  },
+  modalLabel: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '5px',
+    fontSize: '0.9rem',
+    color: '#333',
+    fontWeight: '600'
+  },
+  modalInput: {
+    padding: '8px 12px',
+    borderRadius: '6px',
+    border: '1px solid #ccc',
+    fontSize: '0.95rem'
+  },
+  modalButtons: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    gap: '10px',
+    marginTop: '10px'
+  },
+  saveBtn: {
+    flex: 1,
+    backgroundColor: '#2d6a4f',
+    color: '#ffffff',
+    border: 'none',
+    padding: '10px',
+    borderRadius: '6px',
+    fontWeight: 'bold',
+    cursor: 'pointer'
+  },
+  cancelBtn: {
+    flex: 1,
+    backgroundColor: '#757575',
+    color: '#ffffff',
+    border: 'none',
+    padding: '10px',
+    borderRadius: '6px',
+    fontWeight: 'bold',
+    cursor: 'pointer'
   },
   emptyBox: {
     gridColumn: '1 / -1',

@@ -82,13 +82,17 @@ function Cart({ user, cart, setCart }) {
     }
   };
 
-  const handleCheckout = () => {
-    if (userId) {
-      axios.post('http://localhost:5000/api/cart/checkout', { userId })
-        .catch((err) => console.error('Error during checkout API:', err));
+  const handleCheckout = async () => {
+    try {
+      if (userId) {
+        await axios.post('http://localhost:5000/api/cart/checkout', { userId });
+      }
+      alert('Order Placed Successfully! Thank you for purchasing sustainably.');
+      syncCart([]);
+    } catch (err) {
+      console.error('Checkout error:', err);
+      alert(err.response?.data?.error || 'Failed to complete checkout.');
     }
-    alert('Order Placed Successfully! Thank you for purchasing sustainably.');
-    syncCart([]);
   };
 
   const calculateTotal = () => {
@@ -127,7 +131,7 @@ function Cart({ user, cart, setCart }) {
                       <span style={styles.itemCategory}>
                         {typeof prod.category === 'object' ? prod.category?.name : (prod.category || 'General')}
                       </span>
-                      <span style={styles.itemPrice}>${Number(prod.price || 0).toFixed(2)}</span>
+                      <span style={styles.itemPrice}>৳ {Number(prod.price || 0).toFixed(2)}</span>
                     </div>
 
                     <div style={styles.itemActions}>
@@ -147,7 +151,7 @@ function Cart({ user, cart, setCart }) {
               <h3 style={styles.summaryTitle}>Order Summary</h3>
               <div style={styles.summaryRow}>
                 <span>Subtotal</span>
-                <span>${calculateTotal()}</span>
+                <span>৳ {calculateTotal()}</span>
               </div>
               <div style={styles.summaryRow}>
                 <span>Eco Shipping</span>
@@ -156,7 +160,7 @@ function Cart({ user, cart, setCart }) {
               <hr style={{ border: 'none', borderTop: '1px solid #eee', margin: '15px 0' }} />
               <div style={{ ...styles.summaryRow, fontSize: '1.2rem', fontWeight: 'bold', color: '#1b4332' }}>
                 <span>Total</span>
-                <span>${calculateTotal()}</span>
+                <span>৳ {calculateTotal()}</span>
               </div>
 
               <button 

@@ -5,7 +5,7 @@ const Category = require('../models/Category');
 
 router.post('/', async (req, res) => {
   try {
-    const { title, description, price, category, stock, seller, ecoRating, ecoTags } = req.body;
+    const { title, description, price, originalPrice, condition, category, stock, seller, ecoRating, ecoTags } = req.body;
 
     if (!title || price === undefined || price === null || !category) {
       return res.status(400).json({ error: 'Title, price, and category are required fields.' });
@@ -16,7 +16,14 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Price must be a valid non-negative number.' });
     }
 
-    // Find or create Category
+    let parsedOriginalPrice = null;
+    if (originalPrice !== undefined && originalPrice !== null && originalPrice !== '') {
+      parsedOriginalPrice = Number(originalPrice);
+      if (isNaN(parsedOriginalPrice) || parsedOriginalPrice <= numericPrice) {
+        return res.status(400).json({ error: 'Previous price must be greater than current price.' });
+      }
+    }
+
     let categoryDoc = await Category.findOne({ name: category });
     if (!categoryDoc) {
       categoryDoc = await Category.create({ name: category });
@@ -26,23 +33,23 @@ router.post('/', async (req, res) => {
       title,
       description: description || '',
       price: numericPrice,
+      originalPrice: parsedOriginalPrice,
+      condition: condition || '',
       category: categoryDoc._id,
-      stock: stock ? Number(stock) : 1,
+      stock: stock !== undefined && stock !== null ? Math.max(0, Number(stock)) : 1,
       ecoRating: ecoRating ? Number(ecoRating) : 5,
       ecoTags: ecoTags || []
     };
 
-    // Attach seller if valid ID string was passed
     if (seller && seller.length === 24) {
       productData.seller = seller;
     }
 
     const product = new Product(productData);
     await product.save();
-    
+
     res.status(201).json(product);
   } catch (err) {
-    console.error('Failed to add product:', err);
     res.status(500).json({ error: 'Failed to add product', details: err.message });
   }
 });
@@ -63,7 +70,7 @@ router.get('/', async (req, res) => {
       }
     }
 
-    const products = await Product.find(filter).populate('category', 'name');
+    const products = await Product.find(filter).populate('category', 'name').populate('seller', 'name email');
     res.json(products);
   } catch (err) {
     res.status(500).json({ error: 'Failed to retrieve products', details: err.message });
@@ -72,7 +79,30 @@ router.get('/', async (req, res) => {
 
 router.put('/:id', async (req, res) => {
   try {
-    const updatedProduct = await Product.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const { title, description, price, originalPrice, condition, category, stock, ecoRating, ecoTags } = req.body;
+    let updateFields = {};
+
+    if (title) updateFields.title = title;
+    if (description !== undefined) updateFields.description = description;
+    if (price !== undefined) updateFields.price = Number(price);
+    if (originalPrice !== undefined) updateFields.originalPrice = originalPrice ? Number(originalPrice) : null;
+    if (condition !== undefined) updateFields.condition = condition;
+    if (stock !== undefined) updateFields.stock = Math.max(0, Number(stock));
+    if (ecoRating !== undefined) updateFields.ecoRating = Number(ecoRating);
+    if (ecoTags !== undefined) updateFields.ecoTags = ecoTags;
+
+    if (category) {
+      let categoryDoc = await Category.findOne({ name: category });
+      if (!categoryDoc) {
+        categoryDoc = await Category.create({ name: category });
+      }
+      updateFields.category = categoryDoc._id;
+    }
+
+    const updatedProduct = await Product.findByIdAndUpdate(req.params.id, updateFields, { new: true })
+      .populate('category', 'name')
+      .populate('seller', 'name email');
+
     if (!updatedProduct) {
       return res.status(404).json({ error: 'Product not found' });
     }

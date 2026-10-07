@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Cart = require('../models/Cart');
+const Product = require('../models/Product');
 
 router.get('/:userId', async (req, res) => {
   try {
@@ -70,8 +71,19 @@ router.delete('/remove/:userId/:productId', async (req, res) => {
 router.post('/checkout', async (req, res) => {
   const { userId } = req.body;
   try {
-    let cart = await Cart.findOne({ user: userId });
-    if (!cart) return res.status(404).json({ message: 'Cart not found' });
+    let cart = await Cart.findOne({ user: userId }).populate('items.product');
+    if (!cart || cart.items.length === 0) {
+      return res.status(400).json({ error: 'Cart is empty' });
+    }
+
+    for (const item of cart.items) {
+      const prod = item.product;
+      if (prod) {
+        const deductQty = item.quantity || 1;
+        prod.stock = Math.max(0, (prod.stock || 0) - deductQty);
+        await prod.save();
+      }
+    }
 
     cart.items = [];
     await cart.save();
