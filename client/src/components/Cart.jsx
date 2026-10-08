@@ -166,6 +166,8 @@ function Cart({ user, cart, setCart }) {
               <button 
                 onClick={handleCheckout} 
                 style={styles.checkoutBtn}
+                onMouseEnter={(e) => e.target.style.backgroundColor = '#1b4332'}
+                onMouseLeave={(e) => e.target.style.backgroundColor = '#2d6a4f'}
               >
                 Proceed to Checkout
               </button>
@@ -174,7 +176,18 @@ function Cart({ user, cart, setCart }) {
         ) : (
           <div style={styles.emptyCart}>
             <p style={{ fontSize: '1.2rem', color: '#555', marginBottom: '20px' }}>Your cart is empty.</p>
-            <Link to="/products" style={styles.browseBtn}>Browse Marketplace 🛍️</Link>
+            <Link 
+              to="/products" 
+              style={styles.browseBtn}
+              onMouseEnter={(e) => {
+                e.target.style.backgroundColor = '#1b4332';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.backgroundColor = '#2d6a4f';
+              }}
+            >
+              Browse Marketplace 🛍️
+            </Link>
           </div>
         )}
       </div>
@@ -301,6 +314,7 @@ const styles = {
     fontSize: '1rem',
     cursor: 'pointer',
     marginTop: '15px',
+    transition: 'background-color 0.2s ease',
   },
   emptyCart: {
     backgroundColor: '#ffffff',
@@ -316,6 +330,8 @@ const styles = {
     borderRadius: '6px',
     textDecoration: 'none',
     fontWeight: 'bold',
+    display: 'inline-block',
+    transition: 'background-color 0.2s ease',
   }
 };
 

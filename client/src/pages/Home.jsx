@@ -8,7 +8,7 @@ function Home({ user }) {
         <p style={styles.subtitle}>From Surplus To Sustainable</p>
         {user && (
           <p style={styles.welcomeUser}>
-            Logged in as: <strong>{user.name}</strong>
+            Logged in as: <strong>{user.name || user.username}</strong>
           </p>
         )}
       </div>

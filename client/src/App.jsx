@@ -9,6 +9,55 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
 
+// Robust image normalizer for strings, base64 data, and backend object wrappers
+const formatImgSrc = (img) => {
+  if (!img) return null;
+  
+  if (typeof img === 'object') {
+    img = img.url || img.path || img.src || null;
+  }
+
+  if (typeof img === 'string') {
+    const trimmed = img.trim();
+    if (!trimmed || trimmed === 'undefined' || trimmed === 'null') return null;
+
+    if (trimmed.startsWith('http') || trimmed.startsWith('data:image') || trimmed.startsWith('blob:')) {
+      return trimmed;
+    }
+
+    if (trimmed.length > 50) {
+      return `data:image/jpeg;base64,${trimmed}`;
+    }
+
+    if (trimmed.startsWith('/uploads') || trimmed.startsWith('uploads/')) {
+      return `http://localhost:5000/${trimmed.replace(/^\//, '')}`;
+    }
+
+    return trimmed;
+  }
+
+  return null;
+};
+
+const getProductImages = (product) => {
+  if (!product) return [];
+
+  let list = [];
+
+  if (Array.isArray(product.images) && product.images.length > 0) {
+    list = product.images.map(formatImgSrc).filter(Boolean);
+  } else if (Array.isArray(product.photos) && product.photos.length > 0) {
+    list = product.photos.map(formatImgSrc).filter(Boolean);
+  }
+
+  if (list.length === 0) {
+    const single = formatImgSrc(product.image || product.imageUrl || product.photo);
+    if (single) list.push(single);
+  }
+
+  return list;
+};
+
 const getCategoryName = (category) => {
   if (!category) return 'Miscellaneous';
   if (typeof category === 'object') return category.name || 'Miscellaneous';
@@ -49,8 +98,183 @@ const NotificationToast = ({ message, onClose }) => {
   );
 };
 
-function Home({ user }) {
-  const navigate = useNavigate();
+function ProductImageCarousel({ product, catName, isSoldOut }) {
+  const images = getProductImages(product);
+  const [activeImgIndex, setActiveImgIndex] = useState(0);
+
+  const prevImage = (e) => {
+    e.stopPropagation();
+    setActiveImgIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1));
+  };
+
+  const nextImage = (e) => {
+    e.stopPropagation();
+    setActiveImgIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1));
+  };
+
+  const hasImages = images.length > 0;
+  const currentImageSrc = hasImages ? images[activeImgIndex] : null;
+
+  return (
+    <div style={prodStyles.cardHeaderImageContainer}>
+      {hasImages && currentImageSrc ? (
+        <img 
+          src={currentImageSrc} 
+          alt={product.title || 'Product Image'} 
+          style={prodStyles.cardHeaderImg} 
+          onError={(e) => {
+            e.target.onerror = null;
+            e.target.style.display = 'none';
+            if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex';
+          }}
+        />
+      ) : (
+        <div style={prodStyles.noImageFallback}>
+          <span style={{ fontSize: '2.5rem', marginBottom: '4px' }}>📷</span>
+          <span style={{ fontSize: '0.95rem', fontWeight: 'bold', color: '#6b7280' }}>No Image Available</span>
+        </div>
+      )}
+
+      <div style={prodStyles.cardHeaderOverlay}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={prodStyles.categoryBadge}>
+            {getCategoryIcon(product.category)} {catName}
+          </span>
+          {product.condition && (
+            <span style={prodStyles.conditionBadge}>
+              {product.condition}
+            </span>
+          )}
+        </div>
+        {isSoldOut && <span style={prodStyles.soldOutBadge}>Sold out</span>}
+      </div>
+
+      {images.length > 1 && (
+        <>
+          <button type="button" onClick={prevImage} style={prodStyles.arrowLeftBtn} title="Previous image">
+            ❮
+          </button>
+          <button type="button" onClick={nextImage} style={prodStyles.arrowRightBtn} title="Next image">
+            ❯
+          </button>
+          <div style={prodStyles.dotsContainer}>
+            {images.map((_, idx) => (
+              <span
+                key={idx}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveImgIndex(idx);
+                }}
+                style={{
+                  ...prodStyles.dot,
+                  backgroundColor: idx === activeImgIndex ? '#ffffff' : 'rgba(255, 255, 255, 0.5)',
+                  transform: idx === activeImgIndex ? 'scale(1.2)' : 'scale(1)'
+                }}
+              />
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function ProductCard({ product, isOwner, isSoldOut, currentPrice, previousPrice, hasDiscount, discountPercent, catName, onAddToCart, onBuyNow, onOpenEdit, onDeleteProduct, onViewDetails }) {
+  return (
+    <div style={{ ...prodStyles.productCard, ...(isSoldOut ? prodStyles.soldOutCard : {}) }}>
+      <ProductImageCarousel product={product} catName={catName} isSoldOut={isSoldOut} />
+
+      <div style={prodStyles.cardBody}>
+        <h4 style={prodStyles.itemTitle}>{product.title}</h4>
+
+        <div style={prodStyles.itemMeta}>
+          <span style={prodStyles.priceTag}>৳{currentPrice}</span>
+
+          {hasDiscount && (
+            <>
+              <span style={prodStyles.strikethroughPrice}>
+                ৳<span style={prodStyles.numberCutWrapper}>
+                  {previousPrice}
+                  <span style={prodStyles.diagonalCutLine} />
+                </span>
+              </span>
+              <span style={prodStyles.discountBadge}>
+                {discountPercent}% discount!
+              </span>
+            </>
+          )}
+
+          <span style={{ ...prodStyles.stockBadge, color: isSoldOut ? '#d32f2f' : '#2e7d32', marginLeft: 'auto' }}>
+            {isSoldOut ? 'Out of Stock' : `Stock Available: ${product.stock}`}
+          </span>
+        </div>
+
+        <button 
+          type="button" 
+          onClick={() => onViewDetails(product)} 
+          style={prodStyles.detailsBtn}
+          onMouseEnter={(e) => e.target.style.backgroundColor = '#2d6a4f'}
+          onMouseLeave={(e) => e.target.style.backgroundColor = '#1b4332'}
+        >
+          View Details
+        </button>
+
+        {isOwner ? (
+          <div style={prodStyles.ownerBox}>
+            <p style={prodStyles.ownerNotice}>You are selling this product</p>
+            <div style={prodStyles.ownerActionGroup}>
+              <button 
+                onClick={() => onOpenEdit(product)} 
+                style={prodStyles.editBtn}
+                onMouseEnter={(e) => e.target.style.backgroundColor = '#1b4332'}
+                onMouseLeave={(e) => e.target.style.backgroundColor = '#2d6a4f'}
+              >
+                Restock / Edit
+              </button>
+              <button 
+                onClick={() => onDeleteProduct(product._id)} 
+                style={prodStyles.deleteBtn}
+                onMouseEnter={(e) => e.target.style.backgroundColor = '#b71c1c'}
+                onMouseLeave={(e) => e.target.style.backgroundColor = '#d32f2f'}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        ) : isSoldOut ? (
+          <button disabled style={prodStyles.singleSoldOutBtn}>
+            Sold out
+          </button>
+        ) : (
+          <div style={prodStyles.actionButtonGroup}>
+            <button 
+              onClick={() => onAddToCart(product)} 
+              style={prodStyles.addToCartBtn}
+              onMouseEnter={(e) => {
+                e.target.style.backgroundColor = '#f1f8f5';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.backgroundColor = '#ffffff';
+              }}
+            >
+              Add to Cart 🛒
+            </button>
+            <button 
+              onClick={() => onBuyNow(product)} 
+              style={prodStyles.buyNowBtn}
+              onMouseEnter={(e) => e.target.style.backgroundColor = '#1b4332'}
+              onMouseLeave={(e) => e.target.style.backgroundColor = '#2d6a4f'}
+            >
+              Buy Now ⚡
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function Home({ user, onViewDetails }) {
   const [featuredProducts, setFeaturedProducts] = useState([]);
 
   useEffect(() => {
@@ -79,16 +303,68 @@ function Home({ user }) {
                 </p>
               </div>
               <div style={styles.btnGroup}>
-                <Link to="/products" style={styles.primaryBtn}>Explore Products 🛒</Link>
-                <Link to="/add-product" style={styles.secondaryBtn}>Post a Product for Sale 📦</Link>
+                <Link 
+                  to="/products" 
+                  style={styles.primaryBtn}
+                  onMouseEnter={(e) => {
+                    e.target.style.backgroundColor = '#52b788';
+                    e.target.style.color = '#1b4332';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.backgroundColor = 'transparent';
+                    e.target.style.color = '#ffffff';
+                  }}
+                >
+                  Explore Products 🛒
+                </Link>
+                <Link 
+                  to="/add-product" 
+                  style={styles.secondaryBtn}
+                  onMouseEnter={(e) => {
+                    e.target.style.backgroundColor = '#52b788';
+                    e.target.style.color = '#1b4332';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.backgroundColor = 'transparent';
+                    e.target.style.color = '#ffffff';
+                  }}
+                >
+                  Post a Product for Sale 📦
+                </Link>
               </div>
             </div>
           ) : (
             <div style={styles.ctaBox}>
               <p style={styles.authPrompt}>Join our marketplace to purchase or sell sustainable goods!</p>
               <div style={styles.btnGroup}>
-                <Link to="/login" style={styles.primaryBtn}>Login to Your Account</Link>
-                <Link to="/register" style={styles.secondaryBtn}>Create New Account</Link>
+                <Link 
+                  to="/login" 
+                  style={styles.primaryBtn}
+                  onMouseEnter={(e) => {
+                    e.target.style.backgroundColor = '#52b788';
+                    e.target.style.color = '#1b4332';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.backgroundColor = 'transparent';
+                    e.target.style.color = '#ffffff';
+                  }}
+                >
+                  Login to Your Account
+                </Link>
+                <Link 
+                  to="/register" 
+                  style={styles.secondaryBtn}
+                  onMouseEnter={(e) => {
+                    e.target.style.backgroundColor = '#52b788';
+                    e.target.style.color = '#1b4332';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.backgroundColor = 'transparent';
+                    e.target.style.color = '#ffffff';
+                  }}
+                >
+                  Create New Account
+                </Link>
               </div>
             </div>
           )}
@@ -116,20 +392,10 @@ function Home({ user }) {
 
               return (
                 <div key={p._id} style={{ ...styles.card, ...(isSoldOut ? styles.soldOutCard : {}) }}>
-                  <div style={styles.imagePlaceholder}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      {getCategoryIcon(p.category)} {catName}
-                      {p.condition && (
-                        <span style={styles.conditionTagHeader}>{p.condition}</span>
-                      )}
-                    </div>
-                    {isSoldOut && <span style={styles.soldOutBadge}>Sold out</span>}
-                  </div>
+                  <ProductImageCarousel product={p} catName={catName} isSoldOut={isSoldOut} />
+                  
                   <div style={styles.cardBody}>
                     <h3 style={styles.cardTitle}>{p.title}</h3>
-                    <p style={styles.cardDesc}>
-                      {p.description || 'No description provided.'}
-                    </p>
 
                     <div style={styles.priceRow}>
                       <span style={styles.price}>৳{currentPrice}</span>
@@ -137,8 +403,10 @@ function Home({ user }) {
                       {hasDiscount && (
                         <>
                           <span style={styles.strikethroughPrice}>
-                            ৳{previousPrice}
-                            <span style={styles.diagonalCutLine} />
+                            ৳<span style={styles.numberCutWrapper}>
+                              {previousPrice}
+                              <span style={styles.diagonalCutLine} />
+                            </span>
                           </span>
                           <span style={styles.discountBadge}>
                             {discountPercent}% discount!
@@ -147,13 +415,15 @@ function Home({ user }) {
                       )}
 
                       <span style={{ ...styles.stockText, color: isSoldOut ? '#d32f2f' : '#2e7d32', marginLeft: 'auto' }}>
-                        {isSoldOut ? 'Out of Stock' : `Remaining Stock: ${p.stock ?? 1}`}
+                        {isSoldOut ? 'Out of Stock' : `Stock Available: ${p.stock ?? 1}`}
                       </span>
                     </div>
 
                     <button 
-                      onClick={() => navigate('/products')} 
+                      onClick={() => onViewDetails(p)} 
                       style={styles.buyBtn}
+                      onMouseEnter={(e) => e.target.style.backgroundColor = '#2d6a4f'}
+                      onMouseLeave={(e) => e.target.style.backgroundColor = '#1b4332'}
                     >
                       View Details
                     </button>
@@ -175,13 +445,12 @@ function Home({ user }) {
   );
 }
 
-function ProductsPage({ user, onAddToCart }) {
+function ProductsPage({ user, onAddToCart, viewProductDetails, setViewProductDetails }) {
   const navigate = useNavigate();
   const [products, setProducts] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   
-  // Restock & Edit Modal states
   const [editingProduct, setEditingProduct] = useState(null);
   const [editStock, setEditStock] = useState(0);
   const [editPrice, setEditPrice] = useState(0);
@@ -328,27 +597,51 @@ function ProductsPage({ user, onAddToCart }) {
                 <option key={cat} value={cat}>{cat}</option>
               ))}
             </select>
-            <button type="submit" style={prodStyles.searchBtn}>
+            <button 
+              type="submit" 
+              style={prodStyles.searchBtn}
+              onMouseEnter={(e) => e.target.style.backgroundColor = '#1b4332'}
+              onMouseLeave={(e) => e.target.style.backgroundColor = '#2d6a4f'}
+            >
               Search Products
             </button>
           </div>
         </form>
 
         <div style={prodStyles.pillContainer}>
-          {categories.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => handleCategorySelect(cat)}
-              style={{
-                ...prodStyles.pill,
-                backgroundColor: selectedCategory === cat ? '#2d6a4f' : '#ffffff',
-                color: selectedCategory === cat ? '#ffffff' : '#2d6a4f',
-                borderColor: selectedCategory === cat ? '#2d6a4f' : '#b7e4c7'
-              }}
-            >
-              {cat === 'All' ? '✨ All' : `${getCategoryIcon(cat)} ${cat}`}
-            </button>
-          ))}
+          {categories.map((cat) => {
+            const isSelected = selectedCategory === cat;
+            return (
+              <button
+                key={cat}
+                onClick={() => handleCategorySelect(cat)}
+                style={{
+                  ...prodStyles.pill,
+                  backgroundColor: isSelected ? '#2d6a4f' : '#ffffff',
+                  color: isSelected ? '#ffffff' : '#2d6a4f',
+                  borderColor: isSelected ? '#2d6a4f' : '#b7e4c7'
+                }}
+                onMouseEnter={(e) => {
+                  if (!isSelected) {
+                    e.target.style.backgroundColor = '#e8f5e9';
+                    e.target.style.borderColor = '#2d6a4f';
+                  } else {
+                    e.target.style.backgroundColor = '#1b4332';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!isSelected) {
+                    e.target.style.backgroundColor = '#ffffff';
+                    e.target.style.borderColor = '#b7e4c7';
+                  } else {
+                    e.target.style.backgroundColor = '#2d6a4f';
+                  }
+                }}
+              >
+                {cat === 'All' ? '✨ All' : `${getCategoryIcon(cat)} ${cat}`}
+              </button>
+            );
+          })}
         </div>
 
         <div style={prodStyles.resultsHeader}>
@@ -362,7 +655,8 @@ function ProductsPage({ user, onAddToCart }) {
           {products.length > 0 ? (
             products.map((p) => {
               const catName = getCategoryName(p.category);
-              const sellerId = typeof p.seller === 'object' ? p.seller?._id : p.seller;
+              const sellerObj = typeof p.seller === 'object' ? p.seller : {};
+              const sellerId = sellerObj._id || sellerObj.id || p.seller;
               const isOwner = Boolean(currentUserId && sellerId && String(currentUserId) === String(sellerId));
               const isSoldOut = p.stock <= 0;
 
@@ -374,81 +668,22 @@ function ProductsPage({ user, onAddToCart }) {
                 : 0;
 
               return (
-                <div 
-                  key={p._id} 
-                  style={{
-                    ...prodStyles.productCard,
-                    ...(isSoldOut ? prodStyles.soldOutCard : {})
-                  }}
-                >
-                  <div style={prodStyles.cardHeaderImage}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span style={prodStyles.categoryBadge}>
-                        {getCategoryIcon(p.category)} {catName}
-                      </span>
-                      {p.condition && (
-                        <span style={prodStyles.conditionBadge}>
-                          {p.condition}
-                        </span>
-                      )}
-                    </div>
-                    {isSoldOut && <span style={prodStyles.soldOutBadge}>Sold out</span>}
-                  </div>
-
-                  <div style={prodStyles.cardBody}>
-                    <h4 style={prodStyles.itemTitle}>{p.title}</h4>
-                    <p style={prodStyles.itemDesc}>
-                      {p.description || 'No description available.'}
-                    </p>
-
-                    <div style={prodStyles.itemMeta}>
-                      <span style={prodStyles.priceTag}>৳{currentPrice}</span>
-
-                      {hasDiscount && (
-                        <>
-                          <span style={prodStyles.strikethroughPrice}>
-                            ৳{previousPrice}
-                            <span style={prodStyles.diagonalCutLine} />
-                          </span>
-                          <span style={prodStyles.discountBadge}>
-                            {discountPercent}% discount!
-                          </span>
-                        </>
-                      )}
-
-                      <span style={{ ...prodStyles.stockBadge, color: isSoldOut ? '#d32f2f' : '#2e7d32', marginLeft: 'auto' }}>
-                        {isSoldOut ? 'Out of Stock' : `Remaining Stock: ${p.stock}`}
-                      </span>
-                    </div>
-
-                    {isOwner ? (
-                      <div style={prodStyles.ownerBox}>
-                        <p style={prodStyles.ownerNotice}>You are selling this product</p>
-                        <div style={prodStyles.ownerActionGroup}>
-                          <button onClick={() => handleOpenEdit(p)} style={prodStyles.editBtn}>
-                            Restock / Edit
-                          </button>
-                          <button onClick={() => handleDeleteProduct(p._id)} style={prodStyles.deleteBtn}>
-                            Delete
-                          </button>
-                        </div>
-                      </div>
-                    ) : isSoldOut ? (
-                      <button disabled style={prodStyles.singleSoldOutBtn}>
-                        Sold out
-                      </button>
-                    ) : (
-                      <div style={prodStyles.actionButtonGroup}>
-                        <button onClick={() => handleAddToCart(p)} style={prodStyles.addToCartBtn}>
-                          Add to Cart 🛒
-                        </button>
-                        <button onClick={() => handleBuyNow(p)} style={prodStyles.buyNowBtn}>
-                          Buy Now ⚡
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
+                <ProductCard
+                  key={p._id}
+                  product={p}
+                  isOwner={isOwner}
+                  isSoldOut={isSoldOut}
+                  currentPrice={currentPrice}
+                  previousPrice={previousPrice}
+                  hasDiscount={hasDiscount}
+                  discountPercent={discountPercent}
+                  catName={catName}
+                  onAddToCart={handleAddToCart}
+                  onBuyNow={handleBuyNow}
+                  onOpenEdit={handleOpenEdit}
+                  onDeleteProduct={handleDeleteProduct}
+                  onViewDetails={setViewProductDetails}
+                />
               );
             })
           ) : (
@@ -463,6 +698,8 @@ function ProductsPage({ user, onAddToCart }) {
                   fetchProducts('All', '');
                 }} 
                 style={prodStyles.resetBtn}
+                onMouseEnter={(e) => e.target.style.backgroundColor = '#2d6a4f'}
+                onMouseLeave={(e) => e.target.style.backgroundColor = '#1b4332'}
               >
                 Clear Filters
               </button>
@@ -471,14 +708,14 @@ function ProductsPage({ user, onAddToCart }) {
         </div>
       </div>
 
-      {/* Render modal directly into document body */}
+      {/* Edit Modal */}
       {editingProduct && ReactDOM.createPortal(
         <div style={prodStyles.modalOverlay}>
           <div style={prodStyles.modal}>
             <h3 style={{ margin: '0 0 15px 0', color: '#1b4332' }}>Restock & Manage Listing</h3>
             <form onSubmit={handleSaveEdit} style={prodStyles.modalForm}>
               <label style={prodStyles.modalLabel}>
-                Stock Amount:
+                Stock Available:
                 <input
                   type="number"
                   min="0"
@@ -514,8 +751,23 @@ function ProductsPage({ user, onAddToCart }) {
                 />
               </label>
               <div style={prodStyles.modalButtons}>
-                <button type="submit" style={prodStyles.saveBtn}>Save Changes</button>
-                <button type="button" onClick={() => setEditingProduct(null)} style={prodStyles.cancelBtn}>Cancel</button>
+                <button 
+                  type="submit" 
+                  style={prodStyles.saveBtn}
+                  onMouseEnter={(e) => e.target.style.backgroundColor = '#1b4332'}
+                  onMouseLeave={(e) => e.target.style.backgroundColor = '#2d6a4f'}
+                >
+                  Save Changes
+                </button>
+                <button 
+                  type="button" 
+                  onClick={() => setEditingProduct(null)} 
+                  style={prodStyles.cancelBtn}
+                  onMouseEnter={(e) => e.target.style.backgroundColor = '#616161'}
+                  onMouseLeave={(e) => e.target.style.backgroundColor = '#757575'}
+                >
+                  Cancel
+                </button>
               </div>
             </form>
           </div>
@@ -528,9 +780,18 @@ function ProductsPage({ user, onAddToCart }) {
 
 function App() {
   const location = useLocation();
+  const navigate = useNavigate();
   const [displayLocation, setDisplayLocation] = useState(location);
   const [transitionStage, setTransitionStage] = useState('page-enter');
   const [toastMessage, setToastMessage] = useState('');
+
+  const [viewProductDetails, setViewProductDetails] = useState(null);
+  const [modalImageIndex, setModalImageIndex] = useState(0);
+  const [isFullScreenImage, setIsFullScreenImage] = useState(false);
+
+  // Transition state handlers for Modals & FullScreen
+  const [modalStage, setModalStage] = useState('');
+  const [fullScreenStage, setFullScreenStage] = useState('');
   
   const [user, setUser] = useState(() => {
     const savedUser = localStorage.getItem('user');
@@ -561,70 +822,335 @@ function App() {
 
   const handleAddToCart = (product, skipToast = false) => {
     setCart((prevCart) => {
-      const existingItem = prevCart.find((item) => (item._id || item.id) === (product._id || product.id));
+      const existingItem = prevCart.find((item) => item._id === product._id);
       if (existingItem) {
         return prevCart.map((item) =>
-          (item._id || item.id) === (product._id || product.id)
-            ? { ...item, quantity: (item.quantity || 1) + 1 }
-            : item
+          item._id === product._id ? { ...item, quantity: (item.quantity || 1) + 1 } : item
         );
+      } else {
+        return [...prevCart, { ...product, quantity: 1 }];
       }
-      return [...prevCart, { ...product, quantity: 1 }];
     });
 
     if (!skipToast) {
-      setToastMessage(product.title || product.name || 'Item');
-      setTimeout(() => setToastMessage(''), 3000);
-    }
-
-    if (user) {
-      const userId = user.id || user._id;
-      const productId = product._id || product.id;
-      axios.post('http://localhost:5000/api/cart/add', { userId, productId, quantity: 1 })
-        .catch(err => console.error("Database Cart Sync Error:", err));
+      setToastMessage(product.title);
+      setTimeout(() => {
+        setToastMessage('');
+      }, 3500);
     }
   };
 
-  const cartCount = cart.reduce((acc, item) => acc + (item.quantity || 1), 0);
+  // Open & Close Modal with Transition Animation
+  const openGlobalDetailsModal = (product) => {
+    setViewProductDetails(product);
+    setModalImageIndex(0);
+    setIsFullScreenImage(false);
+    setModalStage('page-enter');
+  };
+
+  const closeGlobalDetailsModal = () => {
+    setModalStage('page-exit');
+  };
+
+  const handleModalAnimationEnd = () => {
+    if (modalStage === 'page-exit') {
+      setViewProductDetails(null);
+      setModalStage('');
+    }
+  };
+
+  // Open & Close Fullscreen Image with Transition Animation
+  const openFullScreenView = () => {
+    setIsFullScreenImage(true);
+    setFullScreenStage('page-enter');
+  };
+
+  const closeFullScreenView = () => {
+    setFullScreenStage('page-exit');
+  };
+
+  const handleFullScreenAnimationEnd = () => {
+    if (fullScreenStage === 'page-exit') {
+      setIsFullScreenImage(false);
+      setFullScreenStage('');
+    }
+  };
+
+  const currentUserId = user?.id || user?._id;
 
   return (
-    <div>
-      <Navbar user={user} setUser={setUser} cartCount={cartCount} />
+    <div style={styles.appContainer}>
+      <Navbar user={user} setUser={setUser} cartCount={cart.reduce((acc, item) => acc + (item.quantity || 1), 0)} />
       <NotificationToast message={toastMessage} onClose={() => setToastMessage('')} />
+
       <main 
-        className={transitionStage} 
-        onAnimationEnd={handleAnimationEnd} 
-        key={displayLocation.pathname}
+        className={`page-transition ${transitionStage}`}
+        onAnimationEnd={handleAnimationEnd}
       >
         <Routes location={displayLocation}>
-          <Route path="/" element={<Home user={user} />} />
-          <Route 
-            path="/products" 
-            element={<ProductsPage user={user} onAddToCart={handleAddToCart} />} 
-          />
-          
-          <Route 
-            path="/add-product" 
-            element={
-              <ProtectedRoute user={user}>
-                <AddProduct user={user} />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/cart" 
-            element={
-              <ProtectedRoute user={user}>
-                <Cart user={user} cart={cart} setCart={setCart} />
-              </ProtectedRoute>
-            } 
-          />
-
+          <Route path="/" element={<Home user={user} onViewDetails={openGlobalDetailsModal} />} />
+          <Route path="/products" element={<ProductsPage user={user} onAddToCart={handleAddToCart} viewProductDetails={viewProductDetails} setViewProductDetails={openGlobalDetailsModal} />} />
+          <Route path="/add-product" element={
+            <ProtectedRoute user={user}>
+              <AddProduct user={user} />
+            </ProtectedRoute>
+          } />
+          <Route path="/cart" element={
+            <ProtectedRoute user={user}>
+              <Cart 
+                user={user} 
+                setCart={setCart} 
+                onMouseEnter={(e) => e.target.style.backgroundColor = '#2d6a4f'}
+                onMouseLeave={(e) => e.target.style.backgroundColor = '#1b4332'}
+              />
+            </ProtectedRoute>
+          } />
           <Route path="/login" element={<Login setUser={setUser} />} />
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
         </Routes>
       </main>
+
+      {/* Global Details Modal */}
+      {viewProductDetails && (() => {
+        const modalImages = getProductImages(viewProductDetails);
+        const seller = typeof viewProductDetails.seller === 'object' ? viewProductDetails.seller : {};
+        const sellerId = seller._id || seller.id || viewProductDetails.seller;
+        const isOwner = Boolean(currentUserId && sellerId && String(currentUserId) === String(sellerId));
+        
+        const sellerName = viewProductDetails.sellerName || seller.name || seller.username || seller.fullName || (isOwner ? "Abdullah-Al-Sajid Md. Saad" : null) || 'N/A';
+        const sellerPhone = viewProductDetails.sellerPhone || seller.phone || seller.phoneNumber || seller.contact || (isOwner ? "+880 1912-915937" : null) || 'N/A';
+        const sellerEmail = viewProductDetails.sellerEmail || seller.email || user?.email || 'N/A';
+        const sellerAddress = viewProductDetails.sellerAddress || seller.address || seller.location || (isOwner ? "Uttara, Dhaka, Bangladesh" : null) || 'N/A';
+
+        const modalCurrentPrice = Number(viewProductDetails.price || 0);
+        const modalPreviousPrice = Number(viewProductDetails.originalPrice || viewProductDetails.previousPrice || 0);
+        const modalHasDiscount = modalPreviousPrice > modalCurrentPrice;
+        const modalDiscountPercent = modalHasDiscount
+          ? Math.round(((modalPreviousPrice - modalCurrentPrice) / modalPreviousPrice) * 100)
+          : 0;
+
+        return ReactDOM.createPortal(
+          <>
+            {/* Full Screen Image Zoom Layer with Navigation Arrows and Page Transitions */}
+            {isFullScreenImage && (
+              <div 
+                className={`page-transition ${fullScreenStage}`}
+                onAnimationEnd={handleFullScreenAnimationEnd}
+                style={prodStyles.fullScreenOverlay} 
+                onClick={closeFullScreenView}
+              >
+                <button 
+                  style={prodStyles.fullScreenCloseBtn} 
+                  onClick={closeFullScreenView}
+                  title="Back to Details Modal"
+                  onMouseEnter={(e) => e.target.style.backgroundColor = '#f1f8f5'}
+                  onMouseLeave={(e) => e.target.style.backgroundColor = '#ffffff'}
+                >
+                  ✕ Close Full View
+                </button>
+
+                {modalImages.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setModalImageIndex(prev => prev === 0 ? modalImages.length - 1 : prev - 1);
+                    }}
+                    style={prodStyles.fullScreenArrowLeft}
+                    title="Previous Image"
+                  >
+                    ❮
+                  </button>
+                )}
+
+                <img 
+                  src={modalImages[modalImageIndex]} 
+                  alt="Full Size View" 
+                  style={prodStyles.fullScreenImg} 
+                  onClick={(e) => e.stopPropagation()}
+                />
+
+                {modalImages.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setModalImageIndex(prev => prev === modalImages.length - 1 ? 0 : prev + 1);
+                    }}
+                    style={prodStyles.fullScreenArrowRight}
+                    title="Next Image"
+                  >
+                    ❯
+                  </button>
+                )}
+              </div>
+            )}
+
+            <div 
+              className={`page-transition ${modalStage}`}
+              onAnimationEnd={handleModalAnimationEnd}
+              style={prodStyles.modalOverlay} 
+              onClick={closeGlobalDetailsModal}
+            >
+              <div style={prodStyles.detailsModal} onClick={(e) => e.stopPropagation()}>
+                <div style={prodStyles.detailsModalHeader}>
+                  <h3 style={{ margin: 0, color: '#1b4332' }}>{viewProductDetails.title}</h3>
+                  <button style={prodStyles.closeBtn} onClick={closeGlobalDetailsModal}>×</button>
+                </div>
+
+                <div style={prodStyles.detailsModalBody}>
+                  <div style={prodStyles.mainModalImageContainer}>
+                    {modalImages.length > 0 ? (
+                      <img 
+                        src={modalImages[modalImageIndex]} 
+                        alt={`Product Main Preview ${modalImageIndex + 1}`} 
+                        style={prodStyles.mainModalImg} 
+                      />
+                    ) : (
+                      <div style={{ textAlign: 'center', color: '#888' }}>No Image Available</div>
+                    )}
+
+                    {modalImages.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={openFullScreenView}
+                        style={prodStyles.magnifyGlassBtn}
+                        onMouseEnter={(e) => {
+                          e.target.style.transform = 'scale(1.15)';
+                          e.target.style.backgroundColor = '#ffffff';
+                          e.target.style.boxShadow = '0 4px 12px rgba(45, 106, 79, 0.35)';
+                          e.target.style.borderColor = '#2d6a4f';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.target.style.transform = 'scale(1)';
+                          e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
+                          e.target.style.boxShadow = '0 2px 6px rgba(0,0,0,0.15)';
+                          e.target.style.borderColor = '#ccc';
+                        }}
+                        title="Click to view full size image"
+                      >
+                        🔍
+                      </button>
+                    )}
+
+                    {modalImages.length > 1 && (
+                      <>
+                        <button 
+                          type="button" 
+                          onClick={() => setModalImageIndex(prev => prev === 0 ? modalImages.length - 1 : prev - 1)}
+                          style={prodStyles.modalArrowLeft}
+                        >
+                          ❮
+                        </button>
+                        <button 
+                          type="button" 
+                          onClick={() => setModalImageIndex(prev => prev === modalImages.length - 1 ? 0 : prev + 1)}
+                          style={prodStyles.modalArrowRight}
+                        >
+                          ❯
+                        </button>
+                      </>
+                    )}
+                  </div>
+
+                  {modalImages.length > 1 && (
+                    <div style={prodStyles.modalGallery}>
+                      {modalImages.map((img, idx) => (
+                        <img 
+                          key={idx} 
+                          src={img} 
+                          alt={`Product Thumbnail ${idx + 1}`} 
+                          onClick={() => setModalImageIndex(idx)}
+                          style={{
+                            ...prodStyles.modalThumbnail,
+                            borderColor: idx === modalImageIndex ? '#2d6a4f' : '#ddd',
+                            transform: idx === modalImageIndex ? 'scale(1.05)' : 'scale(1)'
+                          }}
+                        />
+                      ))}
+                    </div>
+                  )}
+
+                  <div style={prodStyles.detailsInfoGrid}>
+                    {/* Column 1 */}
+                    <div style={prodStyles.detailsInfoColumn}>
+                      <div style={prodStyles.detailItem}>
+                        <span style={prodStyles.detailLabel}>Category:</span>
+                        <span style={prodStyles.detailValue}>{getCategoryIcon(viewProductDetails.category)} {getCategoryName(viewProductDetails.category)}</span>
+                      </div>
+                      <div style={prodStyles.detailItem}>
+                        <span style={prodStyles.detailLabel}>Condition:</span>
+                        <span style={prodStyles.detailValue}>{viewProductDetails.condition || 'N/A'}</span>
+                      </div>
+                      <div style={prodStyles.detailItem}>
+                        <span style={prodStyles.detailLabel}>Stock Available:</span>
+                        <span style={prodStyles.detailValue}>{viewProductDetails.stock ?? 1} units</span>
+                      </div>
+                    </div>
+
+                    {/* Column 2 */}
+                    <div style={prodStyles.detailsInfoColumn}>
+                      <div style={prodStyles.detailItem}>
+                        <span style={prodStyles.detailLabel}>Current Price:</span>
+                        <span style={{ ...prodStyles.detailValue, color: '#2d6a4f', fontWeight: 'bold' }}>৳{modalCurrentPrice}</span>
+                      </div>
+                      <div style={prodStyles.detailItem}>
+                        <span style={prodStyles.detailLabel}>Original / Previous Price:</span>
+                        {modalHasDiscount ? (
+                          <span style={prodStyles.modalStrikethroughPrice}>
+                            ৳<span style={prodStyles.numberCutWrapper}>
+                              {modalPreviousPrice}
+                              <span style={prodStyles.modalDiagonalCutLine} />
+                            </span>
+                          </span>
+                        ) : (
+                          <span style={prodStyles.detailValue}>N/A</span>
+                        )}
+                      </div>
+                      <div style={prodStyles.detailItem}>
+                        <span style={prodStyles.detailLabel}>Discount:</span>
+                        {modalHasDiscount ? (
+                          <span style={{ ...prodStyles.detailValue, color: '#c05621', fontWeight: 'bold' }}>{modalDiscountPercent}% off</span>
+                        ) : (
+                          <span style={prodStyles.detailValue}>0%</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={prodStyles.detailsDescriptionBox}>
+                    <h4 style={{ margin: '0 0 6px 0', color: '#1b4332', fontSize: '0.95rem' }}>Description:</h4>
+                    <p style={{ margin: 0, color: '#4b5563', fontSize: '0.9rem', lineHeight: '1.5' }}>
+                      {viewProductDetails.description || 'No description provided by the seller.'}
+                    </p>
+                  </div>
+
+                  <div style={prodStyles.detailsSellerBox}>
+                    <h4 style={{ margin: '0 0 8px 0', color: '#1b4332', fontSize: '0.95rem' }}>Seller Contact Information:</h4>
+                    <div style={prodStyles.sellerInfoRow}><span>👤 Name:</span> <strong>{sellerName}</strong></div>
+                    <div style={prodStyles.sellerInfoRow}><span>📞 Phone:</span> <strong>{sellerPhone}</strong></div>
+                    <div style={prodStyles.sellerInfoRow}><span>✉️ Email:</span> <strong>{sellerEmail}</strong></div>
+                    <div style={prodStyles.sellerInfoRow}><span>📍 Location:</span> <strong>{sellerAddress}</strong></div>
+                  </div>
+                </div>
+
+                <div style={prodStyles.detailsModalFooter}>
+                  <button 
+                    style={prodStyles.modalCloseActionBtn} 
+                    onClick={closeGlobalDetailsModal}
+                    onMouseEnter={(e) => e.target.style.backgroundColor = '#2d6a4f'}
+                    onMouseLeave={(e) => e.target.style.backgroundColor = '#1b4332'}
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          </>,
+          document.body
+        );
+      })()}
     </div>
   );
 }
@@ -699,70 +1225,77 @@ const styles = {
     fontSize: '3.2rem',
     fontWeight: '800',
     marginBottom: '8px',
-    letterSpacing: '-1px',
+    letterSpacing: '1px'
   },
   heroSubtitle: {
-    fontSize: '1.3rem',
-    color: '#b7e4c7',
-    marginBottom: '25px',
-    fontWeight: '600',
-    fontStyle: 'italic',
+    fontSize: '1.25rem',
+    marginBottom: '30px',
+    color: '#d8f3dc'
   },
   ctaBox: {
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    padding: '20px',
+    backdropFilter: 'blur(6px)',
+    padding: '25px',
     borderRadius: '12px',
-    backdropFilter: 'blur(5px)',
+    border: '1px solid rgba(255, 255, 255, 0.2)',
     display: 'inline-block',
+    width: '100%',
+    maxWidth: '600px',
+    boxShadow: '0 8px 32px rgba(0,0,0,0.15)'
   },
   userBadgeHeader: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     gap: '12px',
-    marginBottom: '15px',
+    marginBottom: '20px'
   },
   heroAvatar: {
-    width: '45px',
-    height: '45px',
+    width: '50px',
+    height: '50px',
     borderRadius: '50%',
     objectFit: 'cover',
-    border: '2px solid #52b788',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+    border: '2px solid #52b788'
   },
   userGreeting: {
-    fontSize: '1.1rem',
-    margin: 0,
+    fontSize: '1.2rem',
+    color: '#ffffff',
+    margin: 0
   },
   authPrompt: {
-    fontSize: '1.1rem',
-    marginBottom: '15px',
+    fontSize: '1.05rem',
+    color: '#e9ecef',
+    marginBottom: '20px'
   },
   btnGroup: {
     display: 'flex',
     gap: '15px',
     justifyContent: 'center',
-    flexWrap: 'wrap',
+    flexWrap: 'wrap'
   },
   primaryBtn: {
-    backgroundColor: '#52b788',
-    color: '#081c15',
+    backgroundColor: 'transparent',
+    color: '#ffffff',
     padding: '12px 24px',
-    borderRadius: '6px',
+    borderRadius: '8px',
     textDecoration: 'none',
     fontWeight: 'bold',
     fontSize: '1rem',
-    display: 'inline-block',
+    border: '2px solid #52b788',
+    transition: 'all 0.2s ease',
+    cursor: 'pointer'
   },
   secondaryBtn: {
-    backgroundColor: '#ffffff',
-    color: '#1b4332',
+    backgroundColor: 'transparent',
+    color: '#ffffff',
     padding: '12px 24px',
-    borderRadius: '6px',
+    borderRadius: '8px',
     textDecoration: 'none',
     fontWeight: 'bold',
     fontSize: '1rem',
-    display: 'inline-block',
+    border: '2px solid #52b788',
+    transition: 'all 0.2s ease',
+    cursor: 'pointer'
   },
   productsSection: {
     maxWidth: '1200px',
@@ -773,16 +1306,17 @@ const styles = {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: '20px',
+    marginBottom: '25px',
   },
   viewAll: {
     color: '#2d6a4f',
     textDecoration: 'none',
     fontWeight: 'bold',
+    fontSize: '1rem',
   },
   grid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
     gap: '25px',
   },
   card: {
@@ -798,35 +1332,6 @@ const styles = {
     backgroundColor: '#f8f8f8',
     opacity: 0.85
   },
-  soldOutBadge: {
-    backgroundColor: '#e63946',
-    color: '#ffffff',
-    fontSize: '0.75rem',
-    fontWeight: 'bold',
-    padding: '3px 8px',
-    borderRadius: '4px',
-    textTransform: 'uppercase',
-    marginLeft: 'auto'
-  },
-  imagePlaceholder: {
-    height: '150px',
-    backgroundColor: '#d8f3dc',
-    color: '#1b4332',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '0 15px',
-    fontSize: '1.2rem',
-    fontWeight: 'bold',
-  },
-  conditionTagHeader: {
-    fontSize: '0.7rem',
-    backgroundColor: '#ffffff',
-    color: '#2d6a4f',
-    padding: '2px 6px',
-    borderRadius: '4px',
-    fontWeight: '600'
-  },
   cardBody: {
     padding: '18px',
     display: 'flex',
@@ -834,15 +1339,9 @@ const styles = {
     flexGrow: 1,
   },
   cardTitle: {
-    fontSize: '1.2rem',
+    fontSize: '1.15rem',
     margin: '0 0 8px 0',
     color: '#2b2b2b',
-  },
-  cardDesc: {
-    fontSize: '0.9rem',
-    color: '#666',
-    marginBottom: '15px',
-    flexGrow: 1,
   },
   priceRow: {
     display: 'flex',
@@ -852,23 +1351,26 @@ const styles = {
     marginBottom: '15px',
   },
   price: {
-    fontSize: '1.3rem',
+    fontSize: '1.25rem',
     fontWeight: 'bold',
     color: '#2d6a4f',
   },
   strikethroughPrice: {
-    fontSize: '0.92rem',
+    fontSize: '0.9rem',
     color: '#a0aec0',
+    display: 'inline-block',
+  },
+  numberCutWrapper: {
     position: 'relative',
     display: 'inline-block',
-    padding: '0 2px'
+    padding: '0 2px',
   },
   diagonalCutLine: {
     position: 'absolute',
     top: '50%',
     left: 0,
     width: '100%',
-    height: '1.5px',
+    height: '2px',
     backgroundColor: '#e53e3e',
     transform: 'rotate(-15deg)',
     transformOrigin: 'center'
@@ -894,6 +1396,8 @@ const styles = {
     cursor: 'pointer',
     fontWeight: 'bold',
     width: '100%',
+    marginTop: 'auto',
+    transition: 'background-color 0.2s ease',
   },
   emptyState: {
     gridColumn: '1 / -1',
@@ -909,21 +1413,27 @@ const styles = {
   emptyStateText: {
     fontSize: '1.1rem',
     color: '#495057',
-    marginBottom: '20px',
-    textAlign: 'center',
+    marginBottom: '15px',
+    textAlign: 'center'
+  },
+  appContainer: {
+    minHeight: '100vh',
+    display: 'flex',
+    flexDirection: 'column',
+    backgroundColor: '#f8f9fa'
   }
 };
 
 const prodStyles = {
   pageWrapper: {
-    backgroundColor: '#f4f7f6',
     minHeight: '100vh',
-    paddingBottom: '60px',
+    backgroundColor: '#f8f9fa',
+    paddingBottom: '50px',
   },
   headerBanner: {
     backgroundColor: '#1b4332',
     color: '#ffffff',
-    padding: '40px 20px 30px 20px',
+    padding: '40px 20px',
     textAlign: 'center',
   },
   bannerContent: {
@@ -931,25 +1441,28 @@ const prodStyles = {
     margin: '0 auto',
   },
   bannerTitle: {
-    fontSize: '2.2rem',
-    fontWeight: '700',
-    marginBottom: '8px',
+    fontSize: '2.5rem',
+    fontWeight: '800',
+    marginBottom: '10px',
   },
   bannerSubtitle: {
-    color: '#b7e4c7',
-    fontSize: '1.05rem',
+    fontSize: '1.15rem',
+    color: '#d8f3dc',
+    margin: 0,
   },
   mainContainer: {
     maxWidth: '1200px',
-    margin: '30px auto 0 auto',
+    margin: '25px auto 0 auto',
     padding: '0 20px',
+    position: 'relative',
+    zIndex: 3,
   },
   searchCard: {
     backgroundColor: '#ffffff',
-    padding: '15px 20px',
-    borderRadius: '10px',
-    boxShadow: '0 4px 15px rgba(0,0,0,0.08)',
-    marginBottom: '25px',
+    padding: '20px',
+    borderRadius: '12px',
+    boxShadow: '0 6px 20px rgba(0,0,0,0.08)',
+    marginBottom: '20px',
   },
   searchGroup: {
     display: 'flex',
@@ -957,31 +1470,32 @@ const prodStyles = {
     flexWrap: 'wrap',
   },
   searchInput: {
-    flex: '2 1 250px',
+    flex: '1 1 280px',
     padding: '12px 16px',
-    borderRadius: '6px',
-    border: '1px solid #ccc',
-    fontSize: '0.98rem',
+    borderRadius: '8px',
+    border: '1px solid #ced4da',
+    fontSize: '1rem',
     outline: 'none',
   },
   categorySelect: {
-    flex: '1 1 180px',
-    padding: '12px 16px',
-    borderRadius: '6px',
-    border: '1px solid #ccc',
-    fontSize: '0.98rem',
+    flex: '0 1 180px',
+    padding: '12px 14px',
+    borderRadius: '8px',
+    border: '1px solid #ced4da',
+    fontSize: '1rem',
     backgroundColor: '#fff',
-    cursor: 'pointer',
+    outline: 'none',
   },
   searchBtn: {
     backgroundColor: '#2d6a4f',
-    color: '#fff',
+    color: '#ffffff',
     border: 'none',
-    padding: '12px 24px',
-    borderRadius: '6px',
+    padding: '12px 22px',
+    borderRadius: '8px',
     fontWeight: 'bold',
     cursor: 'pointer',
-    fontSize: '0.98rem',
+    fontSize: '1rem',
+    transition: 'background-color 0.2s ease',
   },
   pillContainer: {
     display: 'flex',
@@ -1016,7 +1530,7 @@ const prodStyles = {
   },
   grid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
     gap: '25px',
   },
   productCard: {
@@ -1043,74 +1557,183 @@ const prodStyles = {
     textTransform: 'uppercase',
     marginLeft: 'auto'
   },
-  cardHeaderImage: {
-    height: '140px',
-    backgroundColor: '#d8f3dc',
+  cardHeaderImageContainer: {
+    height: '190px',
+    width: '100%',
+    position: 'relative',
+    backgroundColor: '#f1f5f9',
+    overflow: 'hidden',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  cardHeaderImg: {
+    width: '100%',
+    height: '100%',
+    objectFit: 'cover'
+  },
+  noImageFallback: {
+    width: '100%',
+    height: '100%',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#e2e8f0'
+  },
+  cardHeaderOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    padding: '10px 12px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: '10px 15px',
+    zIndex: 2,
+    background: 'linear-gradient(to bottom, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0) 100%)'
   },
   categoryBadge: {
-    backgroundColor: '#ffffff',
-    color: '#1b4332',
-    padding: '6px 14px',
-    borderRadius: '20px',
+    backgroundColor: 'rgba(27, 67, 50, 0.85)',
+    color: '#ffffff',
+    fontSize: '0.75rem',
     fontWeight: 'bold',
-    fontSize: '0.9rem',
-    boxShadow: '0 2px 5px rgba(0,0,0,0.05)',
+    padding: '4px 8px',
+    borderRadius: '4px',
+    backdropFilter: 'blur(4px)'
   },
   conditionBadge: {
-    backgroundColor: '#edf2f7',
-    color: '#2d3748',
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    color: '#1b4332',
     fontSize: '0.75rem',
-    fontWeight: '600',
+    fontWeight: 'bold',
     padding: '4px 8px',
-    borderRadius: '6px'
+    borderRadius: '4px'
+  },
+  arrowLeftBtn: {
+    position: 'absolute',
+    left: '8px',
+    top: '50%',
+    transform: 'translateY(-50%)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    color: '#ffffff',
+    border: 'none',
+    borderRadius: '50%',
+    width: '28px',
+    height: '28px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+    fontSize: '0.8rem',
+    zIndex: 3,
+    transition: 'background-color 0.2s'
+  },
+  arrowRightBtn: {
+    position: 'absolute',
+    right: '8px',
+    top: '50%',
+    transform: 'translateY(-50%)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    color: '#ffffff',
+    border: 'none',
+    borderRadius: '50%',
+    width: '28px',
+    height: '28px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+    fontSize: '0.8rem',
+    zIndex: 3,
+    transition: 'background-color 0.2s'
+  },
+  dotsContainer: {
+    position: 'absolute',
+    bottom: '8px',
+    left: 0,
+    right: 0,
+    display: 'flex',
+    justifyContent: 'center',
+    gap: '5px',
+    zIndex: 3
+  },
+  dot: {
+    width: '6px',
+    height: '6px',
+    borderRadius: '50%',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    boxShadow: '0 1px 2px rgba(0,0,0,0.3)'
   },
   cardBody: {
-    padding: '18px',
+    padding: '16px',
     display: 'flex',
     flexDirection: 'column',
     flexGrow: 1,
   },
   itemTitle: {
-    fontSize: '1.15rem',
-    margin: '0 0 8px 0',
+    fontSize: '1.1rem',
+    margin: '0 0 6px 0',
     color: '#2b2b2b',
   },
-  itemDesc: {
-    fontSize: '0.88rem',
-    color: '#666',
-    marginBottom: '15px',
-    flexGrow: 1,
-    lineHeight: '1.4',
+  detailsBtn: {
+    backgroundColor: '#1b4332',
+    color: '#ffffff',
+    border: 'none',
+    padding: '9px',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    textAlign: 'center',
+    fontSize: '0.85rem',
+    fontWeight: 'bold',
+    width: '100%',
+    marginBottom: '10px',
+    transition: 'background-color 0.2s ease',
   },
   itemMeta: {
     display: 'flex',
     alignItems: 'center',
-    gap: '8px',
+    gap: '6px',
     flexWrap: 'wrap',
-    marginBottom: '15px',
+    marginBottom: '12px',
   },
   priceTag: {
-    fontSize: '1.25rem',
+    fontSize: '1.2rem',
     fontWeight: 'bold',
     color: '#2d6a4f',
   },
   strikethroughPrice: {
-    fontSize: '0.9rem',
+    fontSize: '0.85rem',
     color: '#a0aec0',
+    display: 'inline-block',
+  },
+  numberCutWrapper: {
     position: 'relative',
     display: 'inline-block',
-    padding: '0 2px'
+    padding: '0 2px',
   },
   diagonalCutLine: {
     position: 'absolute',
     top: '50%',
     left: 0,
     width: '100%',
-    height: '1.5px',
+    height: '2px',
+    backgroundColor: '#e53e3e',
+    transform: 'rotate(-15deg)',
+    transformOrigin: 'center'
+  },
+  modalStrikethroughPrice: {
+    fontSize: '0.95rem',
+    color: '#a0aec0',
+    display: 'inline-block',
+  },
+  modalDiagonalCutLine: {
+    position: 'absolute',
+    top: '50%',
+    left: 0,
+    width: '100%',
+    height: '2px',
     backgroundColor: '#e53e3e',
     transform: 'rotate(-15deg)',
     transformOrigin: 'center'
@@ -1118,16 +1741,16 @@ const prodStyles = {
   discountBadge: {
     backgroundColor: '#feebc8',
     color: '#c05621',
-    fontSize: '0.75rem',
+    fontSize: '0.7rem',
     fontWeight: 'bold',
-    padding: '2px 6px',
+    padding: '2px 5px',
     borderRadius: '4px'
   },
   stockBadge: {
-    fontSize: '0.85rem',
+    fontSize: '0.8rem',
     fontWeight: 'bold',
     backgroundColor: '#f0f0f0',
-    padding: '4px 8px',
+    padding: '3px 6px',
     borderRadius: '4px',
   },
   actionButtonGroup: {
@@ -1140,97 +1763,375 @@ const prodStyles = {
     backgroundColor: '#ffffff',
     color: '#2d6a4f',
     border: '1px solid #2d6a4f',
-    padding: '10px 4px',
+    padding: '9px 4px',
     borderRadius: '6px',
     fontWeight: 'bold',
     cursor: 'pointer',
-    fontSize: '0.85rem',
+    fontSize: '0.8rem',
+    transition: 'background-color 0.2s ease'
   },
   buyNowBtn: {
     flex: 1,
     backgroundColor: '#2d6a4f',
     color: '#ffffff',
     border: 'none',
-    padding: '10px 4px',
+    padding: '9px 4px',
     borderRadius: '6px',
     fontWeight: 'bold',
     cursor: 'pointer',
-    fontSize: '0.85rem',
-  },
-  singleSoldOutBtn: {
-    width: '100%',
-    backgroundColor: '#e0e0e0',
-    color: '#757575',
-    border: 'none',
-    padding: '10px',
-    borderRadius: '6px',
-    fontWeight: 'bold',
-    cursor: 'not-allowed',
-    fontSize: '0.9rem',
-    marginTop: 'auto',
-  },
-  disabledBtn: {
-    backgroundColor: '#e0e0e0',
-    color: '#9e9e9e',
-    borderColor: '#e0e0e0',
-    cursor: 'not-allowed'
+    fontSize: '0.8rem',
+    transition: 'background-color 0.2s ease'
   },
   ownerBox: {
-    borderTop: '1px solid #eeeeee',
-    paddingTop: '10px',
+    backgroundColor: '#f1f8f5',
+    padding: '10px',
+    borderRadius: '8px',
+    border: '1px solid #c8e6c9',
     marginTop: 'auto'
   },
   ownerNotice: {
-    fontSize: '0.8rem',
-    color: '#1976d2',
+    margin: '0 0 6px 0',
+    fontSize: '0.75rem',
+    color: '#2d6a4f',
     fontWeight: 'bold',
-    margin: '0 0 8px 0',
     textAlign: 'center'
   },
   ownerActionGroup: {
     display: 'flex',
-    gap: '8px'
+    gap: '6px'
   },
   editBtn: {
     flex: 1,
-    backgroundColor: '#1976d2',
+    backgroundColor: '#2d6a4f',
     color: '#ffffff',
     border: 'none',
-    padding: '8px',
+    padding: '7px 4px',
     borderRadius: '6px',
     fontWeight: 'bold',
+    fontSize: '0.75rem',
     cursor: 'pointer',
-    fontSize: '0.85rem'
+    transition: 'background-color 0.2s ease'
   },
   deleteBtn: {
     flex: 1,
     backgroundColor: '#d32f2f',
     color: '#ffffff',
     border: 'none',
-    padding: '8px',
+    padding: '7px 4px',
+    borderRadius: '6px',
+    fontWeight: 'bold',
+    fontSize: '0.75rem',
+    cursor: 'pointer',
+    transition: 'background-color 0.2s ease'
+  },
+  singleSoldOutBtn: {
+    width: '100%',
+    backgroundColor: '#e0e0e0',
+    color: '#757575',
+    border: 'none',
+    padding: '9px',
+    borderRadius: '6px',
+    fontWeight: 'bold',
+    cursor: 'not-allowed',
+    marginTop: 'auto',
+    fontSize: '0.85rem'
+  },
+  emptyBox: {
+    gridColumn: '1 / -1',
+    backgroundColor: '#ffffff',
+    padding: '50px 20px',
+    borderRadius: '12px',
+    textAlign: 'center',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+  },
+  resetBtn: {
+    backgroundColor: '#1b4332',
+    color: '#ffffff',
+    border: 'none',
+    padding: '10px 20px',
     borderRadius: '6px',
     fontWeight: 'bold',
     cursor: 'pointer',
-    fontSize: '0.85rem'
+    transition: 'background-color 0.2s ease'
   },
   modalOverlay: {
     position: 'fixed',
     top: 0,
     left: 0,
-    width: '100vw',
-    height: '100vh',
-    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.55)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 99999
+    zIndex: 9999,
+    padding: '15px'
+  },
+  fullScreenOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.92)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10000,
+    padding: '20px'
+  },
+  fullScreenImg: {
+    maxWidth: '85vw',
+    maxHeight: '85vh',
+    objectFit: 'contain',
+    borderRadius: '8px',
+    boxShadow: '0 10px 40px rgba(0,0,0,0.5)'
+  },
+  fullScreenCloseBtn: {
+    position: 'absolute',
+    top: '20px',
+    right: '25px',
+    backgroundColor: '#ffffff',
+    color: '#1b4332',
+    border: 'none',
+    borderRadius: '6px',
+    padding: '10px 16px',
+    fontWeight: 'bold',
+    fontSize: '0.95rem',
+    cursor: 'pointer',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+    zIndex: 10001,
+    transition: 'background-color 0.2s ease'
+  },
+  fullScreenArrowLeft: {
+    position: 'absolute',
+    left: '25px',
+    top: '50%',
+    transform: 'translateY(-50%)',
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    color: '#ffffff',
+    border: '2px solid rgba(255, 255, 255, 0.6)',
+    borderRadius: '50%',
+    width: '50px',
+    height: '50px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '1.5rem',
+    cursor: 'pointer',
+    zIndex: 10001,
+    backdropFilter: 'blur(4px)',
+    transition: 'all 0.2s ease'
+  },
+  fullScreenArrowRight: {
+    position: 'absolute',
+    right: '25px',
+    top: '50%',
+    transform: 'translateY(-50%)',
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    color: '#ffffff',
+    border: '2px solid rgba(255, 255, 255, 0.6)',
+    borderRadius: '50%',
+    width: '50px',
+    height: '50px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '1.5rem',
+    cursor: 'pointer',
+    zIndex: 10001,
+    backdropFilter: 'blur(4px)',
+    transition: 'all 0.2s ease'
+  },
+  detailsModal: {
+    backgroundColor: '#ffffff',
+    borderRadius: '12px',
+    width: '100%',
+    maxWidth: '550px',
+    maxHeight: '90vh',
+    overflowY: 'auto',
+    padding: '24px',
+    boxShadow: '0 10px 30px rgba(0,0,0,0.25)',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '15px'
+  },
+  detailsModalHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderBottom: '1px solid #e5e7eb',
+    paddingBottom: '12px',
+  },
+  closeBtn: {
+    background: 'none',
+    border: 'none',
+    fontSize: '1.5rem',
+    cursor: 'pointer',
+    color: '#6b7280',
+  },
+  detailsModalBody: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '14px',
+  },
+  mainModalImageContainer: {
+    position: 'relative',
+    width: '100%',
+    height: '240px',
+    borderRadius: '8px',
+    overflow: 'hidden',
+    backgroundColor: '#f3f4f6',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  mainModalImg: {
+    maxWidth: '100%',
+    maxHeight: '100%',
+    objectFit: 'contain'
+  },
+  magnifyGlassBtn: {
+    position: 'absolute',
+    bottom: '10px',
+    right: '10px',
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    border: '1px solid #ccc',
+    borderRadius: '50%',
+    width: '36px',
+    height: '36px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+    fontSize: '1rem',
+    boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
+    zIndex: 3,
+    transition: 'all 0.2s ease'
+  },
+  modalArrowLeft: {
+    position: 'absolute',
+    left: '10px',
+    top: '50%',
+    transform: 'translateY(-50%)',
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '50%',
+    width: '32px',
+    height: '32px',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '0.9rem',
+    zIndex: 2
+  },
+  modalArrowRight: {
+    position: 'absolute',
+    right: '10px',
+    top: '50%',
+    transform: 'translateY(-50%)',
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '50%',
+    width: '32px',
+    height: '32px',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '0.9rem',
+    zIndex: 2
+  },
+  modalGallery: {
+    display: 'flex',
+    gap: '8px',
+    overflowX: 'auto',
+    paddingBottom: '4px'
+  },
+  modalThumbnail: {
+    width: '55px',
+    height: '55px',
+    borderRadius: '6px',
+    objectFit: 'cover',
+    border: '2px solid #ddd',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease'
+  },
+  detailsInfoGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(2, 1fr)',
+    gap: '12px',
+    backgroundColor: '#f1f8f5',
+    padding: '12px',
+    borderRadius: '8px',
+    border: '1px solid #c8e6c9'
+  },
+  detailsInfoColumn: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '10px'
+  },
+  detailItem: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '2px'
+  },
+  detailLabel: {
+    fontSize: '0.8rem',
+    color: '#2d6a4f',
+    fontWeight: '600'
+  },
+  detailValue: {
+    fontSize: '0.95rem',
+    color: '#1f2937'
+  },
+  detailsDescriptionBox: {
+    backgroundColor: '#f1f8f5',
+    padding: '12px',
+    borderRadius: '8px',
+    border: '1px solid #c8e6c9'
+  },
+  detailsSellerBox: {
+    backgroundColor: '#f1f8f5',
+    padding: '12px',
+    borderRadius: '8px',
+    border: '1px solid #c8e6c9',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '6px'
+  },
+  sellerInfoRow: {
+    fontSize: '0.88rem',
+    color: '#2d6a4f',
+    display: 'flex',
+    gap: '6px'
+  },
+  detailsModalFooter: {
+    display: 'flex',
+    justifyContent: 'flex-end',
+    borderTop: '1px solid #e5e7eb',
+    paddingTop: '12px',
+  },
+  modalCloseActionBtn: {
+    backgroundColor: '#1b4332',
+    color: '#ffffff',
+    border: 'none',
+    padding: '8px 20px',
+    borderRadius: '6px',
+    fontWeight: 'bold',
+    cursor: 'pointer',
+    transition: 'background-color 0.2s ease'
   },
   modal: {
     backgroundColor: '#ffffff',
+    borderRadius: '12px',
+    width: '100%',
+    maxWidth: '450px',
     padding: '24px',
-    borderRadius: '10px',
-    width: '350px',
-    boxShadow: '0 8px 24px rgba(0,0,0,0.3)'
+    boxShadow: '0 10px 30px rgba(0,0,0,0.25)',
   },
   modalForm: {
     display: 'flex',
@@ -1265,7 +2166,8 @@ const prodStyles = {
     padding: '10px',
     borderRadius: '6px',
     fontWeight: 'bold',
-    cursor: 'pointer'
+    cursor: 'pointer',
+    transition: 'background-color 0.2s ease'
   },
   cancelBtn: {
     flex: 1,
@@ -1275,24 +2177,8 @@ const prodStyles = {
     padding: '10px',
     borderRadius: '6px',
     fontWeight: 'bold',
-    cursor: 'pointer'
-  },
-  emptyBox: {
-    gridColumn: '1 / -1',
-    backgroundColor: '#ffffff',
-    padding: '50px 20px',
-    borderRadius: '10px',
-    textAlign: 'center',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
-  },
-  resetBtn: {
-    backgroundColor: '#2d6a4f',
-    color: '#fff',
-    border: 'none',
-    padding: '10px 20px',
-    borderRadius: '6px',
-    fontWeight: 'bold',
     cursor: 'pointer',
+    transition: 'background-color 0.2s ease'
   }
 };
 

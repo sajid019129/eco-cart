@@ -2,10 +2,30 @@ const express = require('express');
 const router = express.Router();
 const Product = require('../models/Product');
 const Category = require('../models/Category');
+const User = require('../models/User'); // Import User model for fallback lookups
 
+// POST /api/products - Create a new product listing
 router.post('/', async (req, res) => {
   try {
-    const { title, description, price, originalPrice, condition, category, stock, seller, ecoRating, ecoTags } = req.body;
+    const {
+      title,
+      description,
+      price,
+      originalPrice,
+      condition,
+      category,
+      stock,
+      seller,
+      sellerName,
+      sellerPhone,
+      sellerEmail,
+      sellerAddress,
+      images,
+      image,
+      imageUrl,
+      ecoRating,
+      ecoTags
+    } = req.body;
 
     if (!title || price === undefined || price === null || !category) {
       return res.status(400).json({ error: 'Title, price, and category are required fields.' });
@@ -24,9 +44,28 @@ router.post('/', async (req, res) => {
       }
     }
 
+    // Process Category
     let categoryDoc = await Category.findOne({ name: category });
     if (!categoryDoc) {
       categoryDoc = await Category.create({ name: category });
+    }
+
+    // Process Images into an Array
+    let productImages = [];
+    if (Array.isArray(images) && images.length > 0) {
+      productImages = images;
+    } else if (image) {
+      productImages = [image];
+    } else if (imageUrl) {
+      productImages = [imageUrl];
+    }
+
+    // Lookup User record as a safeguard if explicit text fields are missing
+    let userRecord = null;
+    let sellerId = null;
+    if (seller) {
+      sellerId = typeof seller === 'string' ? seller : seller._id;
+      userRecord = await User.findById(sellerId);
     }
 
     const productData = {
@@ -37,12 +76,17 @@ router.post('/', async (req, res) => {
       condition: condition || '',
       category: categoryDoc._id,
       stock: stock !== undefined && stock !== null ? Math.max(0, Number(stock)) : 1,
+      images: productImages,
+      sellerName: sellerName || (userRecord ? (userRecord.name || userRecord.fullName) : ''),
+      sellerPhone: sellerPhone || (userRecord ? (userRecord.phone || userRecord.phoneNumber) : ''),
+      sellerEmail: sellerEmail || (userRecord ? userRecord.email : ''),
+      sellerAddress: sellerAddress || (userRecord ? (userRecord.address || userRecord.location) : ''),
       ecoRating: ecoRating ? Number(ecoRating) : 5,
       ecoTags: ecoTags || []
     };
 
-    if (seller && seller.length === 24) {
-      productData.seller = seller;
+    if (sellerId) {
+      productData.seller = sellerId;
     }
 
     const product = new Product(productData);
@@ -50,10 +94,12 @@ router.post('/', async (req, res) => {
 
     res.status(201).json(product);
   } catch (err) {
+    console.error('Error adding product:', err);
     res.status(500).json({ error: 'Failed to add product', details: err.message });
   }
 });
 
+// GET /api/products - Get all products with optional search and category filters
 router.get('/', async (req, res) => {
   try {
     const { searchTerm, category } = req.query;
@@ -70,16 +116,38 @@ router.get('/', async (req, res) => {
       }
     }
 
-    const products = await Product.find(filter).populate('category', 'name').populate('seller', 'name email');
+    const products = await Product.find(filter)
+      .populate('category', 'name')
+      .populate('seller', 'name email phone address');
+      
     res.json(products);
   } catch (err) {
     res.status(500).json({ error: 'Failed to retrieve products', details: err.message });
   }
 });
 
+// PUT /api/products/:id - Update product details or stock
 router.put('/:id', async (req, res) => {
   try {
-    const { title, description, price, originalPrice, condition, category, stock, ecoRating, ecoTags } = req.body;
+    const {
+      title,
+      description,
+      price,
+      originalPrice,
+      condition,
+      category,
+      stock,
+      images,
+      image,
+      imageUrl,
+      sellerName,
+      sellerPhone,
+      sellerEmail,
+      sellerAddress,
+      ecoRating,
+      ecoTags
+    } = req.body;
+
     let updateFields = {};
 
     if (title) updateFields.title = title;
@@ -91,6 +159,19 @@ router.put('/:id', async (req, res) => {
     if (ecoRating !== undefined) updateFields.ecoRating = Number(ecoRating);
     if (ecoTags !== undefined) updateFields.ecoTags = ecoTags;
 
+    if (sellerName !== undefined) updateFields.sellerName = sellerName;
+    if (sellerPhone !== undefined) updateFields.sellerPhone = sellerPhone;
+    if (sellerEmail !== undefined) updateFields.sellerEmail = sellerEmail;
+    if (sellerAddress !== undefined) updateFields.sellerAddress = sellerAddress;
+
+    if (Array.isArray(images)) {
+      updateFields.images = images;
+    } else if (image) {
+      updateFields.images = [image];
+    } else if (imageUrl) {
+      updateFields.images = [imageUrl];
+    }
+
     if (category) {
       let categoryDoc = await Category.findOne({ name: category });
       if (!categoryDoc) {
@@ -101,7 +182,7 @@ router.put('/:id', async (req, res) => {
 
     const updatedProduct = await Product.findByIdAndUpdate(req.params.id, updateFields, { new: true })
       .populate('category', 'name')
-      .populate('seller', 'name email');
+      .populate('seller', 'name email phone address');
 
     if (!updatedProduct) {
       return res.status(404).json({ error: 'Product not found' });
@@ -112,6 +193,7 @@ router.put('/:id', async (req, res) => {
   }
 });
 
+// DELETE /api/products/:id - Remove product
 router.delete('/:id', async (req, res) => {
   try {
     const deletedProduct = await Product.findByIdAndDelete(req.params.id);

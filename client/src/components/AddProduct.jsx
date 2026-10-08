@@ -12,9 +12,15 @@ const AddProduct = ({ user }) => {
     stock: '',
     category: '',
     condition: '',
-    description: ''
+    description: '',
+    sellerName: user?.name || user?.username || '',
+    phone: user?.phone || '',
+    email: user?.email || '',
+    location: user?.address || ''
   });
 
+  const [images, setImages] = useState([]);
+  const [imagePreviews, setImagePreviews] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -22,18 +28,55 @@ const AddProduct = ({ user }) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  const handleImageChange = (e) => {
+    const selectedFiles = Array.from(e.target.files);
+    if (selectedFiles.length === 0) return;
+
+    if (images.length + selectedFiles.length > 5) {
+      setError('You can upload a maximum of 5 images in total.');
+      return;
+    }
+
+    setError('');
+
+    const updatedImages = [...images, ...selectedFiles];
+    setImages(updatedImages);
+
+    const newPreviews = selectedFiles.map((file) => URL.createObjectURL(file));
+    setImagePreviews((prevPreviews) => [...prevPreviews, ...newPreviews]);
+
+    e.target.value = '';
+  };
+
+  const handleRemoveImage = (indexToRemove) => {
+    URL.revokeObjectURL(imagePreviews[indexToRemove]);
+
+    setImages((prev) => prev.filter((_, index) => index !== indexToRemove));
+    setImagePreviews((prev) => prev.filter((_, index) => index !== indexToRemove));
+
+    if (error) setError('');
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
-    // Validation: Check required fields
+    if (images.length < 1 || images.length > 5) {
+      setError('Please upload at least 1 and at most 5 product photos.');
+      return;
+    }
+
     if (
       !formData.title.trim() ||
       !formData.price ||
       formData.stock === '' ||
       !formData.category ||
       !formData.condition ||
-      !formData.description.trim()
+      !formData.description.trim() ||
+      !formData.sellerName.trim() ||
+      !formData.phone.trim() ||
+      !formData.email.trim() ||
+      !formData.location.trim()
     ) {
       setError('Please fill up all required fields and information.');
       return;
@@ -48,7 +91,7 @@ const AddProduct = ({ user }) => {
     }
 
     if (originalPrice !== null && originalPrice <= currentPrice) {
-      setError('Previous price must be higher than the current selling price.');
+      setError('Original/Previous price must be higher than the current selling price.');
       return;
     }
 
@@ -60,6 +103,17 @@ const AddProduct = ({ user }) => {
     setLoading(true);
 
     try {
+      const imagePromises = images.map((file) => {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+      });
+
+      const base64Images = await Promise.all(imagePromises);
+
       const payload = {
         title: formData.title,
         price: currentPrice,
@@ -68,6 +122,12 @@ const AddProduct = ({ user }) => {
         category: formData.category,
         condition: formData.condition,
         description: formData.description,
+        images: base64Images,
+        image: base64Images[0],
+        sellerName: formData.sellerName,
+        sellerPhone: formData.phone,
+        sellerEmail: formData.email,
+        sellerAddress: formData.location,
         seller: user?.id || user?._id
       };
 
@@ -90,7 +150,6 @@ const AddProduct = ({ user }) => {
         {error && <div style={styles.errorAlert}>{error}</div>}
 
         <form onSubmit={handleSubmit} style={styles.form}>
-          {/* Product Title */}
           <div style={styles.formGroup}>
             <label style={styles.label}>
               Product Title <span style={styles.requiredAsterisk}>*</span>
@@ -105,7 +164,6 @@ const AddProduct = ({ user }) => {
             />
           </div>
 
-          {/* Dual Price Row */}
           <div style={styles.row}>
             <div style={{ ...styles.formGroup, flex: 1 }}>
               <label style={styles.label}>
@@ -124,7 +182,7 @@ const AddProduct = ({ user }) => {
             </div>
 
             <div style={{ ...styles.formGroup, flex: 1 }}>
-              <label style={styles.label}>Previous Price in BDT (৳)</label>
+              <label style={styles.label}>Original / Previous Price in BDT (৳)</label>
               <input
                 type="number"
                 name="originalPrice"
@@ -138,7 +196,6 @@ const AddProduct = ({ user }) => {
             </div>
           </div>
 
-          {/* Stock Availability */}
           <div style={styles.formGroup}>
             <label style={styles.label}>
               Stock Availability <span style={styles.requiredAsterisk}>*</span>
@@ -155,7 +212,6 @@ const AddProduct = ({ user }) => {
             />
           </div>
 
-          {/* Category */}
           <div style={styles.formGroup}>
             <label style={styles.label}>
               Category <span style={styles.requiredAsterisk}>*</span>
@@ -178,7 +234,6 @@ const AddProduct = ({ user }) => {
             </select>
           </div>
 
-          {/* Item Condition */}
           <div style={styles.formGroup}>
             <label style={styles.label}>
               Item Condition <span style={styles.requiredAsterisk}>*</span>
@@ -199,7 +254,6 @@ const AddProduct = ({ user }) => {
             </select>
           </div>
 
-          {/* Description */}
           <div style={styles.formGroup}>
             <label style={styles.label}>
               Description <span style={styles.requiredAsterisk}>*</span>
@@ -213,6 +267,105 @@ const AddProduct = ({ user }) => {
               style={styles.textarea}
               required
             />
+          </div>
+
+          <div style={styles.formGroup}>
+            <label style={styles.label}>
+              Product Photos (Upload 1 to 5 Photos) <span style={styles.requiredAsterisk}>*</span>
+            </label>
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={handleImageChange}
+              style={styles.fileInput}
+              disabled={images.length >= 5}
+            />
+            <small style={styles.hint}>Upload between 1 and 5 clear product images ({images.length}/5 selected).</small>
+
+            {imagePreviews.length > 0 && (
+              <div style={styles.previewGrid}>
+                {imagePreviews.map((src, index) => (
+                  <div key={index} style={styles.previewWrapper}>
+                    <img
+                      src={src}
+                      alt={`Product Preview ${index + 1}`}
+                      style={styles.previewImage}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveImage(index)}
+                      style={styles.removeBadge}
+                      title="Remove Image"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div style={styles.sellerBox}>
+            <h3 style={styles.sellerHeader}>
+              Seller Contact Details <span style={styles.requiredAsterisk}>*</span>
+            </h3>
+
+            <div style={styles.formGroup}>
+              <label style={styles.label}>
+                Full Name <span style={styles.requiredAsterisk}>*</span>
+              </label>
+              <input
+                type="text"
+                name="sellerName"
+                value={formData.sellerName}
+                readOnly
+                style={styles.readOnlyInput}
+              />
+            </div>
+
+            <div style={styles.formGroup}>
+              <label style={styles.label}>
+                Phone Number <span style={styles.requiredAsterisk}>*</span>
+              </label>
+              <input
+                type="tel"
+                name="phone"
+                value={formData.phone}
+                onChange={handleChange}
+                placeholder="Enter your phone number (e.g. +880 19xx-xxxxxx)"
+                style={styles.input}
+                required
+              />
+            </div>
+
+            <div style={styles.formGroup}>
+              <label style={styles.label}>
+                Email Address <span style={styles.requiredAsterisk}>*</span>
+              </label>
+              <input
+                type="email"
+                name="email"
+                value={formData.email}
+                readOnly
+                style={styles.readOnlyInput}
+              />
+            </div>
+
+            <div style={styles.formGroup}>
+              <label style={styles.label}>
+                Location / Address <span style={styles.requiredAsterisk}>*</span>
+              </label>
+              <input
+                type="text"
+                name="location"
+                value={formData.location}
+                onChange={handleChange}
+                placeholder="Enter your location"
+                style={styles.input}
+                required
+              />
+            </div>
           </div>
 
           <button type="submit" style={styles.submitBtn} disabled={loading}>
@@ -238,7 +391,7 @@ const styles = {
     padding: '30px 35px',
     borderRadius: '12px',
     boxShadow: '0 6px 20px rgba(0,0,0,0.08)',
-    maxWidth: '550px',
+    maxWidth: '600px',
     width: '100%',
   },
   title: {
@@ -290,6 +443,78 @@ const styles = {
     border: '1px solid #ccc',
     fontSize: '0.95rem',
     outline: 'none',
+  },
+  readOnlyInput: {
+    padding: '10px 14px',
+    borderRadius: '6px',
+    border: '1px solid #d1d5db',
+    fontSize: '0.95rem',
+    backgroundColor: '#e9ecef',
+    color: '#495057',
+    outline: 'none',
+    cursor: 'not-allowed',
+  },
+  fileInput: {
+    padding: '8px',
+    borderRadius: '6px',
+    border: '1px solid #ccc',
+    fontSize: '0.9rem',
+    backgroundColor: '#fafafa',
+  },
+  hint: {
+    fontSize: '0.8rem',
+    color: '#666',
+  },
+  previewGrid: {
+    display: 'flex',
+    gap: '12px',
+    marginTop: '10px',
+    flexWrap: 'wrap',
+  },
+  previewWrapper: {
+    position: 'relative',
+    width: '70px',
+    height: '70px',
+  },
+  previewImage: {
+    width: '100%',
+    height: '100%',
+    objectFit: 'cover',
+    borderRadius: '6px',
+    border: '1px solid #ddd',
+  },
+  removeBadge: {
+    position: 'absolute',
+    top: '-6px',
+    right: '-6px',
+    backgroundColor: '#d32f2f',
+    color: '#ffffff',
+    border: 'none',
+    borderRadius: '50%',
+    width: '20px',
+    height: '20px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    lineHeight: '1',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+  },
+  sellerBox: {
+    backgroundColor: '#f1f8f5',
+    padding: '16px',
+    borderRadius: '8px',
+    border: '1px solid #c8e6c9',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '14px',
+    marginTop: '6px',
+  },
+  sellerHeader: {
+    margin: '0',
+    fontSize: '1rem',
+    color: '#1b4332',
   },
   select: {
     padding: '10px 14px',

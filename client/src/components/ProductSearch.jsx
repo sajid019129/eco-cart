@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 
-// Reusable component to render current price, struck-through original price, and auto-calculated discount %
 export const ProductPriceDisplay = ({ price, originalPrice }) => {
   const currentNum = Number(price);
   const originalNum = Number(originalPrice);
