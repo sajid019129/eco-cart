@@ -374,7 +374,20 @@ function Home({ user, onViewDetails }) {
       <section style={styles.productsSection}>
         <div style={styles.sectionHeader}>
           <h2 style={{ margin: 0, color: '#1b4332' }}>Trending Resell & Declutter Goods</h2>
-          <Link to="/products" style={styles.viewAll}>View All Products →</Link>
+          <Link 
+            to="/products" 
+            style={styles.viewAll}
+            onMouseEnter={(e) => {
+              e.target.style.color = '#52b788';
+              e.target.style.transform = 'translateX(4px)';
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.color = '#2d6a4f';
+              e.target.style.transform = 'translateX(0)';
+            }}
+          >
+            View All Products →
+          </Link>
         </div>
 
         <div style={styles.grid}>
@@ -1330,6 +1343,8 @@ const styles = {
     textDecoration: 'none',
     fontWeight: 'bold',
     fontSize: '1rem',
+    transition: 'all 0.2s ease',
+    display: 'inline-block',
   },
   grid: {
     display: 'grid',
