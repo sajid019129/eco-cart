@@ -1126,7 +1126,7 @@ function App() {
 
                   <div style={prodStyles.detailsDescriptionBox}>
                     <h4 style={{ margin: '0 0 6px 0', color: '#1b4332', fontSize: '0.95rem' }}>Description:</h4>
-                    <p style={{ margin: 0, color: '#4b5563', fontSize: '0.9rem', lineHeight: '1.5' }}>
+                    <p style={{ margin: 0, color: '#4b5563', fontSize: '0.9rem', lineHeight: '1.5', whiteSpace: 'pre-line' }}>
                       {viewProductDetails.description || 'No description provided by the seller.'}
                     </p>
                   </div>
