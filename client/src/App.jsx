@@ -84,13 +84,24 @@ const ProtectedRoute = ({ user, children }) => {
   return children;
 };
 
-const NotificationToast = ({ message, onClose }) => {
+const NotificationToast = ({ message, type = 'success', onClose }) => {
   if (!message) return null;
+  const isError = type === 'error';
+
   return (
-    <div style={toastStyles.toast}>
-      <div style={toastStyles.iconBox}>✓</div>
+    <div style={{
+      ...toastStyles.toast,
+      borderLeft: `5px solid ${isError ? '#d32f2f' : '#52b788'}`
+    }}>
+      <div style={{
+        ...toastStyles.iconBox,
+        backgroundColor: isError ? '#ffebee' : '#d8f3dc',
+        color: isError ? '#d32f2f' : '#2d6a4f'
+      }}>
+        {isError ? '!' : '✓'}
+      </div>
       <div style={toastStyles.textBox}>
-        <strong>Added to Cart</strong>
+        <strong>{isError ? 'Stock Limit Reached' : 'Added to Cart'}</strong>
         <span style={toastStyles.itemTitle}>{message}</span>
       </div>
       <button onClick={onClose} style={toastStyles.closeBtn}>×</button>
@@ -179,7 +190,7 @@ function ProductImageCarousel({ product, catName, isSoldOut }) {
   );
 }
 
-function ProductCard({ product, isOwner, isSoldOut, currentPrice, previousPrice, hasDiscount, discountPercent, catName, onAddToCart, onBuyNow, onOpenEdit, onDeleteProduct, onViewDetails }) {
+function ProductCard({ product, displayStock, isOwner, isSoldOut, currentPrice, previousPrice, hasDiscount, discountPercent, catName, onAddToCart, onBuyNow, onOpenEdit, onDeleteProduct, onViewDetails }) {
   return (
     <div style={{ ...prodStyles.productCard, ...(isSoldOut ? prodStyles.soldOutCard : {}) }}>
       <ProductImageCarousel product={product} catName={catName} isSoldOut={isSoldOut} />
@@ -205,7 +216,7 @@ function ProductCard({ product, isOwner, isSoldOut, currentPrice, previousPrice,
           )}
 
           <span style={{ ...prodStyles.stockBadge, color: isSoldOut ? '#d32f2f' : '#2e7d32', marginLeft: 'auto' }}>
-            {isSoldOut ? 'Out of Stock' : `Stock Available: ${product.stock}`}
+            {isSoldOut ? 'Out of Stock' : `Stock Available: ${displayStock}`}
           </span>
         </div>
 
@@ -274,7 +285,7 @@ function ProductCard({ product, isOwner, isSoldOut, currentPrice, previousPrice,
   );
 }
 
-function Home({ user, onViewDetails }) {
+function Home({ user, cart, onAddToCart, onViewDetails }) {
   const [featuredProducts, setFeaturedProducts] = useState([]);
 
   useEffect(() => {
@@ -394,7 +405,11 @@ function Home({ user, onViewDetails }) {
           {featuredProducts.length > 0 ? (
             featuredProducts.map((p) => {
               const catName = getCategoryName(p.category);
-              const isSoldOut = (p.stock === undefined || p.stock === null) ? false : p.stock <= 0;
+              const cartItem = cart.find(item => item._id === p._id);
+              const qtyInCart = cartItem ? (cartItem.quantity || 1) : 0;
+              const originalStock = p.stock ?? 1;
+              const displayStock = Math.max(0, originalStock - qtyInCart);
+              const isSoldOut = displayStock <= 0;
               
               const currentPrice = Number(p.price || 0);
               const previousPrice = Number(p.originalPrice || p.previousPrice || 0);
@@ -428,7 +443,7 @@ function Home({ user, onViewDetails }) {
                       )}
 
                       <span style={{ ...styles.stockText, color: isSoldOut ? '#d32f2f' : '#2e7d32', marginLeft: 'auto' }}>
-                        {isSoldOut ? 'Out of Stock' : `Stock Available: ${p.stock ?? 1}`}
+                        {isSoldOut ? 'Out of Stock' : `Stock Available: ${displayStock}`}
                       </span>
                     </div>
 
@@ -463,7 +478,7 @@ function Home({ user, onViewDetails }) {
   );
 }
 
-function ProductsPage({ user, onAddToCart, viewProductDetails, setViewProductDetails }) {
+function ProductsPage({ user, cart, onAddToCart, viewProductDetails, setViewProductDetails }) {
   const navigate = useNavigate();
   const [products, setProducts] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('All');
@@ -676,7 +691,12 @@ function ProductsPage({ user, onAddToCart, viewProductDetails, setViewProductDet
               const sellerObj = typeof p.seller === 'object' ? p.seller : {};
               const sellerId = sellerObj._id || sellerObj.id || p.seller;
               const isOwner = Boolean(currentUserId && sellerId && String(currentUserId) === String(sellerId));
-              const isSoldOut = p.stock <= 0;
+              
+              const cartItem = cart.find(item => item._id === p._id);
+              const qtyInCart = cartItem ? (cartItem.quantity || 1) : 0;
+              const originalStock = p.stock ?? 1;
+              const displayStock = Math.max(0, originalStock - qtyInCart);
+              const isSoldOut = displayStock <= 0;
 
               const currentPrice = Number(p.price || 0);
               const previousPrice = Number(p.originalPrice || p.previousPrice || 0);
@@ -689,6 +709,7 @@ function ProductsPage({ user, onAddToCart, viewProductDetails, setViewProductDet
                 <ProductCard
                   key={p._id}
                   product={p}
+                  displayStock={displayStock}
                   isOwner={isOwner}
                   isSoldOut={isSoldOut}
                   currentPrice={currentPrice}
@@ -802,6 +823,7 @@ function App() {
   const [displayLocation, setDisplayLocation] = useState(location);
   const [transitionStage, setTransitionStage] = useState('page-enter');
   const [toastMessage, setToastMessage] = useState('');
+  const [toastType, setToastType] = useState('success');
 
   const [viewProductDetails, setViewProductDetails] = useState(null);
   const [modalImageIndex, setModalImageIndex] = useState(0);
@@ -839,9 +861,22 @@ function App() {
   };
 
   const handleAddToCart = (product, skipToast = false) => {
+    const maxStock = product.stock ?? 1;
+    const existingItem = cart.find((item) => item._id === product._id);
+    const currentQtyInCart = existingItem ? (existingItem.quantity || 1) : 0;
+
+    if (currentQtyInCart >= maxStock) {
+      setToastType('error');
+      setToastMessage(`Only ${maxStock} units available in stock.`);
+      setTimeout(() => {
+        setToastMessage('');
+      }, 3500);
+      return;
+    }
+
     setCart((prevCart) => {
-      const existingItem = prevCart.find((item) => item._id === product._id);
-      if (existingItem) {
+      const itemInPrev = prevCart.find((item) => item._id === product._id);
+      if (itemInPrev) {
         return prevCart.map((item) =>
           item._id === product._id ? { ...item, quantity: (item.quantity || 1) + 1 } : item
         );
@@ -851,6 +886,7 @@ function App() {
     });
 
     if (!skipToast) {
+      setToastType('success');
       setToastMessage(product.title);
       setTimeout(() => {
         setToastMessage('');
@@ -899,15 +935,15 @@ function App() {
   return (
     <div style={styles.appContainer}>
       <Navbar user={user} setUser={setUser} cartCount={cart.reduce((acc, item) => acc + (item.quantity || 1), 0)} />
-      <NotificationToast message={toastMessage} onClose={() => setToastMessage('')} />
+      <NotificationToast message={toastMessage} type={toastType} onClose={() => setToastMessage('')} />
 
       <main 
         className={`page-transition ${transitionStage}`}
         onAnimationEnd={handleAnimationEnd}
       >
         <Routes location={displayLocation}>
-          <Route path="/" element={<Home user={user} onViewDetails={openGlobalDetailsModal} />} />
-          <Route path="/products" element={<ProductsPage user={user} onAddToCart={handleAddToCart} viewProductDetails={viewProductDetails} setViewProductDetails={openGlobalDetailsModal} />} />
+          <Route path="/" element={<Home user={user} cart={cart} onAddToCart={handleAddToCart} onViewDetails={openGlobalDetailsModal} />} />
+          <Route path="/products" element={<ProductsPage user={user} cart={cart} onAddToCart={handleAddToCart} viewProductDetails={viewProductDetails} setViewProductDetails={openGlobalDetailsModal} />} />
           <Route path="/add-product" element={
             <ProtectedRoute user={user}>
               <AddProduct user={user} />
@@ -940,6 +976,11 @@ function App() {
         const sellerPhone = viewProductDetails.sellerPhone || seller.phone || seller.phoneNumber || seller.contact || '+880 1912-915937';
         const sellerEmail = viewProductDetails.sellerEmail || seller.email || '23201020@uap-bd.edu';
         const sellerAddress = viewProductDetails.sellerAddress || seller.address || seller.location || 'Uttara, Dhaka, Bangladesh';
+
+        const modalCartItem = cart.find(item => item._id === viewProductDetails._id);
+        const modalQtyInCart = modalCartItem ? (modalCartItem.quantity || 1) : 0;
+        const modalOriginalStock = viewProductDetails.stock ?? 1;
+        const modalDisplayStock = Math.max(0, modalOriginalStock - modalQtyInCart);
 
         const modalCurrentPrice = Number(viewProductDetails.price || 0);
         const modalPreviousPrice = Number(viewProductDetails.originalPrice || viewProductDetails.previousPrice || 0);
@@ -1103,7 +1144,7 @@ function App() {
                       </div>
                       <div style={prodStyles.detailItem}>
                         <span style={prodStyles.detailLabel}>Stock Available:</span>
-                        <span style={prodStyles.detailValue}>{viewProductDetails.stock ?? 1} units</span>
+                        <span style={prodStyles.detailValue}>{modalDisplayStock} units</span>
                       </div>
                     </div>
 
@@ -1187,13 +1228,10 @@ const toastStyles = {
     alignItems: 'center',
     gap: '14px',
     zIndex: 9999,
-    borderLeft: '5px solid #52b788',
     animation: 'slideIn 0.3s ease-out',
     maxWidth: '350px',
   },
   iconBox: {
-    backgroundColor: '#d8f3dc',
-    color: '#2d6a4f',
     width: '32px',
     height: '32px',
     borderRadius: '50%',
