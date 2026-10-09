@@ -932,14 +932,14 @@ function App() {
       {/* Global Details Modal */}
       {viewProductDetails && (() => {
         const modalImages = getProductImages(viewProductDetails);
-        const seller = typeof viewProductDetails.seller === 'object' ? viewProductDetails.seller : {};
+        const seller = typeof viewProductDetails.seller === 'object' && viewProductDetails.seller !== null ? viewProductDetails.seller : {};
         const sellerId = seller._id || seller.id || viewProductDetails.seller;
         const isOwner = Boolean(currentUserId && sellerId && String(currentUserId) === String(sellerId));
         
-        const sellerName = viewProductDetails.sellerName || seller.name || seller.username || seller.fullName || (isOwner ? "Abdullah-Al-Sajid Md. Saad" : null) || 'N/A';
-        const sellerPhone = viewProductDetails.sellerPhone || seller.phone || seller.phoneNumber || seller.contact || (isOwner ? "+880 1912-915937" : null) || 'N/A';
-        const sellerEmail = viewProductDetails.sellerEmail || seller.email || user?.email || 'N/A';
-        const sellerAddress = viewProductDetails.sellerAddress || seller.address || seller.location || (isOwner ? "Uttara, Dhaka, Bangladesh" : null) || 'N/A';
+        const sellerName = viewProductDetails.sellerName || seller.name || seller.username || seller.fullName || 'Abdullah-Al-Sajid Md. Saad';
+        const sellerPhone = viewProductDetails.sellerPhone || seller.phone || seller.phoneNumber || seller.contact || '+880 1912-915937';
+        const sellerEmail = viewProductDetails.sellerEmail || seller.email || '23201020@uap-bd.edu';
+        const sellerAddress = viewProductDetails.sellerAddress || seller.address || seller.location || 'Uttara, Dhaka, Bangladesh';
 
         const modalCurrentPrice = Number(viewProductDetails.price || 0);
         const modalPreviousPrice = Number(viewProductDetails.originalPrice || viewProductDetails.previousPrice || 0);
