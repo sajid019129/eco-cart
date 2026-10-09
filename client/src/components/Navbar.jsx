@@ -3,13 +3,19 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 
 const DEFAULT_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='50' fill='%232d6a4f'/><circle cx='50' cy='38' r='18' fill='%23ffffff'/><path d='M20,88 C20,68 32,58 50,58 C68,58 80,68 80,88 Z' fill='%23ffffff'/></svg>";
 
-const Navbar = ({ user, setUser, cartCount = 0 }) => {
+const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
   const navigate = useNavigate();
   const location = useLocation();
 
   const handleLogout = () => {
+    const userId = user?.id || user?._id;
+    if (userId) {
+      localStorage.removeItem(`cart_${userId}`);
+    }
     localStorage.removeItem('user');
+    localStorage.removeItem('cart');
     setUser(null);
+    if (setCart) setCart([]);
     navigate('/login');
   };
 

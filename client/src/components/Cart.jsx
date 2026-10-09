@@ -2,46 +2,56 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 
-function Cart({ user, cart, setCart }) {
-  const [cartItems, setCartItems] = useState([]);
+function Cart({ user, cart = [], setCart }) {
   const [loading, setLoading] = useState(true);
 
   const activeUser = user || JSON.parse(localStorage.getItem('user') || 'null');
   const userId = activeUser?.id || activeUser?._id;
+  const storageKey = userId ? `cart_${userId}` : 'cart';
 
   const syncCart = (items) => {
-    setCartItems(items);
     if (setCart) setCart(items);
-    localStorage.setItem('cart', JSON.stringify(items));
-  };
-
-  const fetchCart = () => {
-    const savedCart = JSON.parse(localStorage.getItem('cart') || '[]');
-
-    if (!userId) {
-      setCartItems(savedCart);
-      setLoading(false);
-      return;
-    }
-
-    axios.get(`http://localhost:5000/api/cart/${userId}`)
-      .then((res) => {
-        if (res.data?.items && res.data.items.length > 0) {
-          syncCart(res.data.items);
-        } else {
-          setCartItems(savedCart);
-        }
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error('API Error, falling back to local cart:', err);
-        setCartItems(savedCart);
-        setLoading(false);
-      });
+    localStorage.setItem(storageKey, JSON.stringify(items));
   };
 
   useEffect(() => {
-    fetchCart();
+    const savedCart = JSON.parse(localStorage.getItem(storageKey) || '[]');
+
+    // Verify against live database products to filter out deleted listings
+    axios.get('http://localhost:5000/api/products')
+      .then((res) => {
+        const liveProducts = res.data;
+        const liveProductIds = new Set(liveProducts.map(p => String(p._id)));
+
+        const validCart = (savedCart).filter(item => {
+          const pId = item.product?._id || item._id;
+          return liveProductIds.has(String(pId));
+        });
+
+        syncCart(validCart);
+
+        if (!userId) {
+          setLoading(false);
+          return;
+        }
+
+        return axios.get(`http://localhost:5000/api/cart/${userId}`)
+          .then((dbRes) => {
+            if (dbRes.data?.items && dbRes.data.items.length > 0) {
+              const validDbItems = dbRes.data.items.filter(item => {
+                const pId = item.product?._id || item._id;
+                return liveProductIds.has(String(pId));
+              });
+              syncCart(validDbItems);
+            }
+            setLoading(false);
+          });
+      })
+      .catch((err) => {
+        console.error('API Error, falling back to local cart:', err);
+        syncCart(savedCart);
+        setLoading(false);
+      });
   }, [userId]);
 
   const updateQuantity = (productId, currentQty, delta) => {
@@ -51,9 +61,9 @@ function Cart({ user, cart, setCart }) {
       return;
     }
 
-    const updated = cartItems.map((item) => {
+    const updated = cart.map((item) => {
       const pId = item.product?._id || item._id;
-      if (pId === productId) {
+      if (String(pId) === String(productId)) {
         return { ...item, quantity: newQuantity };
       }
       return item;
@@ -70,9 +80,9 @@ function Cart({ user, cart, setCart }) {
   };
 
   const removeItem = (productId) => {
-    const updated = cartItems.filter((item) => {
+    const updated = cart.filter((item) => {
       const pId = item.product?._id || item._id;
-      return pId !== productId;
+      return String(pId) !== String(productId);
     });
     syncCart(updated);
 
@@ -96,7 +106,7 @@ function Cart({ user, cart, setCart }) {
   };
 
   const calculateTotal = () => {
-    return cartItems.reduce((acc, item) => {
+    return cart.reduce((acc, item) => {
       const price = item.product?.price || item.price || 0;
       return acc + (price * (item.quantity || 1));
     }, 0).toFixed(2);
@@ -115,14 +125,16 @@ function Cart({ user, cart, setCart }) {
       <div style={styles.cartContainer}>
         <h2 style={styles.title}>Your Shopping Cart 🛒</h2>
 
-        {cartItems.length > 0 ? (
+        {cart && cart.length > 0 ? (
           <div style={styles.layout}>
             <div style={styles.itemsList}>
-              {cartItems.map((item) => {
+              {cart.map((item) => {
                 const prod = item.product || item;
                 if (!prod) return null;
 
                 const productId = prod._id || prod.id;
+                const maxStock = prod.stock ?? 99;
+                const currentQty = item.quantity || 1;
 
                 return (
                   <div key={productId} style={styles.itemCard}>
@@ -136,9 +148,19 @@ function Cart({ user, cart, setCart }) {
 
                     <div style={styles.itemActions}>
                       <div style={styles.qtyBox}>
-                        <button onClick={() => updateQuantity(productId, item.quantity || 1, -1)} style={styles.qtyBtn}>-</button>
-                        <span style={styles.qtyText}>{item.quantity || 1}</span>
-                        <button onClick={() => updateQuantity(productId, item.quantity || 1, 1)} style={styles.qtyBtn}>+</button>
+                        <button onClick={() => updateQuantity(productId, currentQty, -1)} style={styles.qtyBtn}>-</button>
+                        <span style={styles.qtyText}>{currentQty}</span>
+                        <button 
+                          onClick={() => updateQuantity(productId, currentQty, 1)} 
+                          disabled={currentQty >= maxStock}
+                          style={{
+                            ...styles.qtyBtn,
+                            opacity: currentQty >= maxStock ? 0.5 : 1,
+                            cursor: currentQty >= maxStock ? 'not-allowed' : 'pointer'
+                          }}
+                        >
+                          +
+                        </button>
                       </div>
                       <button onClick={() => removeItem(productId)} style={styles.removeBtn}>Remove</button>
                     </div>

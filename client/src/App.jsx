@@ -405,10 +405,8 @@ function Home({ user, cart, onAddToCart, onViewDetails }) {
           {featuredProducts.length > 0 ? (
             featuredProducts.map((p) => {
               const catName = getCategoryName(p.category);
-              const cartItem = cart.find(item => item._id === p._id);
-              const qtyInCart = cartItem ? (cartItem.quantity || 1) : 0;
               const originalStock = p.stock ?? 1;
-              const displayStock = Math.max(0, originalStock - qtyInCart);
+              const displayStock = Math.max(0, originalStock);
               const isSoldOut = displayStock <= 0;
               
               const currentPrice = Number(p.price || 0);
@@ -692,10 +690,8 @@ function ProductsPage({ user, cart, onAddToCart, viewProductDetails, setViewProd
               const sellerId = sellerObj._id || sellerObj.id || p.seller;
               const isOwner = Boolean(currentUserId && sellerId && String(currentUserId) === String(sellerId));
               
-              const cartItem = cart.find(item => item._id === p._id);
-              const qtyInCart = cartItem ? (cartItem.quantity || 1) : 0;
               const originalStock = p.stock ?? 1;
-              const displayStock = Math.max(0, originalStock - qtyInCart);
+              const displayStock = Math.max(0, originalStock);
               const isSoldOut = displayStock <= 0;
 
               const currentPrice = Number(p.price || 0);
@@ -829,7 +825,6 @@ function App() {
   const [modalImageIndex, setModalImageIndex] = useState(0);
   const [isFullScreenImage, setIsFullScreenImage] = useState(false);
 
-  // Transition state handlers for Modals & FullScreen
   const [modalStage, setModalStage] = useState('');
   const [fullScreenStage, setFullScreenStage] = useState('');
   
@@ -838,14 +833,54 @@ function App() {
     return savedUser ? JSON.parse(savedUser) : null;
   });
 
+  const currentUserId = user?.id || user?._id;
+
   const [cart, setCart] = useState(() => {
-    const savedCart = localStorage.getItem('cart');
+    if (!currentUserId) return [];
+    const savedCart = localStorage.getItem(`cart_${currentUserId}`);
     return savedCart ? JSON.parse(savedCart) : [];
   });
 
+  // Automatically validate cart items against existing DB products on startup/login
   useEffect(() => {
-    localStorage.setItem('cart', JSON.stringify(cart));
-  }, [cart]);
+    if (!currentUserId) return;
+    axios.get('http://localhost:5000/api/products')
+      .then((res) => {
+        const liveProducts = res.data;
+        const liveProductIds = new Set(liveProducts.map(p => String(p._id)));
+
+        setCart((prevCart) => {
+          const validated = prevCart.filter(item => {
+            const pId = item.product?._id || item._id;
+            return liveProductIds.has(String(pId));
+          });
+          if (validated.length !== prevCart.length) {
+            localStorage.setItem(`cart_${currentUserId}`, JSON.stringify(validated));
+          }
+          return validated;
+        });
+      })
+      .catch((err) => console.error('Failed to validate cart items:', err));
+  }, [currentUserId]);
+
+  useEffect(() => {
+    if (currentUserId) {
+      localStorage.setItem(`cart_${currentUserId}`, JSON.stringify(cart));
+    }
+  }, [cart, currentUserId]);
+
+  const handleSetUser = (newUser) => {
+    setUser(newUser);
+    if (newUser) {
+      const newUserId = newUser.id || newUser._id;
+      localStorage.setItem('user', JSON.stringify(newUser));
+      const savedCart = localStorage.getItem(`cart_${newUserId}`);
+      setCart(savedCart ? JSON.parse(savedCart) : []);
+    } else {
+      localStorage.removeItem('user');
+      setCart([]);
+    }
+  };
 
   useEffect(() => {
     if (location.pathname !== displayLocation.pathname) {
@@ -860,41 +895,53 @@ function App() {
     }
   };
 
-  const handleAddToCart = (product, skipToast = false) => {
+  const handleAddToCart = async (product, skipToast = false) => {
     const maxStock = product.stock ?? 1;
-    const existingItem = cart.find((item) => item._id === product._id);
+    const existingItem = cart.find((item) => {
+      const pId = item.product?._id || item._id;
+      return String(pId) === String(product._id);
+    });
     const currentQtyInCart = existingItem ? (existingItem.quantity || 1) : 0;
 
-    if (currentQtyInCart >= maxStock) {
+    if (maxStock <= 0 || currentQtyInCart >= maxStock) {
       setToastType('error');
       setToastMessage(`Only ${maxStock} units available in stock.`);
-      setTimeout(() => {
-        setToastMessage('');
-      }, 3500);
+      setTimeout(() => setToastMessage(''), 3500);
       return;
     }
 
     setCart((prevCart) => {
-      const itemInPrev = prevCart.find((item) => item._id === product._id);
+      const itemInPrev = prevCart.find((item) => {
+        const pId = item.product?._id || item._id;
+        return String(pId) === String(product._id);
+      });
       if (itemInPrev) {
-        return prevCart.map((item) =>
-          item._id === product._id ? { ...item, quantity: (item.quantity || 1) + 1 } : item
-        );
+        return prevCart.map((item) => {
+          const pId = item.product?._id || item._id;
+          return String(pId) === String(product._id)
+            ? { ...item, quantity: (item.quantity || 1) + 1 }
+            : item;
+        });
       } else {
         return [...prevCart, { ...product, quantity: 1 }];
       }
     });
 
+    try {
+      await axios.put(`http://localhost:5000/api/products/${product._id}`, {
+        stock: Math.max(0, maxStock - 1)
+      });
+    } catch (err) {
+      console.error('Failed to update global product stock:', err);
+    }
+
     if (!skipToast) {
       setToastType('success');
       setToastMessage(product.title);
-      setTimeout(() => {
-        setToastMessage('');
-      }, 3500);
+      setTimeout(() => setToastMessage(''), 3500);
     }
   };
 
-  // Open & Close Modal with Transition Animation
   const openGlobalDetailsModal = (product) => {
     setViewProductDetails(product);
     setModalImageIndex(0);
@@ -913,7 +960,6 @@ function App() {
     }
   };
 
-  // Open & Close Fullscreen Image with Transition Animation
   const openFullScreenView = () => {
     setIsFullScreenImage(true);
     setFullScreenStage('page-enter');
@@ -930,11 +976,9 @@ function App() {
     }
   };
 
-  const currentUserId = user?.id || user?._id;
-
   return (
     <div style={styles.appContainer}>
-      <Navbar user={user} setUser={setUser} cartCount={cart.reduce((acc, item) => acc + (item.quantity || 1), 0)} />
+      <Navbar user={user} setUser={handleSetUser} setCart={setCart} cartCount={cart.reduce((acc, item) => acc + (item.quantity || 1), 0)} />
       <NotificationToast message={toastMessage} type={toastType} onClose={() => setToastMessage('')} />
 
       <main 
@@ -953,13 +997,12 @@ function App() {
             <ProtectedRoute user={user}>
               <Cart 
                 user={user} 
+                cart={cart}
                 setCart={setCart} 
-                onMouseEnter={(e) => e.target.style.backgroundColor = '#2d6a4f'}
-                onMouseLeave={(e) => e.target.style.backgroundColor = '#1b4332'}
               />
             </ProtectedRoute>
           } />
-          <Route path="/login" element={<Login setUser={setUser} />} />
+          <Route path="/login" element={<Login setUser={handleSetUser} />} />
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
         </Routes>
@@ -977,10 +1020,8 @@ function App() {
         const sellerEmail = viewProductDetails.sellerEmail || seller.email || '23201020@uap-bd.edu';
         const sellerAddress = viewProductDetails.sellerAddress || seller.address || seller.location || 'Uttara, Dhaka, Bangladesh';
 
-        const modalCartItem = cart.find(item => item._id === viewProductDetails._id);
-        const modalQtyInCart = modalCartItem ? (modalCartItem.quantity || 1) : 0;
         const modalOriginalStock = viewProductDetails.stock ?? 1;
-        const modalDisplayStock = Math.max(0, modalOriginalStock - modalQtyInCart);
+        const modalDisplayStock = Math.max(0, modalOriginalStock);
 
         const modalCurrentPrice = Number(viewProductDetails.price || 0);
         const modalPreviousPrice = Number(viewProductDetails.originalPrice || viewProductDetails.previousPrice || 0);
@@ -991,7 +1032,6 @@ function App() {
 
         return ReactDOM.createPortal(
           <>
-            {/* Full Screen Image Zoom Layer with Navigation Arrows and Page Transitions */}
             {isFullScreenImage && (
               <div 
                 className={`page-transition ${fullScreenStage}`}
@@ -1003,8 +1043,6 @@ function App() {
                   style={prodStyles.fullScreenCloseBtn} 
                   onClick={closeFullScreenView}
                   title="Back to Details Modal"
-                  onMouseEnter={(e) => e.target.style.backgroundColor = '#f1f8f5'}
-                  onMouseLeave={(e) => e.target.style.backgroundColor = '#ffffff'}
                 >
                   ✕ Close Full View
                 </button>
@@ -1017,7 +1055,6 @@ function App() {
                       setModalImageIndex(prev => prev === 0 ? modalImages.length - 1 : prev - 1);
                     }}
                     style={prodStyles.fullScreenArrowLeft}
-                    title="Previous Image"
                   >
                     ❮
                   </button>
@@ -1038,7 +1075,6 @@ function App() {
                       setModalImageIndex(prev => prev === modalImages.length - 1 ? 0 : prev + 1);
                     }}
                     style={prodStyles.fullScreenArrowRight}
-                    title="Next Image"
                   >
                     ❯
                   </button>
@@ -1075,18 +1111,6 @@ function App() {
                         type="button"
                         onClick={openFullScreenView}
                         style={prodStyles.magnifyGlassBtn}
-                        onMouseEnter={(e) => {
-                          e.target.style.transform = 'scale(1.15)';
-                          e.target.style.backgroundColor = '#ffffff';
-                          e.target.style.boxShadow = '0 4px 12px rgba(45, 106, 79, 0.35)';
-                          e.target.style.borderColor = '#2d6a4f';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.target.style.transform = 'scale(1)';
-                          e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
-                          e.target.style.boxShadow = '0 2px 6px rgba(0,0,0,0.15)';
-                          e.target.style.borderColor = '#ccc';
-                        }}
                         title="Click to view full size image"
                       >
                         🔍
@@ -1132,7 +1156,6 @@ function App() {
                   )}
 
                   <div style={prodStyles.detailsInfoGrid}>
-                    {/* Column 1 */}
                     <div style={prodStyles.detailsInfoColumn}>
                       <div style={prodStyles.detailItem}>
                         <span style={prodStyles.detailLabel}>Category:</span>
@@ -1148,7 +1171,6 @@ function App() {
                       </div>
                     </div>
 
-                    {/* Column 2 */}
                     <div style={prodStyles.detailsInfoColumn}>
                       <div style={prodStyles.detailItem}>
                         <span style={prodStyles.detailLabel}>Current Price:</span>
@@ -1198,8 +1220,6 @@ function App() {
                   <button 
                     style={prodStyles.modalCloseActionBtn} 
                     onClick={closeGlobalDetailsModal}
-                    onMouseEnter={(e) => e.target.style.backgroundColor = '#2d6a4f'}
-                    onMouseLeave={(e) => e.target.style.backgroundColor = '#1b4332'}
                   >
                     Close
                   </button>
