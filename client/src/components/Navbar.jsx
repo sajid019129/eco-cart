@@ -8,12 +8,7 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
   const location = useLocation();
 
   const handleLogout = () => {
-    const userId = user?.id || user?._id;
-    if (userId) {
-      localStorage.removeItem(`cart_${userId}`);
-    }
     localStorage.removeItem('user');
-    localStorage.removeItem('cart');
     setUser(null);
     if (setCart) setCart([]);
     navigate('/login');

@@ -15,18 +15,34 @@ router.get('/:userId', async (req, res) => {
 router.post('/add', async (req, res) => {
   const { userId, productId, quantity } = req.body;
   try {
+    const product = await Product.findById(productId);
+    if (!product) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+
+    const addQty = quantity || 1;
+    if (product.stock < addQty) {
+      return res.status(400).json({ error: 'Stock limit reached' });
+    }
+
     let cart = await Cart.findOne({ user: userId });
     if (!cart) {
       cart = new Cart({ user: userId, items: [] });
     }
+
     const itemIndex = cart.items.findIndex(p => p.product.toString() === productId);
     if (itemIndex > -1) {
-      cart.items[itemIndex].quantity += (quantity || 1);
+      cart.items[itemIndex].quantity += addQty;
     } else {
-      cart.items.push({ product: productId, quantity: quantity || 1 });
+      cart.items.push({ product: productId, quantity: addQty });
     }
+
+    product.stock = Math.max(0, product.stock - addQty);
+    await product.save();
     await cart.save();
-    res.json(cart);
+
+    const updatedCart = await Cart.findOne({ user: userId }).populate('items.product');
+    res.json(updatedCart);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -40,13 +56,27 @@ router.put('/update', async (req, res) => {
 
     const itemIndex = cart.items.findIndex(p => p.product.toString() === productId);
     if (itemIndex > -1) {
+      const oldQty = cart.items[itemIndex].quantity;
+      const diff = quantity - oldQty;
+
+      const product = await Product.findById(productId);
+      if (product) {
+        if (diff > 0 && product.stock < diff) {
+          return res.status(400).json({ error: 'Stock limit reached' });
+        }
+        product.stock = Math.max(0, product.stock - diff);
+        await product.save();
+      }
+
       if (quantity <= 0) {
         cart.items.splice(itemIndex, 1);
       } else {
         cart.items[itemIndex].quantity = quantity;
       }
       await cart.save();
-      return res.json(cart);
+      
+      const updatedCart = await Cart.findOne({ user: userId }).populate('items.product');
+      return res.json(updatedCart);
     }
     res.status(404).json({ message: 'Item not found in cart' });
   } catch (err) {
@@ -60,9 +90,20 @@ router.delete('/remove/:userId/:productId', async (req, res) => {
     let cart = await Cart.findOne({ user: userId });
     if (!cart) return res.status(404).json({ message: 'Cart not found' });
 
+    const item = cart.items.find(p => p.product.toString() === productId);
+    if (item) {
+      const product = await Product.findById(productId);
+      if (product) {
+        product.stock += item.quantity;
+        await product.save();
+      }
+    }
+
     cart.items = cart.items.filter(p => p.product.toString() !== productId);
     await cart.save();
-    res.json(cart);
+    
+    const updatedCart = await Cart.findOne({ user: userId }).populate('items.product');
+    res.json(updatedCart);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -71,18 +112,9 @@ router.delete('/remove/:userId/:productId', async (req, res) => {
 router.post('/checkout', async (req, res) => {
   const { userId } = req.body;
   try {
-    let cart = await Cart.findOne({ user: userId }).populate('items.product');
+    let cart = await Cart.findOne({ user: userId });
     if (!cart || cart.items.length === 0) {
       return res.status(400).json({ error: 'Cart is empty' });
-    }
-
-    for (const item of cart.items) {
-      const prod = item.product;
-      if (prod) {
-        const deductQty = item.quantity || 1;
-        prod.stock = Math.max(0, (prod.stock || 0) - deductQty);
-        await prod.save();
-      }
     }
 
     cart.items = [];

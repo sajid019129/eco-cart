@@ -9,52 +9,40 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
 
-// Robust image normalizer for strings, base64 data, and backend object wrappers
 const formatImgSrc = (img) => {
   if (!img) return null;
-  
   if (typeof img === 'object') {
     img = img.url || img.path || img.src || null;
   }
-
   if (typeof img === 'string') {
     const trimmed = img.trim();
     if (!trimmed || trimmed === 'undefined' || trimmed === 'null') return null;
-
     if (trimmed.startsWith('http') || trimmed.startsWith('data:image') || trimmed.startsWith('blob:')) {
       return trimmed;
     }
-
     if (trimmed.length > 50) {
       return `data:image/jpeg;base64,${trimmed}`;
     }
-
     if (trimmed.startsWith('/uploads') || trimmed.startsWith('uploads/')) {
       return `http://localhost:5000/${trimmed.replace(/^\//, '')}`;
     }
-
     return trimmed;
   }
-
   return null;
 };
 
 const getProductImages = (product) => {
   if (!product) return [];
-
   let list = [];
-
   if (Array.isArray(product.images) && product.images.length > 0) {
     list = product.images.map(formatImgSrc).filter(Boolean);
   } else if (Array.isArray(product.photos) && product.photos.length > 0) {
     list = product.photos.map(formatImgSrc).filter(Boolean);
   }
-
   if (list.length === 0) {
     const single = formatImgSrc(product.image || product.imageUrl || product.photo);
     if (single) list.push(single);
   }
-
   return list;
 };
 
@@ -531,7 +519,11 @@ function ProductsPage({ user, cart, onAddToCart, viewProductDetails, setViewProd
 
   useEffect(() => {
     fetchProducts('All', '');
-  }, []);
+    const interval = setInterval(() => {
+      fetchProducts(selectedCategory, searchQuery);
+    }, 2000);
+    return () => clearInterval(interval);
+  }, [selectedCategory, searchQuery]);
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
@@ -543,20 +535,21 @@ function ProductsPage({ user, cart, onAddToCart, viewProductDetails, setViewProd
     fetchProducts(cat, searchQuery);
   };
 
-  const handleAddToCart = (product) => {
+  const handleAddToCart = async (product) => {
     if (!user) {
       navigate('/login');
       return;
     }
-    onAddToCart(product);
+    await onAddToCart(product);
+    fetchProducts(selectedCategory, searchQuery);
   };
 
-  const handleBuyNow = (product) => {
+  const handleBuyNow = async (product) => {
     if (!user) {
       navigate('/login');
       return;
     }
-    onAddToCart(product, true);
+    await onAddToCart(product, true);
     navigate('/cart');
   };
 
@@ -598,7 +591,7 @@ function ProductsPage({ user, cart, onAddToCart, viewProductDetails, setViewProd
     }
   };
 
-  const currentUserId = user?.id || user?._id;
+  const currentUserId = user?._id || user?.id || user?.userId;
 
   return (
     <div style={prodStyles.pageWrapper}>
@@ -743,7 +736,6 @@ function ProductsPage({ user, cart, onAddToCart, viewProductDetails, setViewProd
         </div>
       </div>
 
-      {/* Edit Modal */}
       {editingProduct && ReactDOM.createPortal(
         <div style={prodStyles.modalOverlay}>
           <div style={prodStyles.modal}>
@@ -833,35 +825,13 @@ function App() {
     return savedUser ? JSON.parse(savedUser) : null;
   });
 
-  const currentUserId = user?.id || user?._id;
+  const currentUserId = user?._id || user?.id || user?.userId;
 
   const [cart, setCart] = useState(() => {
     if (!currentUserId) return [];
     const savedCart = localStorage.getItem(`cart_${currentUserId}`);
     return savedCart ? JSON.parse(savedCart) : [];
   });
-
-  // Automatically validate cart items against existing DB products on startup/login
-  useEffect(() => {
-    if (!currentUserId) return;
-    axios.get('http://localhost:5000/api/products')
-      .then((res) => {
-        const liveProducts = res.data;
-        const liveProductIds = new Set(liveProducts.map(p => String(p._id)));
-
-        setCart((prevCart) => {
-          const validated = prevCart.filter(item => {
-            const pId = item.product?._id || item._id;
-            return liveProductIds.has(String(pId));
-          });
-          if (validated.length !== prevCart.length) {
-            localStorage.setItem(`cart_${currentUserId}`, JSON.stringify(validated));
-          }
-          return validated;
-        });
-      })
-      .catch((err) => console.error('Failed to validate cart items:', err));
-  }, [currentUserId]);
 
   useEffect(() => {
     if (currentUserId) {
@@ -872,7 +842,7 @@ function App() {
   const handleSetUser = (newUser) => {
     setUser(newUser);
     if (newUser) {
-      const newUserId = newUser.id || newUser._id;
+      const newUserId = newUser._id || newUser.id || newUser.userId;
       localStorage.setItem('user', JSON.stringify(newUser));
       const savedCart = localStorage.getItem(`cart_${newUserId}`);
       setCart(savedCart ? JSON.parse(savedCart) : []);
@@ -895,49 +865,42 @@ function App() {
     }
   };
 
+  // Add to cart by calling backend cart API with direct localStorage user fallback
   const handleAddToCart = async (product, skipToast = false) => {
-    const maxStock = product.stock ?? 1;
-    const existingItem = cart.find((item) => {
-      const pId = item.product?._id || item._id;
-      return String(pId) === String(product._id);
-    });
-    const currentQtyInCart = existingItem ? (existingItem.quantity || 1) : 0;
+    const activeUser = user || JSON.parse(localStorage.getItem('user') || 'null');
+    const activeUserId = activeUser?._id || activeUser?.id || activeUser?.userId;
 
-    if (maxStock <= 0 || currentQtyInCart >= maxStock) {
-      setToastType('error');
-      setToastMessage(`Only ${maxStock} units available in stock.`);
-      setTimeout(() => setToastMessage(''), 3500);
+    if (!activeUserId) {
+      navigate('/login');
       return;
     }
 
-    setCart((prevCart) => {
-      const itemInPrev = prevCart.find((item) => {
-        const pId = item.product?._id || item._id;
-        return String(pId) === String(product._id);
-      });
-      if (itemInPrev) {
-        return prevCart.map((item) => {
-          const pId = item.product?._id || item._id;
-          return String(pId) === String(product._id)
-            ? { ...item, quantity: (item.quantity || 1) + 1 }
-            : item;
-        });
-      } else {
-        return [...prevCart, { ...product, quantity: 1 }];
-      }
-    });
-
     try {
-      await axios.put(`http://localhost:5000/api/products/${product._id}`, {
-        stock: Math.max(0, maxStock - 1)
+      const productId = product._id || product.id;
+      const res = await axios.post('http://localhost:5000/api/cart/add', {
+        userId: activeUserId,
+        productId: productId,
+        quantity: 1
       });
-    } catch (err) {
-      console.error('Failed to update global product stock:', err);
-    }
 
-    if (!skipToast) {
-      setToastType('success');
-      setToastMessage(product.title);
+      const serverItems = res.data.items || [];
+      const formattedCart = serverItems.map(item => ({
+        ...item.product,
+        quantity: item.quantity,
+        product: item.product
+      }));
+
+      setCart(formattedCart);
+
+      if (!skipToast) {
+        setToastType('success');
+        setToastMessage(product.title);
+        setTimeout(() => setToastMessage(''), 3500);
+      }
+    } catch (err) {
+      console.error('Failed to add to cart:', err);
+      setToastType('error');
+      setToastMessage(err.response?.data?.error || 'Could not update stock.');
       setTimeout(() => setToastMessage(''), 3500);
     }
   };
@@ -1008,7 +971,6 @@ function App() {
         </Routes>
       </main>
 
-      {/* Global Details Modal */}
       {viewProductDetails && (() => {
         const modalImages = getProductImages(viewProductDetails);
         const seller = typeof viewProductDetails.seller === 'object' && viewProductDetails.seller !== null ? viewProductDetails.seller : {};

@@ -19,7 +19,12 @@ function Login({ setUser }) {
 
     try {
       const res = await axios.post('http://localhost:5000/api/auth/login', formData);
-      const userData = res.data.user || res.data;
+      const rawUser = res.data.user || res.data;
+      
+      const userData = {
+        ...rawUser,
+        _id: rawUser._id || rawUser.id || rawUser.userId
+      };
       
       localStorage.setItem('user', JSON.stringify(userData));
       if (res.data.token) {
