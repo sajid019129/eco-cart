@@ -434,7 +434,12 @@ function Home({ user, onViewDetails }) {
           ) : (
             <div style={styles.emptyState}>
               <p style={styles.emptyStateText}>No products available yet. Be the first seller to list an item!</p>
-              <Link to={user ? "/add-product" : "/login"} style={styles.primaryBtn}>
+              <Link 
+                to={user ? "/add-product" : "/login"} 
+                style={styles.emptyStateBtn}
+                onMouseEnter={(e) => e.target.style.backgroundColor = '#1b4332'}
+                onMouseLeave={(e) => e.target.style.backgroundColor = '#2d6a4f'}
+              >
                 {user ? "+ Sell an Item" : "+ Login to Sell Items"}
               </Link>
             </div>
@@ -1294,6 +1299,18 @@ const styles = {
     fontWeight: 'bold',
     fontSize: '1rem',
     border: '2px solid #52b788',
+    transition: 'all 0.2s ease',
+    cursor: 'pointer'
+  },
+  emptyStateBtn: {
+    backgroundColor: '#2d6a4f',
+    color: '#ffffff',
+    padding: '12px 24px',
+    borderRadius: '8px',
+    textDecoration: 'none',
+    fontWeight: 'bold',
+    fontSize: '1rem',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
     transition: 'all 0.2s ease',
     cursor: 'pointer'
   },
