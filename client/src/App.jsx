@@ -978,6 +978,15 @@ function App() {
 
       setCart(formattedCart);
 
+      setProducts(prevProducts => 
+        prevProducts.map(p => {
+          if (p._id === productId && typeof p.stock === 'number') {
+            return { ...p, stock: Math.max(0, p.stock - 1) };
+          }
+          return p;
+        })
+      );
+
       if (!skipToast) {
         setToastType('success');
         setToastMessage(product.title);
@@ -1088,7 +1097,8 @@ function App() {
               <Cart 
                 user={user} 
                 cart={cart}
-                setCart={setCart} 
+                setCart={setCart}
+                setProducts={setProducts} 
               />
             </ProtectedRoute>
           } />

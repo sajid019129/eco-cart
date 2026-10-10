@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 
-function Cart({ user, cart = [], setCart }) {
+function Cart({ user, cart = [], setCart, setProducts }) {
   const [loading, setLoading] = useState(true);
 
   const activeUser = user || JSON.parse(localStorage.getItem('user') || 'null');
@@ -31,6 +31,17 @@ function Cart({ user, cart = [], setCart }) {
     }
   };
 
+  const refreshProducts = async () => {
+    if (setProducts) {
+      try {
+        const res = await axios.get('http://localhost:5000/api/products');
+        setProducts(res.data);
+      } catch (err) {
+        console.error('Error fetching products:', err);
+      }
+    }
+  };
+
   useEffect(() => {
     fetchCart();
   }, [userId]);
@@ -53,6 +64,7 @@ function Cart({ user, cart = [], setCart }) {
         product: item.product
       }));
       if (setCart) setCart(formattedCart);
+      await refreshProducts();
     } catch (err) {
       console.error('Error updating quantity:', err);
       alert(err.response?.data?.error || 'Failed to update quantity.');
@@ -71,6 +83,7 @@ function Cart({ user, cart = [], setCart }) {
         product: item.product
       }));
       if (setCart) setCart(formattedCart);
+      await refreshProducts();
     } catch (err) {
       console.error('Error removing item:', err);
       alert('Failed to remove item from cart.');
@@ -84,6 +97,7 @@ function Cart({ user, cart = [], setCart }) {
       await axios.post('http://localhost:5000/api/cart/checkout', { userId });
       alert('Order Placed Successfully! Thank you for purchasing sustainably.');
       if (setCart) setCart([]);
+      await refreshProducts();
     } catch (err) {
       console.error('Checkout error:', err);
       alert(err.response?.data?.error || 'Failed to complete checkout.');
@@ -109,7 +123,6 @@ function Cart({ user, cart = [], setCart }) {
     );
   }
 
-  // Filter out any items where product is missing/null
   const validCartItems = cart.filter(item => item.product && (item.product._id || item.product.id));
 
   return (
