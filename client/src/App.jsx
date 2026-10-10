@@ -340,15 +340,7 @@ function ProductCard({ product, displayStock, isOwner, isSoldOut, currentPrice, 
   );
 }
 
-function Home({ user, cart, onAddToCart, onViewDetails }) {
-  const [featuredProducts, setFeaturedProducts] = useState([]);
-
-  useEffect(() => {
-    axios.get('http://localhost:5000/api/products')
-      .then(res => setFeaturedProducts(res.data.slice(0, 6)))
-      .catch(err => console.error(err));
-  }, []);
-
+function Home({ user, cart, onAddToCart, onViewDetails, featuredProducts }) {
   return (
     <div style={styles.container}>
       <section style={styles.hero}>
@@ -544,9 +536,8 @@ function Home({ user, cart, onAddToCart, onViewDetails }) {
   );
 }
 
-function ProductsPage({ user, cart, onAddToCart, viewProductDetails, setViewProductDetails, editingProduct, setEditingProduct, handleOpenEdit, handleSaveEdit, handleDeleteProduct, editStock, setEditStock, editPrice, setEditPrice, editOriginalPrice, setEditOriginalPrice, editModalStage, setEditModalStage, closeEditModal, handleEditModalAnimationEnd }) {
+function ProductsPage({ user, cart, onAddToCart, viewProductDetails, setViewProductDetails, editingProduct, setEditingProduct, handleOpenEdit, handleSaveEdit, handleDeleteProduct, editStock, setEditStock, editPrice, setEditPrice, editOriginalPrice, setEditOriginalPrice, editModalStage, setEditModalStage, closeEditModal, handleEditModalAnimationEnd, products, setProducts }) {
   const navigate = useNavigate();
-  const [products, setProducts] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -561,53 +552,21 @@ function ProductsPage({ user, cart, onAddToCart, viewProductDetails, setViewProd
     'Miscellaneous'
   ];
 
-  const fetchProducts = async (catFilter = selectedCategory, searchFilter = searchQuery) => {
-    try {
-      const params = {};
-      if (searchFilter.trim()) {
-        params.searchTerm = searchFilter.trim();
-      }
-      if (catFilter && catFilter !== 'All') {
-        params.category = catFilter;
-      }
-      const res = await axios.get('http://localhost:5000/api/products', { params });
-      
-      let filtered = res.data;
-      if (catFilter && catFilter !== 'All') {
-        filtered = filtered.filter((item) => {
-          const itemCat = getCategoryName(item.category).toLowerCase();
-          return itemCat.includes(catFilter.toLowerCase());
-        });
-      }
-      if (searchFilter.trim()) {
-        filtered = filtered.filter((item) =>
-          item.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          item.description?.toLowerCase().includes(searchQuery.toLowerCase())
-        );
-      }
-
-      setProducts(filtered);
-    } catch (err) {
-      console.error('Error fetching products:', err);
-    }
-  };
-
-  useEffect(() => {
-    fetchProducts('All', '');
-    const interval = setInterval(() => {
-      fetchProducts(selectedCategory, searchQuery);
-    }, 2000);
-    return () => clearInterval(interval);
-  }, [selectedCategory, searchQuery]);
+  const filteredProducts = products.filter((item) => {
+    const itemCat = getCategoryName(item.category).toLowerCase();
+    const matchesCat = selectedCategory === 'All' || itemCat.includes(selectedCategory.toLowerCase());
+    const matchesSearch = !searchQuery.trim() || 
+      item.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.description?.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesCat && matchesSearch;
+  });
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
-    fetchProducts(selectedCategory, searchQuery);
   };
 
   const handleCategorySelect = (cat) => {
     setSelectedCategory(cat);
-    fetchProducts(cat, searchQuery);
   };
 
   const handleAddToCart = async (product) => {
@@ -616,7 +575,6 @@ function ProductsPage({ user, cart, onAddToCart, viewProductDetails, setViewProd
       return;
     }
     await onAddToCart(product);
-    fetchProducts(selectedCategory, searchQuery);
   };
 
   const handleBuyNow = async (product) => {
@@ -658,14 +616,6 @@ function ProductsPage({ user, cart, onAddToCart, viewProductDetails, setViewProd
                 <option key={cat} value={cat}>{cat}</option>
               ))}
             </select>
-            <button 
-              type="submit" 
-              style={prodStyles.searchBtn}
-              onMouseEnter={(e) => e.target.style.backgroundColor = '#1b4332'}
-              onMouseLeave={(e) => e.target.style.backgroundColor = '#2d6a4f'}
-            >
-              Search Products
-            </button>
           </div>
         </form>
 
@@ -709,12 +659,12 @@ function ProductsPage({ user, cart, onAddToCart, viewProductDetails, setViewProd
           <h3 style={{ color: '#1b4332', margin: 0, fontSize: '1.4rem' }}>
             {selectedCategory === 'All' ? 'All Listed Items' : `${selectedCategory} Items`}
           </h3>
-          <span style={prodStyles.countBadge}>{products.length} Products Found</span>
+          <span style={prodStyles.countBadge}>{filteredProducts.length} Products Found</span>
         </div>
 
         <div style={prodStyles.grid}>
-          {products.length > 0 ? (
-            products.map((p) => {
+          {filteredProducts.length > 0 ? (
+            filteredProducts.map((p) => {
               const catName = getCategoryName(p.category);
               const sellerObj = typeof p.seller === 'object' ? p.seller : {};
               const sellerId = sellerObj._id || sellerObj.id || p.seller;
@@ -760,7 +710,6 @@ function ProductsPage({ user, cart, onAddToCart, viewProductDetails, setViewProd
                 onClick={() => {
                   setSearchQuery('');
                   setSelectedCategory('All');
-                  fetchProducts('All', '');
                 }} 
                 style={prodStyles.resetBtn}
                 onMouseEnter={(e) => e.target.style.backgroundColor = '#2d6a4f'}
@@ -871,6 +820,14 @@ function App() {
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState('success');
 
+  const [products, setProducts] = useState([]);
+
+  useEffect(() => {
+    axios.get('http://localhost:5000/api/products')
+      .then(res => setProducts(res.data))
+      .catch(err => console.error(err));
+  }, []);
+
   const [viewProductDetails, setViewProductDetails] = useState(null);
   const [modalImageIndex, setModalImageIndex] = useState(0);
   const [modalImgAnimClass, setModalImgAnimClass] = useState('img-fade-in');
@@ -968,7 +925,7 @@ function App() {
     }
   };
 
-  const handleSaveEdit = async (e, setProducts) => {
+  const handleSaveEdit = async (e, setProductsList) => {
     e.preventDefault();
     try {
       const payload = {
@@ -978,22 +935,18 @@ function App() {
       };
 
       const res = await axios.put(`http://localhost:5000/api/products/${editingProduct._id}`, payload);
-      if (setProducts) {
-        setProducts(prev => prev.map(p => p._id === res.data._id ? res.data : p));
-      }
+      setProducts(prev => prev.map(p => p._id === res.data._id ? res.data : p));
       closeEditModal();
     } catch (err) {
       alert('Failed to update product details.');
     }
   };
 
-  const handleDeleteProduct = async (productId, setProducts) => {
+  const handleDeleteProduct = async (productId) => {
     if (!window.confirm('Are you sure you want to delete this listing?')) return;
     try {
       await axios.delete(`http://localhost:5000/api/products/${productId}`);
-      if (setProducts) {
-        setProducts(prev => prev.filter(p => p._id !== productId));
-      }
+      setProducts(prev => prev.filter(p => p._id !== productId));
     } catch (err) {
       alert('Failed to delete product.');
     }
@@ -1098,7 +1051,7 @@ function App() {
         onAnimationEnd={handleAnimationEnd}
       >
         <Routes location={displayLocation}>
-          <Route path="/" element={<Home user={user} cart={cart} onAddToCart={handleAddToCart} onViewDetails={openGlobalDetailsModal} />} />
+          <Route path="/" element={<Home user={user} cart={cart} onAddToCart={handleAddToCart} onViewDetails={openGlobalDetailsModal} featuredProducts={products.slice(0, 6)} />} />
           <Route path="/products" element={
             <ProductsPage 
               user={user} 
@@ -1121,6 +1074,8 @@ function App() {
               setEditModalStage={setEditModalStage}
               closeEditModal={closeEditModal}
               handleEditModalAnimationEnd={handleEditModalAnimationEnd}
+              products={products}
+              setProducts={setProducts}
             />
           } />
           <Route path="/add-product" element={
