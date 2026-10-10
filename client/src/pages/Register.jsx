@@ -130,13 +130,47 @@ function Register({ setUser }) {
             />
           </div>
 
-          <button type="submit" disabled={loading} style={styles.submitBtn}>
+          <button 
+            type="submit" 
+            disabled={loading} 
+            style={styles.submitBtn}
+            onMouseEnter={(e) => {
+              if (!loading) {
+                e.target.style.backgroundColor = '#1b4332';
+                e.target.style.transform = 'translateY(-2px)';
+                e.target.style.boxShadow = '0 6px 16px rgba(27, 67, 50, 0.3)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!loading) {
+                e.target.style.backgroundColor = '#2d6a4f';
+                e.target.style.transform = 'translateY(0)';
+                e.target.style.boxShadow = 'none';
+              }
+            }}
+          >
             {loading ? 'Creating Account...' : 'Register'}
           </button>
         </form>
 
         <p style={styles.footerText}>
-          Already have an account? <Link to="/login" style={styles.link}>Login here</Link>
+          Already have an account?{' '}
+          <Link 
+            to="/login" 
+            style={styles.link}
+            onMouseEnter={(e) => {
+              e.target.style.color = '#1b4332';
+              e.target.style.textDecoration = 'underline';
+              e.target.style.transform = 'scale(1.03)';
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.color = '#2d6a4f';
+              e.target.style.textDecoration = 'none';
+              e.target.style.transform = 'scale(1)';
+            }}
+          >
+            Login here
+          </Link>
         </p>
       </div>
     </div>
@@ -155,10 +189,10 @@ const styles = {
   previewBox: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#e8f5e9', padding: '10px 15px', borderRadius: '8px' },
   previewLabel: { fontSize: '0.85rem', color: '#2d6a4f', fontWeight: '600' },
   avatarPreview: { width: '42px', height: '42px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #52b788' },
-  submitBtn: { backgroundColor: '#2d6a4f', color: '#fff', border: 'none', padding: '12px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', fontSize: '1rem', marginTop: '10px' },
+  submitBtn: { backgroundColor: '#2d6a4f', color: '#fff', border: 'none', padding: '12px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', fontSize: '1rem', marginTop: '10px', transition: 'all 0.2s ease' },
   error: { color: '#d90429', fontSize: '0.85rem', textAlign: 'center' },
   footerText: { textAlign: 'center', fontSize: '0.9rem', marginTop: '15px', color: '#555' },
-  link: { color: '#2d6a4f', fontWeight: 'bold', textDecoration: 'none' },
+  link: { color: '#2d6a4f', fontWeight: 'bold', textDecoration: 'none', display: 'inline-block', transition: 'all 0.2s ease' },
 };
 
 export default Register;

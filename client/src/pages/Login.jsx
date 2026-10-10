@@ -69,16 +69,65 @@ function Login({ setUser }) {
           />
 
           <div style={styles.forgotBox}>
-            <Link to="/forgot-password" style={styles.forgotLink}>Forgot Password?</Link>
+            <Link 
+              to="/forgot-password" 
+              style={styles.forgotLink}
+              onMouseEnter={(e) => {
+                e.target.style.color = '#1b4332';
+                e.target.style.textDecoration = 'underline';
+                e.target.style.transform = 'translateY(-1px)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.color = '#2d6a4f';
+                e.target.style.textDecoration = 'none';
+                e.target.style.transform = 'translateY(0)';
+              }}
+            >
+              Forgot Password?
+            </Link>
           </div>
 
-          <button type="submit" disabled={loading} style={styles.button}>
+          <button 
+            type="submit" 
+            disabled={loading} 
+            style={styles.button}
+            onMouseEnter={(e) => {
+              if (!loading) {
+                e.target.style.backgroundColor = '#1b4332';
+                e.target.style.transform = 'translateY(-2px)';
+                e.target.style.boxShadow = '0 6px 16px rgba(27, 67, 50, 0.3)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!loading) {
+                e.target.style.backgroundColor = '#2d6a4f';
+                e.target.style.transform = 'translateY(0)';
+                e.target.style.boxShadow = 'none';
+              }
+            }}
+          >
             {loading ? 'Logging in...' : 'Login'}
           </button>
         </form>
 
         <p style={styles.footerText}>
-          Don't have an account? <Link to="/register" style={styles.link}>Register here</Link>
+          Don't have an account?{' '}
+          <Link 
+            to="/register" 
+            style={styles.link}
+            onMouseEnter={(e) => {
+              e.target.style.color = '#1b4332';
+              e.target.style.textDecoration = 'underline';
+              e.target.style.transform = 'scale(1.03)';
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.color = '#2d6a4f';
+              e.target.style.textDecoration = 'none';
+              e.target.style.transform = 'scale(1)';
+            }}
+          >
+            Register here
+          </Link>
         </p>
       </div>
     </div>
@@ -135,6 +184,8 @@ const styles = {
     fontSize: '0.85rem',
     fontWeight: '600',
     textDecoration: 'none',
+    display: 'inline-block',
+    transition: 'all 0.2s ease',
   },
   button: {
     backgroundColor: '#2d6a4f',
@@ -146,6 +197,7 @@ const styles = {
     fontSize: '1rem',
     cursor: 'pointer',
     marginTop: '5px',
+    transition: 'all 0.2s ease',
   },
   errorAlert: {
     backgroundColor: '#ffedd5',
@@ -166,6 +218,8 @@ const styles = {
     color: '#2d6a4f',
     fontWeight: 'bold',
     textDecoration: 'none',
+    display: 'inline-block',
+    transition: 'all 0.2s ease',
   }
 };
 

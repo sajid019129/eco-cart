@@ -107,7 +107,25 @@ function ForgotPassword() {
               required
               style={styles.input}
             />
-            <button type="submit" disabled={loading} style={styles.button}>
+            <button 
+              type="submit" 
+              disabled={loading} 
+              style={styles.button}
+              onMouseEnter={(e) => {
+                if (!loading) {
+                  e.target.style.backgroundColor = '#1b4332';
+                  e.target.style.transform = 'translateY(-2px)';
+                  e.target.style.boxShadow = '0 6px 16px rgba(27, 67, 50, 0.3)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!loading) {
+                  e.target.style.backgroundColor = '#2d6a4f';
+                  e.target.style.transform = 'translateY(0)';
+                  e.target.style.boxShadow = 'none';
+                }
+              }}
+            >
               {loading ? 'Sending Code...' : 'Send Verification Code'}
             </button>
           </form>
@@ -127,7 +145,20 @@ function ForgotPassword() {
               required
               style={{ ...styles.input, textAlign: 'center', letterSpacing: '4px', fontSize: '1.2rem' }}
             />
-            <button type="submit" style={styles.button}>
+            <button 
+              type="submit" 
+              style={styles.button}
+              onMouseEnter={(e) => {
+                e.target.style.backgroundColor = '#1b4332';
+                e.target.style.transform = 'translateY(-2px)';
+                e.target.style.boxShadow = '0 6px 16px rgba(27, 67, 50, 0.3)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.backgroundColor = '#2d6a4f';
+                e.target.style.transform = 'translateY(0)';
+                e.target.style.boxShadow = 'none';
+              }}
+            >
               Verify Code
             </button>
             <button
@@ -138,6 +169,18 @@ function ForgotPassword() {
                 setMessage('');
               }}
               style={styles.secondaryButton}
+              onMouseEnter={(e) => {
+                e.target.style.backgroundColor = '#f1f1f1';
+                e.target.style.color = '#333';
+                e.target.style.borderColor = '#999';
+                e.target.style.transform = 'translateY(-1px)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.backgroundColor = 'transparent';
+                e.target.style.color = '#666';
+                e.target.style.borderColor = '#ccc';
+                e.target.style.transform = 'translateY(0)';
+              }}
             >
               Back to Email
             </button>
@@ -163,14 +206,48 @@ function ForgotPassword() {
               required
               style={styles.input}
             />
-            <button type="submit" disabled={loading} style={styles.button}>
+            <button 
+              type="submit" 
+              disabled={loading} 
+              style={styles.button}
+              onMouseEnter={(e) => {
+                if (!loading) {
+                  e.target.style.backgroundColor = '#1b4332';
+                  e.target.style.transform = 'translateY(-2px)';
+                  e.target.style.boxShadow = '0 6px 16px rgba(27, 67, 50, 0.3)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!loading) {
+                  e.target.style.backgroundColor = '#2d6a4f';
+                  e.target.style.transform = 'translateY(0)';
+                  e.target.style.boxShadow = 'none';
+                }
+              }}
+            >
               {loading ? 'Updating Password...' : 'Reset Password'}
             </button>
           </form>
         )}
 
         <p style={styles.footerText}>
-          Remembered your password? <Link to="/login" style={styles.link}>Login here</Link>
+          Remembered your password?{' '}
+          <Link 
+            to="/login" 
+            style={styles.link}
+            onMouseEnter={(e) => {
+              e.target.style.color = '#1b4332';
+              e.target.style.textDecoration = 'underline';
+              e.target.style.transform = 'scale(1.03)';
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.color = '#2d6a4f';
+              e.target.style.textDecoration = 'none';
+              e.target.style.transform = 'scale(1)';
+            }}
+          >
+            Login here
+          </Link>
         </p>
       </div>
     </div>
@@ -234,6 +311,7 @@ const styles = {
     fontSize: '1rem',
     cursor: 'pointer',
     marginTop: '5px',
+    transition: 'all 0.2s ease',
   },
   secondaryButton: {
     backgroundColor: 'transparent',
@@ -244,6 +322,7 @@ const styles = {
     fontWeight: '600',
     fontSize: '0.9rem',
     cursor: 'pointer',
+    transition: 'all 0.2s ease',
   },
   errorAlert: {
     backgroundColor: '#ffedd5',
@@ -273,6 +352,8 @@ const styles = {
     color: '#2d6a4f',
     fontWeight: 'bold',
     textDecoration: 'none',
+    display: 'inline-block',
+    transition: 'all 0.2s ease',
   }
 };
 
