@@ -830,7 +830,14 @@ function App() {
   const [cart, setCart] = useState(() => {
     if (!currentUserId) return [];
     const savedCart = localStorage.getItem(`cart_${currentUserId}`);
-    return savedCart ? JSON.parse(savedCart) : [];
+    if (!savedCart) return [];
+    try {
+      const parsed = JSON.parse(savedCart);
+      // Filter out any stale items where the product reference is null/invalid
+      return parsed.filter(item => (item.product || item._id || item.id) && item.product !== null);
+    } catch {
+      return [];
+    }
   });
 
   useEffect(() => {
@@ -845,7 +852,16 @@ function App() {
       const newUserId = newUser._id || newUser.id || newUser.userId;
       localStorage.setItem('user', JSON.stringify(newUser));
       const savedCart = localStorage.getItem(`cart_${newUserId}`);
-      setCart(savedCart ? JSON.parse(savedCart) : []);
+      if (savedCart) {
+        try {
+          const parsed = JSON.parse(savedCart);
+          setCart(parsed.filter(item => (item.product || item._id || item.id) && item.product !== null));
+        } catch {
+          setCart([]);
+        }
+      } else {
+        setCart([]);
+      }
     } else {
       localStorage.removeItem('user');
       setCart([]);
@@ -865,7 +881,6 @@ function App() {
     }
   };
 
-  // Add to cart by calling backend cart API with direct localStorage user fallback
   const handleAddToCart = async (product, skipToast = false) => {
     const activeUser = user || JSON.parse(localStorage.getItem('user') || 'null');
     const activeUserId = activeUser?._id || activeUser?.id || activeUser?.userId;
@@ -883,7 +898,7 @@ function App() {
         quantity: 1
       });
 
-      const serverItems = res.data.items || [];
+      const serverItems = (res.data.items || []).filter(item => item.product !== null);
       const formattedCart = serverItems.map(item => ({
         ...item.product,
         quantity: item.quantity,
@@ -939,9 +954,16 @@ function App() {
     }
   };
 
+  // Strictly calculate cart count ignoring null/deleted products
+  const validCartCount = cart.reduce((acc, item) => {
+    const prod = item.product || item;
+    if (!prod || prod === null) return acc;
+    return acc + (item.quantity || 1);
+  }, 0);
+
   return (
     <div style={styles.appContainer}>
-      <Navbar user={user} setUser={handleSetUser} setCart={setCart} cartCount={cart.reduce((acc, item) => acc + (item.quantity || 1), 0)} />
+      <Navbar user={user} setUser={handleSetUser} setCart={setCart} cartCount={validCartCount} />
       <NotificationToast message={toastMessage} type={toastType} onClose={() => setToastMessage('')} />
 
       <main 

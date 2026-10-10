@@ -5,7 +5,16 @@ const Product = require('../models/Product');
 
 router.get('/:userId', async (req, res) => {
   try {
-    const cart = await Cart.findOne({ user: req.params.userId }).populate('items.product');
+    let cart = await Cart.findOne({ user: req.params.userId }).populate('items.product');
+    
+    if (cart && cart.items.length > 0) {
+      const validItems = cart.items.filter(item => item.product !== null);
+      if (validItems.length !== cart.items.length) {
+        cart.items = validItems;
+        await cart.save();
+      }
+    }
+
     res.json(cart || { user: req.params.userId, items: [] });
   } catch (err) {
     res.status(500).json({ error: err.message });

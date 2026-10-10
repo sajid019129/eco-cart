@@ -2,7 +2,8 @@ const express = require('express');
 const router = express.Router();
 const Product = require('../models/Product');
 const Category = require('../models/Category');
-const User = require('../models/User'); // Import User model for fallback lookups
+const User = require('../models/User');
+const Cart = require('../models/Cart'); // Import Cart model for deletion cleanup
 
 // POST /api/products - Create a new product listing
 router.post('/', async (req, res) => {
@@ -44,13 +45,11 @@ router.post('/', async (req, res) => {
       }
     }
 
-    // Process Category
     let categoryDoc = await Category.findOne({ name: category });
     if (!categoryDoc) {
       categoryDoc = await Category.create({ name: category });
     }
 
-    // Process Images into an Array
     let productImages = [];
     if (Array.isArray(images) && images.length > 0) {
       productImages = images;
@@ -60,7 +59,6 @@ router.post('/', async (req, res) => {
       productImages = [imageUrl];
     }
 
-    // Lookup User record as a safeguard if explicit text fields are missing
     let userRecord = null;
     let sellerId = null;
     if (seller) {
@@ -193,14 +191,23 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// DELETE /api/products/:id - Remove product
+// DELETE /api/products/:id - Remove product and clean up user carts
 router.delete('/:id', async (req, res) => {
   try {
-    const deletedProduct = await Product.findByIdAndDelete(req.params.id);
+    const productId = req.params.id;
+    const deletedProduct = await Product.findByIdAndDelete(productId);
+    
     if (!deletedProduct) {
       return res.status(404).json({ error: 'Product not found' });
     }
-    res.json({ message: 'Product deleted successfully' });
+
+    // Automatically remove this product from all user carts
+    await Cart.updateMany(
+      { 'items.product': productId },
+      { $pull: { items: { product: productId } } }
+    );
+
+    res.json({ message: 'Product deleted successfully and removed from user carts' });
   } catch (err) {
     res.status(500).json({ error: 'Failed to delete product', details: err.message });
   }

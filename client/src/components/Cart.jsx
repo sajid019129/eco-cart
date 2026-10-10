@@ -17,7 +17,7 @@ function Cart({ user, cart = [], setCart }) {
 
     try {
       const res = await axios.get(`http://localhost:5000/api/cart/${userId}`);
-      const serverItems = res.data.items || [];
+      const serverItems = (res.data.items || []).filter(item => item.product !== null);
       const formattedCart = serverItems.map((item) => ({
         ...item.product,
         quantity: item.quantity,
@@ -46,7 +46,7 @@ function Cart({ user, cart = [], setCart }) {
         quantity: newQuantity
       });
 
-      const serverItems = res.data.items || [];
+      const serverItems = (res.data.items || []).filter(item => item.product !== null);
       const formattedCart = serverItems.map((item) => ({
         ...item.product,
         quantity: item.quantity,
@@ -64,7 +64,7 @@ function Cart({ user, cart = [], setCart }) {
 
     try {
       const res = await axios.delete(`http://localhost:5000/api/cart/remove/${userId}/${productId}`);
-      const serverItems = res.data.items || [];
+      const serverItems = (res.data.items || []).filter(item => item.product !== null);
       const formattedCart = serverItems.map((item) => ({
         ...item.product,
         quantity: item.quantity,
@@ -93,8 +93,9 @@ function Cart({ user, cart = [], setCart }) {
   const calculateTotal = () => {
     return cart
       .reduce((acc, item) => {
-        const prod = item.product || item;
-        const price = prod.price || item.price || 0;
+        const prod = item.product;
+        if (!prod) return acc;
+        const price = prod.price || 0;
         return acc + price * (item.quantity || 1);
       }, 0)
       .toFixed(2);
@@ -108,16 +109,19 @@ function Cart({ user, cart = [], setCart }) {
     );
   }
 
+  // Filter out any items where product is missing/null
+  const validCartItems = cart.filter(item => item.product && (item.product._id || item.product.id));
+
   return (
     <div style={styles.pageContainer}>
       <div style={styles.cartContainer}>
         <h2 style={styles.title}>Your Shopping Cart 🛒</h2>
 
-        {cart && cart.length > 0 ? (
+        {validCartItems.length > 0 ? (
           <div style={styles.layout}>
             <div style={styles.itemsList}>
-              {cart.map((item) => {
-                const prod = item.product || item;
+              {validCartItems.map((item) => {
+                const prod = item.product;
                 if (!prod) return null;
 
                 const productId = prod._id || prod.id;
