@@ -368,7 +368,25 @@ const AddProduct = ({ user }) => {
             </div>
           </div>
 
-          <button type="submit" style={styles.submitBtn} disabled={loading}>
+          <button 
+            type="submit" 
+            style={styles.submitBtn} 
+            disabled={loading}
+            onMouseEnter={(e) => {
+              if (!loading) {
+                e.target.style.backgroundColor = '#1b4332';
+                e.target.style.transform = 'translateY(-2px)';
+                e.target.style.boxShadow = '0 6px 16px rgba(27, 67, 50, 0.3)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!loading) {
+                e.target.style.backgroundColor = '#2d6a4f';
+                e.target.style.transform = 'translateY(0)';
+                e.target.style.boxShadow = 'none';
+              }
+            }}
+          >
             {loading ? 'Submitting...' : 'Post Product'}
           </button>
         </form>
@@ -543,7 +561,7 @@ const styles = {
     fontSize: '1rem',
     cursor: 'pointer',
     marginTop: '10px',
-    transition: 'background-color 0.2s ease',
+    transition: 'all 0.2s ease',
   },
 };
 

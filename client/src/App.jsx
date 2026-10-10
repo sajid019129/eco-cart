@@ -100,15 +100,27 @@ const NotificationToast = ({ message, type = 'success', onClose }) => {
 function ProductImageCarousel({ product, catName, isSoldOut }) {
   const images = getProductImages(product);
   const [activeImgIndex, setActiveImgIndex] = useState(0);
+  const [imgAnimClass, setImgAnimClass] = useState('img-fade-in');
+
+  const changeImage = (newIndex) => {
+    if (newIndex === activeImgIndex) return;
+    setImgAnimClass('img-fade-out');
+    setTimeout(() => {
+      setActiveImgIndex(newIndex);
+      setImgAnimClass('img-fade-in');
+    }, 150);
+  };
 
   const prevImage = (e) => {
     e.stopPropagation();
-    setActiveImgIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1));
+    const newIdx = activeImgIndex === 0 ? images.length - 1 : activeImgIndex - 1;
+    changeImage(newIdx);
   };
 
   const nextImage = (e) => {
     e.stopPropagation();
-    setActiveImgIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1));
+    const newIdx = activeImgIndex === images.length - 1 ? 0 : activeImgIndex + 1;
+    changeImage(newIdx);
   };
 
   const hasImages = images.length > 0;
@@ -120,7 +132,8 @@ function ProductImageCarousel({ product, catName, isSoldOut }) {
         <img 
           src={currentImageSrc} 
           alt={product.title || 'Product Image'} 
-          style={prodStyles.cardHeaderImg} 
+          className={imgAnimClass}
+          style={{ ...prodStyles.cardHeaderImg, transition: 'opacity 0.15s ease-in-out' }} 
           onError={(e) => {
             e.target.onerror = null;
             e.target.style.display = 'none';
@@ -150,10 +163,40 @@ function ProductImageCarousel({ product, catName, isSoldOut }) {
 
       {images.length > 1 && (
         <>
-          <button type="button" onClick={prevImage} style={prodStyles.arrowLeftBtn} title="Previous image">
+          <button 
+            type="button" 
+            onClick={prevImage} 
+            style={prodStyles.arrowLeftBtn} 
+            title="Previous image"
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(27, 67, 50, 0.9)';
+              e.currentTarget.style.transform = 'translateY(-50%) scale(1.15)';
+              e.currentTarget.style.boxShadow = '0 4px 10px rgba(0,0,0,0.3)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.5)';
+              e.currentTarget.style.transform = 'translateY(-50%) scale(1)';
+              e.currentTarget.style.boxShadow = 'none';
+            }}
+          >
             ❮
           </button>
-          <button type="button" onClick={nextImage} style={prodStyles.arrowRightBtn} title="Next image">
+          <button 
+            type="button" 
+            onClick={nextImage} 
+            style={prodStyles.arrowRightBtn} 
+            title="Next image"
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(27, 67, 50, 0.9)';
+              e.currentTarget.style.transform = 'translateY(-50%) scale(1.15)';
+              e.currentTarget.style.boxShadow = '0 4px 10px rgba(0,0,0,0.3)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.5)';
+              e.currentTarget.style.transform = 'translateY(-50%) scale(1)';
+              e.currentTarget.style.boxShadow = 'none';
+            }}
+          >
             ❯
           </button>
           <div style={prodStyles.dotsContainer}>
@@ -162,12 +205,24 @@ function ProductImageCarousel({ product, catName, isSoldOut }) {
                 key={idx}
                 onClick={(e) => {
                   e.stopPropagation();
-                  setActiveImgIndex(idx);
+                  changeImage(idx);
                 }}
                 style={{
                   ...prodStyles.dot,
                   backgroundColor: idx === activeImgIndex ? '#ffffff' : 'rgba(255, 255, 255, 0.5)',
-                  transform: idx === activeImgIndex ? 'scale(1.2)' : 'scale(1)'
+                  transform: idx === activeImgIndex ? 'scale(1.25)' : 'scale(1)'
+                }}
+                onMouseEnter={(e) => {
+                  if (idx !== activeImgIndex) {
+                    e.currentTarget.style.transform = 'scale(1.3)';
+                    e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (idx !== activeImgIndex) {
+                    e.currentTarget.style.transform = 'scale(1)';
+                    e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.5)';
+                  }
                 }}
               />
             ))}
@@ -180,7 +235,19 @@ function ProductImageCarousel({ product, catName, isSoldOut }) {
 
 function ProductCard({ product, displayStock, isOwner, isSoldOut, currentPrice, previousPrice, hasDiscount, discountPercent, catName, onAddToCart, onBuyNow, onOpenEdit, onDeleteProduct, onViewDetails }) {
   return (
-    <div style={{ ...prodStyles.productCard, ...(isSoldOut ? prodStyles.soldOutCard : {}) }}>
+    <div 
+      style={{ ...prodStyles.productCard, ...(isSoldOut ? prodStyles.soldOutCard : {}) }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.transform = 'translateY(-6px) scale(1.02)';
+        e.currentTarget.style.boxShadow = '0 12px 28px rgba(45, 106, 79, 0.18)';
+        e.currentTarget.style.borderColor = '#52b788';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.transform = 'translateY(0) scale(1)';
+        e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.06)';
+        e.currentTarget.style.borderColor = isSoldOut ? '#d0d0d0' : '#e0e0e0';
+      }}
+    >
       <ProductImageCarousel product={product} catName={catName} isSoldOut={isSoldOut} />
 
       <div style={prodStyles.cardBody}>
@@ -405,7 +472,20 @@ function Home({ user, cart, onAddToCart, onViewDetails }) {
                 : 0;
 
               return (
-                <div key={p._id} style={{ ...styles.card, ...(isSoldOut ? styles.soldOutCard : {}) }}>
+                <div 
+                  key={p._id} 
+                  style={{ ...styles.card, ...(isSoldOut ? styles.soldOutCard : {}) }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-6px) scale(1.02)';
+                    e.currentTarget.style.boxShadow = '0 12px 28px rgba(45, 106, 79, 0.18)';
+                    e.currentTarget.style.borderColor = '#52b788';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0) scale(1)';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)';
+                    e.currentTarget.style.borderColor = 'transparent';
+                  }}
+                >
                   <ProductImageCarousel product={p} catName={catName} isSoldOut={isSoldOut} />
                   
                   <div style={styles.cardBody}>
@@ -464,16 +544,11 @@ function Home({ user, cart, onAddToCart, onViewDetails }) {
   );
 }
 
-function ProductsPage({ user, cart, onAddToCart, viewProductDetails, setViewProductDetails }) {
+function ProductsPage({ user, cart, onAddToCart, viewProductDetails, setViewProductDetails, editingProduct, setEditingProduct, handleOpenEdit, handleSaveEdit, handleDeleteProduct, editStock, setEditStock, editPrice, setEditPrice, editOriginalPrice, setEditOriginalPrice, editModalStage, setEditModalStage, closeEditModal, handleEditModalAnimationEnd }) {
   const navigate = useNavigate();
   const [products, setProducts] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
-  
-  const [editingProduct, setEditingProduct] = useState(null);
-  const [editStock, setEditStock] = useState(0);
-  const [editPrice, setEditPrice] = useState(0);
-  const [editOriginalPrice, setEditOriginalPrice] = useState('');
 
   const categories = [
     'All',
@@ -506,8 +581,8 @@ function ProductsPage({ user, cart, onAddToCart, viewProductDetails, setViewProd
       }
       if (searchFilter.trim()) {
         filtered = filtered.filter((item) =>
-          item.title?.toLowerCase().includes(searchFilter.toLowerCase()) ||
-          item.description?.toLowerCase().includes(searchFilter.toLowerCase())
+          item.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          item.description?.toLowerCase().includes(searchQuery.toLowerCase())
         );
       }
 
@@ -551,44 +626,6 @@ function ProductsPage({ user, cart, onAddToCart, viewProductDetails, setViewProd
     }
     await onAddToCart(product, true);
     navigate('/cart');
-  };
-
-  const handleOpenEdit = (product) => {
-    setEditingProduct(product);
-    setEditStock(product.stock ?? 1);
-    setEditPrice(Math.round(product.price ?? 0));
-    setEditOriginalPrice(
-      product.originalPrice || product.previousPrice 
-        ? Math.round(product.originalPrice || product.previousPrice) 
-        : ''
-    );
-  };
-
-  const handleSaveEdit = async (e) => {
-    e.preventDefault();
-    try {
-      const payload = {
-        stock: Number(editStock),
-        price: Math.round(Number(editPrice)),
-        originalPrice: editOriginalPrice ? Math.round(Number(editOriginalPrice)) : null
-      };
-
-      const res = await axios.put(`http://localhost:5000/api/products/${editingProduct._id}`, payload);
-      setProducts(products.map(p => p._id === res.data._id ? res.data : p));
-      setEditingProduct(null);
-    } catch (err) {
-      alert('Failed to update product details.');
-    }
-  };
-
-  const handleDeleteProduct = async (productId) => {
-    if (!window.confirm('Are you sure you want to delete this listing?')) return;
-    try {
-      await axios.delete(`http://localhost:5000/api/products/${productId}`);
-      setProducts(products.filter(p => p._id !== productId));
-    } catch (err) {
-      alert('Failed to delete product.');
-    }
   };
 
   const currentUserId = user?._id || user?.id || user?.userId;
@@ -737,10 +774,15 @@ function ProductsPage({ user, cart, onAddToCart, viewProductDetails, setViewProd
       </div>
 
       {editingProduct && ReactDOM.createPortal(
-        <div style={prodStyles.modalOverlay}>
-          <div style={prodStyles.modal}>
+        <div 
+          className={`page-transition ${editModalStage}`}
+          onAnimationEnd={handleEditModalAnimationEnd}
+          style={prodStyles.modalOverlay}
+          onClick={closeEditModal}
+        >
+          <div style={prodStyles.modal} onClick={(e) => e.stopPropagation()}>
             <h3 style={{ margin: '0 0 15px 0', color: '#1b4332' }}>Restock & Manage Listing</h3>
-            <form onSubmit={handleSaveEdit} style={prodStyles.modalForm}>
+            <form onSubmit={(e) => handleSaveEdit(e, setProducts)} style={prodStyles.modalForm}>
               <label style={prodStyles.modalLabel}>
                 Stock Available:
                 <input
@@ -781,17 +823,33 @@ function ProductsPage({ user, cart, onAddToCart, viewProductDetails, setViewProd
                 <button 
                   type="submit" 
                   style={prodStyles.saveBtn}
-                  onMouseEnter={(e) => e.target.style.backgroundColor = '#1b4332'}
-                  onMouseLeave={(e) => e.target.style.backgroundColor = '#2d6a4f'}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = '#1b4332';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 6px 16px rgba(27, 67, 50, 0.3)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = '#2d6a4f';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
                 >
                   Save Changes
                 </button>
                 <button 
                   type="button" 
-                  onClick={() => setEditingProduct(null)} 
+                  onClick={closeEditModal} 
                   style={prodStyles.cancelBtn}
-                  onMouseEnter={(e) => e.target.style.backgroundColor = '#616161'}
-                  onMouseLeave={(e) => e.target.style.backgroundColor = '#757575'}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = '#424242';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 6px 16px rgba(0,0,0,0.2)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = '#757575';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
                 >
                   Cancel
                 </button>
@@ -815,10 +873,17 @@ function App() {
 
   const [viewProductDetails, setViewProductDetails] = useState(null);
   const [modalImageIndex, setModalImageIndex] = useState(0);
+  const [modalImgAnimClass, setModalImgAnimClass] = useState('img-fade-in');
   const [isFullScreenImage, setIsFullScreenImage] = useState(false);
 
   const [modalStage, setModalStage] = useState('');
   const [fullScreenStage, setFullScreenStage] = useState('');
+
+  const [editingProduct, setEditingProduct] = useState(null);
+  const [editStock, setEditStock] = useState(0);
+  const [editPrice, setEditPrice] = useState(0);
+  const [editOriginalPrice, setEditOriginalPrice] = useState('');
+  const [editModalStage, setEditModalStage] = useState('');
   
   const [user, setUser] = useState(() => {
     const savedUser = localStorage.getItem('user');
@@ -833,7 +898,6 @@ function App() {
     if (!savedCart) return [];
     try {
       const parsed = JSON.parse(savedCart);
-      // Filter out any stale items where the product reference is null/invalid
       return parsed.filter(item => (item.product || item._id || item.id) && item.product !== null);
     } catch {
       return [];
@@ -881,6 +945,60 @@ function App() {
     }
   };
 
+  const handleOpenEdit = (product) => {
+    setEditingProduct(product);
+    setEditStock(product.stock ?? 1);
+    setEditPrice(Math.round(product.price ?? 0));
+    setEditOriginalPrice(
+      product.originalPrice || product.previousPrice 
+        ? Math.round(product.originalPrice || product.previousPrice) 
+        : ''
+    );
+    setEditModalStage('page-enter');
+  };
+
+  const closeEditModal = () => {
+    setEditModalStage('page-exit');
+  };
+
+  const handleEditModalAnimationEnd = () => {
+    if (editModalStage === 'page-exit') {
+      setEditingProduct(null);
+      setEditModalStage('');
+    }
+  };
+
+  const handleSaveEdit = async (e, setProducts) => {
+    e.preventDefault();
+    try {
+      const payload = {
+        stock: Number(editStock),
+        price: Math.round(Number(editPrice)),
+        originalPrice: editOriginalPrice ? Math.round(Number(editOriginalPrice)) : null
+      };
+
+      const res = await axios.put(`http://localhost:5000/api/products/${editingProduct._id}`, payload);
+      if (setProducts) {
+        setProducts(prev => prev.map(p => p._id === res.data._id ? res.data : p));
+      }
+      closeEditModal();
+    } catch (err) {
+      alert('Failed to update product details.');
+    }
+  };
+
+  const handleDeleteProduct = async (productId, setProducts) => {
+    if (!window.confirm('Are you sure you want to delete this listing?')) return;
+    try {
+      await axios.delete(`http://localhost:5000/api/products/${productId}`);
+      if (setProducts) {
+        setProducts(prev => prev.filter(p => p._id !== productId));
+      }
+    } catch (err) {
+      alert('Failed to delete product.');
+    }
+  };
+
   const handleAddToCart = async (product, skipToast = false) => {
     const activeUser = user || JSON.parse(localStorage.getItem('user') || 'null');
     const activeUserId = activeUser?._id || activeUser?.id || activeUser?.userId;
@@ -920,9 +1038,19 @@ function App() {
     }
   };
 
+  const changeModalImageIndex = (newIndex, maxLen) => {
+    if (newIndex === modalImageIndex) return;
+    setModalImgAnimClass('img-fade-out');
+    setTimeout(() => {
+      setModalImageIndex(newIndex);
+      setModalImgAnimClass('img-fade-in');
+    }, 150);
+  };
+
   const openGlobalDetailsModal = (product) => {
     setViewProductDetails(product);
     setModalImageIndex(0);
+    setModalImgAnimClass('img-fade-in');
     setIsFullScreenImage(false);
     setModalStage('page-enter');
   };
@@ -954,7 +1082,6 @@ function App() {
     }
   };
 
-  // Strictly calculate cart count ignoring null/deleted products
   const validCartCount = cart.reduce((acc, item) => {
     const prod = item.product || item;
     if (!prod || prod === null) return acc;
@@ -972,7 +1099,30 @@ function App() {
       >
         <Routes location={displayLocation}>
           <Route path="/" element={<Home user={user} cart={cart} onAddToCart={handleAddToCart} onViewDetails={openGlobalDetailsModal} />} />
-          <Route path="/products" element={<ProductsPage user={user} cart={cart} onAddToCart={handleAddToCart} viewProductDetails={viewProductDetails} setViewProductDetails={openGlobalDetailsModal} />} />
+          <Route path="/products" element={
+            <ProductsPage 
+              user={user} 
+              cart={cart} 
+              onAddToCart={handleAddToCart} 
+              viewProductDetails={viewProductDetails} 
+              setViewProductDetails={openGlobalDetailsModal} 
+              editingProduct={editingProduct}
+              setEditingProduct={setEditingProduct}
+              handleOpenEdit={handleOpenEdit}
+              handleSaveEdit={handleSaveEdit}
+              handleDeleteProduct={handleDeleteProduct}
+              editStock={editStock}
+              setEditStock={setEditStock}
+              editPrice={editPrice}
+              setEditPrice={setEditPrice}
+              editOriginalPrice={editOriginalPrice}
+              setEditOriginalPrice={setEditOriginalPrice}
+              editModalStage={editModalStage}
+              setEditModalStage={setEditModalStage}
+              closeEditModal={closeEditModal}
+              handleEditModalAnimationEnd={handleEditModalAnimationEnd}
+            />
+          } />
           <Route path="/add-product" element={
             <ProtectedRoute user={user}>
               <AddProduct user={user} />
@@ -996,8 +1146,6 @@ function App() {
       {viewProductDetails && (() => {
         const modalImages = getProductImages(viewProductDetails);
         const seller = typeof viewProductDetails.seller === 'object' && viewProductDetails.seller !== null ? viewProductDetails.seller : {};
-        const sellerId = seller._id || seller.id || viewProductDetails.seller;
-        const isOwner = Boolean(currentUserId && sellerId && String(currentUserId) === String(sellerId));
         
         const sellerName = viewProductDetails.sellerName || seller.name || seller.username || seller.fullName || 'Abdullah-Al-Sajid Md. Saad';
         const sellerPhone = viewProductDetails.sellerPhone || seller.phone || seller.phoneNumber || seller.contact || '+880 1912-915937';
@@ -1027,6 +1175,18 @@ function App() {
                   style={prodStyles.fullScreenCloseBtn} 
                   onClick={closeFullScreenView}
                   title="Back to Details Modal"
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = '#1b4332';
+                    e.currentTarget.style.color = '#ffffff';
+                    e.currentTarget.style.transform = 'translateY(-2px) scale(1.05)';
+                    e.currentTarget.style.boxShadow = '0 6px 16px rgba(0,0,0,0.4)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = '#ffffff';
+                    e.currentTarget.style.color = '#1b4332';
+                    e.currentTarget.style.transform = 'translateY(0) scale(1)';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.3)';
+                  }}
                 >
                   ✕ Close Full View
                 </button>
@@ -1036,9 +1196,20 @@ function App() {
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      setModalImageIndex(prev => prev === 0 ? modalImages.length - 1 : prev - 1);
+                      const newIdx = modalImageIndex === 0 ? modalImages.length - 1 : modalImageIndex - 1;
+                      changeModalImageIndex(newIdx, modalImages.length);
                     }}
                     style={prodStyles.fullScreenArrowLeft}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = 'rgba(27, 67, 50, 0.85)';
+                      e.currentTarget.style.transform = 'translateY(-50%) scale(1.15)';
+                      e.currentTarget.style.borderColor = '#ffffff';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.25)';
+                      e.currentTarget.style.transform = 'translateY(-50%) scale(1)';
+                      e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.6)';
+                    }}
                   >
                     ❮
                   </button>
@@ -1047,7 +1218,8 @@ function App() {
                 <img 
                   src={modalImages[modalImageIndex]} 
                   alt="Full Size View" 
-                  style={prodStyles.fullScreenImg} 
+                  className={modalImgAnimClass}
+                  style={{ ...prodStyles.fullScreenImg, transition: 'opacity 0.15s ease-in-out' }} 
                   onClick={(e) => e.stopPropagation()}
                 />
 
@@ -1056,9 +1228,20 @@ function App() {
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      setModalImageIndex(prev => prev === modalImages.length - 1 ? 0 : prev + 1);
+                      const newIdx = modalImageIndex === modalImages.length - 1 ? 0 : modalImageIndex + 1;
+                      changeModalImageIndex(newIdx, modalImages.length);
                     }}
                     style={prodStyles.fullScreenArrowRight}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = 'rgba(27, 67, 50, 0.85)';
+                      e.currentTarget.style.transform = 'translateY(-50%) scale(1.15)';
+                      e.currentTarget.style.borderColor = '#ffffff';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.25)';
+                      e.currentTarget.style.transform = 'translateY(-50%) scale(1)';
+                      e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.6)';
+                    }}
                   >
                     ❯
                   </button>
@@ -1075,7 +1258,20 @@ function App() {
               <div style={prodStyles.detailsModal} onClick={(e) => e.stopPropagation()}>
                 <div style={prodStyles.detailsModalHeader}>
                   <h3 style={{ margin: 0, color: '#1b4332' }}>{viewProductDetails.title}</h3>
-                  <button style={prodStyles.closeBtn} onClick={closeGlobalDetailsModal}>×</button>
+                  <button 
+                    style={prodStyles.closeBtn} 
+                    onClick={closeGlobalDetailsModal}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.color = '#1b4332';
+                      e.currentTarget.style.transform = 'scale(1.25)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.color = '#6b7280';
+                      e.currentTarget.style.transform = 'scale(1)';
+                    }}
+                  >
+                    ×
+                  </button>
                 </div>
 
                 <div style={prodStyles.detailsModalBody}>
@@ -1084,7 +1280,8 @@ function App() {
                       <img 
                         src={modalImages[modalImageIndex]} 
                         alt={`Product Main Preview ${modalImageIndex + 1}`} 
-                        style={prodStyles.mainModalImg} 
+                        className={modalImgAnimClass}
+                        style={{ ...prodStyles.mainModalImg, transition: 'opacity 0.15s ease-in-out' }} 
                       />
                     ) : (
                       <div style={{ textAlign: 'center', color: '#888' }}>No Image Available</div>
@@ -1096,6 +1293,16 @@ function App() {
                         onClick={openFullScreenView}
                         style={prodStyles.magnifyGlassBtn}
                         title="Click to view full size image"
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = '#ffffff';
+                          e.currentTarget.style.transform = 'scale(1.18) translateY(-2px)';
+                          e.currentTarget.style.boxShadow = '0 6px 16px rgba(0,0,0,0.25)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
+                          e.currentTarget.style.transform = 'scale(1) translateY(0)';
+                          e.currentTarget.style.boxShadow = '0 2px 6px rgba(0,0,0,0.15)';
+                        }}
                       >
                         🔍
                       </button>
@@ -1105,15 +1312,37 @@ function App() {
                       <>
                         <button 
                           type="button" 
-                          onClick={() => setModalImageIndex(prev => prev === 0 ? modalImages.length - 1 : prev - 1)}
+                          onClick={() => {
+                            const newIdx = modalImageIndex === 0 ? modalImages.length - 1 : modalImageIndex - 1;
+                            changeModalImageIndex(newIdx, modalImages.length);
+                          }}
                           style={prodStyles.modalArrowLeft}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = '#1b4332';
+                            e.currentTarget.style.transform = 'translateY(-50%) scale(1.15)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.65)';
+                            e.currentTarget.style.transform = 'translateY(-50%) scale(1)';
+                          }}
                         >
                           ❮
                         </button>
                         <button 
                           type="button" 
-                          onClick={() => setModalImageIndex(prev => prev === modalImages.length - 1 ? 0 : prev + 1)}
+                          onClick={() => {
+                            const newIdx = modalImageIndex === modalImages.length - 1 ? 0 : modalImageIndex + 1;
+                            changeModalImageIndex(newIdx, modalImages.length);
+                          }}
                           style={prodStyles.modalArrowRight}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = '#1b4332';
+                            e.currentTarget.style.transform = 'translateY(-50%) scale(1.15)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.65)';
+                            e.currentTarget.style.transform = 'translateY(-50%) scale(1)';
+                          }}
                         >
                           ❯
                         </button>
@@ -1128,11 +1357,19 @@ function App() {
                           key={idx} 
                           src={img} 
                           alt={`Product Thumbnail ${idx + 1}`} 
-                          onClick={() => setModalImageIndex(idx)}
+                          onClick={() => changeModalImageIndex(idx, modalImages.length)}
                           style={{
                             ...prodStyles.modalThumbnail,
                             borderColor: idx === modalImageIndex ? '#2d6a4f' : '#ddd',
-                            transform: idx === modalImageIndex ? 'scale(1.05)' : 'scale(1)'
+                            transform: idx === modalImageIndex ? 'scale(1.08)' : 'scale(1)'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.transform = 'scale(1.12)';
+                            e.currentTarget.style.borderColor = '#2d6a4f';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.transform = idx === modalImageIndex ? 'scale(1.08)' : 'scale(1)';
+                            e.currentTarget.style.borderColor = idx === modalImageIndex ? '#2d6a4f' : '#ddd';
                           }}
                         />
                       ))}
@@ -1204,6 +1441,16 @@ function App() {
                   <button 
                     style={prodStyles.modalCloseActionBtn} 
                     onClick={closeGlobalDetailsModal}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = '#1b4332';
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow = '0 6px 16px rgba(27, 67, 50, 0.3)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = '#2d6a4f';
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
                   >
                     Close
                   </button>
@@ -1288,7 +1535,9 @@ const styles = {
     letterSpacing: '1px'
   },
   heroSubtitle: {
-    fontSize: '1.25rem',
+    fontSize: '1.8rem',
+    fontWeight: 'bold',
+    fontStyle: 'italic',
     marginBottom: '30px',
     color: '#d8f3dc'
   },
@@ -1400,11 +1649,14 @@ const styles = {
     boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
     display: 'flex',
     flexDirection: 'column',
-    position: 'relative'
+    position: 'relative',
+    transition: 'transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease',
+    border: '1px solid transparent'
   },
   soldOutCard: {
-    backgroundColor: '#f8f8f8',
-    opacity: 0.85
+    backgroundColor: '#f0f0f0',
+    opacity: 0.75,
+    filter: 'grayscale(30%)'
   },
   cardBody: {
     padding: '18px',
@@ -1615,11 +1867,14 @@ const prodStyles = {
     display: 'flex',
     flexDirection: 'column',
     border: '1px solid #e0e0e0',
-    position: 'relative'
+    position: 'relative',
+    transition: 'transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease'
   },
   soldOutCard: {
-    backgroundColor: '#f5f5f5',
-    borderColor: '#d0d0d0'
+    backgroundColor: '#f0f0f0',
+    borderColor: '#d0d0d0',
+    opacity: 0.75,
+    filter: 'grayscale(30%)'
   },
   soldOutBadge: {
     backgroundColor: '#d32f2f',
@@ -1688,7 +1943,7 @@ const prodStyles = {
     position: 'absolute',
     left: '8px',
     top: '50%',
-    transform: 'translateY(-50%)',
+    transform: 'translateY(-50%) scale(1)',
     backgroundColor: 'rgba(0,0,0,0.5)',
     color: '#ffffff',
     border: 'none',
@@ -1701,13 +1956,13 @@ const prodStyles = {
     cursor: 'pointer',
     fontSize: '0.8rem',
     zIndex: 3,
-    transition: 'background-color 0.2s'
+    transition: 'all 0.2s ease'
   },
   arrowRightBtn: {
     position: 'absolute',
     right: '8px',
     top: '50%',
-    transform: 'translateY(-50%)',
+    transform: 'translateY(-50%) scale(1)',
     backgroundColor: 'rgba(0,0,0,0.5)',
     color: '#ffffff',
     border: 'none',
@@ -1720,7 +1975,7 @@ const prodStyles = {
     cursor: 'pointer',
     fontSize: '0.8rem',
     zIndex: 3,
-    transition: 'background-color 0.2s'
+    transition: 'all 0.2s ease'
   },
   dotsContainer: {
     position: 'absolute',
@@ -1975,13 +2230,13 @@ const prodStyles = {
     cursor: 'pointer',
     boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
     zIndex: 10001,
-    transition: 'background-color 0.2s ease'
+    transition: 'all 0.2s ease'
   },
   fullScreenArrowLeft: {
     position: 'absolute',
     left: '25px',
     top: '50%',
-    transform: 'translateY(-50%)',
+    transform: 'translateY(-50%) scale(1)',
     backgroundColor: 'rgba(255, 255, 255, 0.25)',
     color: '#ffffff',
     border: '2px solid rgba(255, 255, 255, 0.6)',
@@ -2001,7 +2256,7 @@ const prodStyles = {
     position: 'absolute',
     right: '25px',
     top: '50%',
-    transform: 'translateY(-50%)',
+    transform: 'translateY(-50%) scale(1)',
     backgroundColor: 'rgba(255, 255, 255, 0.25)',
     color: '#ffffff',
     border: '2px solid rgba(255, 255, 255, 0.6)',
@@ -2043,6 +2298,7 @@ const prodStyles = {
     fontSize: '1.5rem',
     cursor: 'pointer',
     color: '#6b7280',
+    transition: 'all 0.2s ease'
   },
   detailsModalBody: {
     display: 'flex',
@@ -2087,7 +2343,7 @@ const prodStyles = {
     position: 'absolute',
     left: '10px',
     top: '50%',
-    transform: 'translateY(-50%)',
+    transform: 'translateY(-50%) scale(1)',
     backgroundColor: 'rgba(0, 0, 0, 0.65)',
     color: '#fff',
     border: 'none',
@@ -2099,13 +2355,14 @@ const prodStyles = {
     alignItems: 'center',
     justifyContent: 'center',
     fontSize: '0.9rem',
-    zIndex: 2
+    zIndex: 2,
+    transition: 'all 0.2s ease'
   },
   modalArrowRight: {
     position: 'absolute',
     right: '10px',
     top: '50%',
-    transform: 'translateY(-50%)',
+    transform: 'translateY(-50%) scale(1)',
     backgroundColor: 'rgba(0, 0, 0, 0.65)',
     color: '#fff',
     border: 'none',
@@ -2117,7 +2374,8 @@ const prodStyles = {
     alignItems: 'center',
     justifyContent: 'center',
     fontSize: '0.9rem',
-    zIndex: 2
+    zIndex: 2,
+    transition: 'all 0.2s ease'
   },
   modalGallery: {
     display: 'flex',
@@ -2190,14 +2448,14 @@ const prodStyles = {
     paddingTop: '12px',
   },
   modalCloseActionBtn: {
-    backgroundColor: '#1b4332',
+    backgroundColor: '#2d6a4f',
     color: '#ffffff',
     border: 'none',
     padding: '8px 20px',
     borderRadius: '6px',
     fontWeight: 'bold',
     cursor: 'pointer',
-    transition: 'background-color 0.2s ease'
+    transition: 'all 0.2s ease'
   },
   modal: {
     backgroundColor: '#ffffff',
@@ -2241,7 +2499,7 @@ const prodStyles = {
     borderRadius: '6px',
     fontWeight: 'bold',
     cursor: 'pointer',
-    transition: 'background-color 0.2s ease'
+    transition: 'all 0.2s ease'
   },
   cancelBtn: {
     flex: 1,
@@ -2252,7 +2510,7 @@ const prodStyles = {
     borderRadius: '6px',
     fontWeight: 'bold',
     cursor: 'pointer',
-    transition: 'background-color 0.2s ease'
+    transition: 'all 0.2s ease'
   }
 };
 
