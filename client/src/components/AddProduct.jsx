@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 
-const AddProduct = ({ user }) => {
+const AddProduct = ({ user, setProducts }) => {
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
@@ -37,7 +37,6 @@ const AddProduct = ({ user }) => {
       return;
     }
 
-    // Check individual file size (Max 15MB per file)
     for (let file of selectedFiles) {
       if (file.size > 15 * 1024 * 1024) {
         setError(`File "${file.name}" exceeds the 15MB size limit. Please choose a smaller file.`);
@@ -142,7 +141,13 @@ const AddProduct = ({ user }) => {
         seller: user?.id || user?._id
       };
 
-      await axios.post('http://localhost:5000/api/products', payload);
+      const res = await axios.post('http://localhost:5000/api/products', payload);
+      
+      // Instantly update the products list in state for real-time synchronization
+      if (setProducts) {
+        setProducts(prev => [res.data, ...prev]);
+      }
+
       navigate('/products');
     } catch (err) {
       console.error(err);

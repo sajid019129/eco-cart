@@ -191,7 +191,6 @@ function ProductImageCarousel({ product, catName, isSoldOut }) {
         {isSoldOut && <span style={prodStyles.soldOutBadge}>Sold out</span>}
       </div>
 
-      {/* Floating Mute / Unmute Button for Video Cards */}
       {isCurrentVideo && (
         <button
           type="button"
@@ -368,16 +367,34 @@ function ProductCard({ product, displayStock, isOwner, isSoldOut, currentPrice, 
             <button 
               onClick={() => onAddToCart(product)} 
               style={prodStyles.addToCartBtn}
-              onMouseEnter={(e) => e.target.style.backgroundColor = '#f1f8f5'}
-              onMouseLeave={(e) => e.target.style.backgroundColor = '#ffffff'}
+              onMouseEnter={(e) => {
+                e.target.style.backgroundColor = '#2d6a4f';
+                e.target.style.color = '#ffffff';
+                e.target.style.transform = 'translateY(-2px)';
+                e.target.style.boxShadow = '0 4px 12px rgba(45, 106, 79, 0.25)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.backgroundColor = '#ffffff';
+                e.target.style.color = '#2d6a4f';
+                e.target.style.transform = 'translateY(0)';
+                e.target.style.boxShadow = 'none';
+              }}
             >
               Add to Cart 🛒
             </button>
             <button 
               onClick={() => onBuyNow(product)} 
               style={prodStyles.buyNowBtn}
-              onMouseEnter={(e) => e.target.style.backgroundColor = '#1b4332'}
-              onMouseLeave={(e) => e.target.style.backgroundColor = '#2d6a4f'}
+              onMouseEnter={(e) => {
+                e.target.style.backgroundColor = '#1b4332';
+                e.target.style.transform = 'translateY(-2px)';
+                e.target.style.boxShadow = '0 4px 12px rgba(27, 67, 50, 0.3)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.backgroundColor = '#2d6a4f';
+                e.target.style.transform = 'translateY(0)';
+                e.target.style.boxShadow = 'none';
+              }}
             >
               Buy Now ⚡
             </button>
@@ -1095,9 +1112,8 @@ function App() {
   };
 
   const validCartCount = cart.reduce((acc, item) => {
-    const prod = item.product || item;
-    if (!prod || prod === null) return acc;
-    return acc + (item.quantity || 1);
+    const qty = Number(item.quantity || 1);
+    return acc + (isNaN(qty) ? 1 : qty);
   }, 0);
 
   return (
@@ -1329,7 +1345,6 @@ function App() {
                       <div style={{ textAlign: 'center', color: '#888' }}>No Media Available</div>
                     )}
 
-                    {/* Mute/Unmute Button in Modal */}
                     {isCurrentModalVideo && (
                       <button
                         type="button"
@@ -2193,7 +2208,7 @@ const prodStyles = {
     fontWeight: 'bold',
     cursor: 'pointer',
     fontSize: '0.8rem',
-    transition: 'background-color 0.2s ease'
+    transition: 'all 0.2s ease'
   },
   buyNowBtn: {
     flex: 1,
@@ -2205,7 +2220,7 @@ const prodStyles = {
     fontWeight: 'bold',
     cursor: 'pointer',
     fontSize: '0.8rem',
-    transition: 'background-color 0.2s ease'
+    transition: 'all 0.2s ease'
   },
   ownerBox: {
     backgroundColor: '#f1f8f5',
