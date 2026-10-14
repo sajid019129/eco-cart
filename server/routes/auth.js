@@ -17,39 +17,119 @@ const transporter = nodemailer.createTransport({
 
 router.post('/register', async (req, res) => {
   try {
-    const { name, email, password, avatar } = req.body;
+    const { name, email, password, phone, age, avatar } = req.body;
     const cleanEmail = email ? email.trim().toLowerCase() : '';
 
+    if (!password || password.length < 6 || password.length > 12) {
+      return res.status(400).json({ message: 'Password must be between 6 and 12 characters long.' });
+    }
+
+    const parsedAge = Number(age);
+    if (isNaN(parsedAge) || parsedAge < 18) {
+      return res.status(400).json({ message: 'You must be at least 18 years old to register an account.' });
+    }
+
     const existingUser = await User.findOne({ email: new RegExp(`^${cleanEmail}$`, 'i') });
-    if (existingUser) {
-      return res.status(400).json({ message: 'User already exists with this email' });
+    if (existingUser && existingUser.isVerified) {
+      return res.status(400).json({ message: 'An active account already exists with this email address.' });
     }
 
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    const newUser = new User({
-      name,
-      email: cleanEmail,
-      password: hashedPassword,
-      avatar: avatar || ''
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpires = new Date(Date.now() + 10 * 60 * 1000);
+
+    let targetUser = existingUser;
+    if (targetUser) {
+      targetUser.name = name;
+      targetUser.password = hashedPassword;
+      targetUser.phone = phone;
+      targetUser.age = parsedAge;
+      targetUser.avatar = avatar || '';
+      targetUser.registerOtp = otp;
+      targetUser.registerOtpExpires = otpExpires;
+      targetUser.isVerified = false;
+      await targetUser.save();
+    } else {
+      targetUser = new User({
+        name,
+        email: cleanEmail,
+        password: hashedPassword,
+        phone,
+        age: parsedAge,
+        avatar: avatar || '',
+        registerOtp: otp,
+        registerOtpExpires: otpExpires,
+        isVerified: false
+      });
+      await targetUser.save();
+    }
+
+    const mailOptions = {
+      from: `"Eco-Cart Support" <${process.env.EMAIL_USER}>`,
+      to: cleanEmail,
+      subject: 'Account Registration Verification Code - Eco-Cart',
+      html: `
+        <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 500px; border: 1px solid #e0e0e0; border-radius: 8px;">
+          <h2 style="color: #2d6a4f; text-align: center;">Eco-Cart Registration Verification</h2>
+          <p>Hello ${name},</p>
+          <p>Thank you for registering with Eco-Cart. Your 6-digit email verification code is:</p>
+          <div style="text-align: center; margin: 20px 0;">
+            <span style="font-size: 28px; font-weight: bold; letter-spacing: 5px; color: #2d6a4f; background: #e8f5e9; padding: 10px 20px; border-radius: 6px;">
+              ${otp}
+            </span>
+          </div>
+          <p style="color: #666; font-size: 13px;">This code will expire in 10 minutes. Please enter it on the website to complete your registration.</p>
+        </div>
+      `
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    res.status(200).json({ message: `Verification code sent to ${cleanEmail}` });
+  } catch (err) {
+    console.error('Register error:', err);
+    res.status(500).json({ message: 'Server error during registration or email sending.' });
+  }
+});
+
+router.post('/verify-register', async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    const cleanEmail = email ? email.trim().toLowerCase() : '';
+
+    const user = await User.findOne({
+      email: new RegExp(`^${cleanEmail}$`, 'i'),
+      registerOtp: otp,
+      registerOtpExpires: { $gt: Date.now() }
     });
 
-    await newUser.save();
+    if (!user) {
+      return res.status(400).json({ message: 'Invalid or expired verification code' });
+    }
 
-    const token = jwt.sign({ id: newUser._id }, JWT_SECRET, { expiresIn: '7d' });
+    user.isVerified = true;
+    user.registerOtp = null;
+    user.registerOtpExpires = null;
+    await user.save();
+
+    const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '7d' });
 
     res.status(201).json({
       token,
       user: {
-        id: newUser._id,
-        name: newUser.name,
-        email: newUser.email,
-        avatar: newUser.avatar
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        age: user.age,
+        avatar: user.avatar
       }
     });
   } catch (err) {
-    res.status(500).json({ message: 'Server error during registration' });
+    console.error('Verify error:', err);
+    res.status(500).json({ message: 'Server error during verification' });
   }
 });
 
@@ -59,8 +139,8 @@ router.post('/login', async (req, res) => {
     const cleanEmail = email ? email.trim().toLowerCase() : '';
 
     const user = await User.findOne({ email: new RegExp(`^${cleanEmail}$`, 'i') });
-    if (!user) {
-      return res.status(400).json({ message: 'Invalid email or password' });
+    if (!user || !user.isVerified) {
+      return res.status(400).json({ message: 'Invalid email or password, or account not verified' });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
@@ -76,6 +156,8 @@ router.post('/login', async (req, res) => {
         id: user._id,
         name: user.name,
         email: user.email,
+        phone: user.phone,
+        age: user.age,
         avatar: user.avatar
       }
     });
@@ -136,6 +218,10 @@ router.post('/reset-password', async (req, res) => {
   try {
     const { email, otp, newPassword } = req.body;
     const cleanEmail = email ? email.trim().toLowerCase() : '';
+
+    if (!newPassword || newPassword.length < 6 || newPassword.length > 12) {
+      return res.status(400).json({ message: 'Password must be between 6 and 12 characters long.' });
+    }
 
     const user = await User.findOne({
       email: new RegExp(`^${cleanEmail}$`, 'i'),

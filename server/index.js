@@ -10,8 +10,9 @@ app.use(cors({
   credentials: true
 }));
 
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ limit: '10mb', extended: true }));
+// INCREASED TO 50MB TO SUPPORT LARGE VIDEO UPLOADS
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 const mongoURI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/ecocart';
 

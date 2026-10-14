@@ -19,8 +19,8 @@ const AddProduct = ({ user }) => {
     location: user?.address || ''
   });
 
-  const [images, setImages] = useState([]);
-  const [imagePreviews, setImagePreviews] = useState([]);
+  const [mediaFiles, setMediaFiles] = useState([]);
+  const [mediaPreviews, setMediaPreviews] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -28,31 +28,42 @@ const AddProduct = ({ user }) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleImageChange = (e) => {
+  const handleMediaChange = (e) => {
     const selectedFiles = Array.from(e.target.files);
     if (selectedFiles.length === 0) return;
 
-    if (images.length + selectedFiles.length > 5) {
-      setError('You can upload a maximum of 5 images in total.');
+    if (mediaFiles.length + selectedFiles.length > 5) {
+      setError('You can upload a maximum of 5 media files (photos or videos) in total.');
       return;
+    }
+
+    // Check individual file size (Max 15MB per file)
+    for (let file of selectedFiles) {
+      if (file.size > 15 * 1024 * 1024) {
+        setError(`File "${file.name}" exceeds the 15MB size limit. Please choose a smaller file.`);
+        return;
+      }
     }
 
     setError('');
 
-    const updatedImages = [...images, ...selectedFiles];
-    setImages(updatedImages);
+    const updatedFiles = [...mediaFiles, ...selectedFiles];
+    setMediaFiles(updatedFiles);
 
-    const newPreviews = selectedFiles.map((file) => URL.createObjectURL(file));
-    setImagePreviews((prevPreviews) => [...prevPreviews, ...newPreviews]);
+    const newPreviews = selectedFiles.map((file) => ({
+      url: URL.createObjectURL(file),
+      type: file.type.startsWith('video') ? 'video' : 'image'
+    }));
+    setMediaPreviews((prevPreviews) => [...prevPreviews, ...newPreviews]);
 
     e.target.value = '';
   };
 
-  const handleRemoveImage = (indexToRemove) => {
-    URL.revokeObjectURL(imagePreviews[indexToRemove]);
+  const handleRemoveMedia = (indexToRemove) => {
+    URL.revokeObjectURL(mediaPreviews[indexToRemove].url);
 
-    setImages((prev) => prev.filter((_, index) => index !== indexToRemove));
-    setImagePreviews((prev) => prev.filter((_, index) => index !== indexToRemove));
+    setMediaFiles((prev) => prev.filter((_, index) => index !== indexToRemove));
+    setMediaPreviews((prev) => prev.filter((_, index) => index !== indexToRemove));
 
     if (error) setError('');
   };
@@ -61,8 +72,8 @@ const AddProduct = ({ user }) => {
     e.preventDefault();
     setError('');
 
-    if (images.length < 1 || images.length > 5) {
-      setError('Please upload at least 1 and at most 5 product photos.');
+    if (mediaFiles.length < 1 || mediaFiles.length > 5) {
+      setError('Please upload at least 1 and at most 5 product photos or videos.');
       return;
     }
 
@@ -103,7 +114,7 @@ const AddProduct = ({ user }) => {
     setLoading(true);
 
     try {
-      const imagePromises = images.map((file) => {
+      const mediaPromises = mediaFiles.map((file) => {
         return new Promise((resolve, reject) => {
           const reader = new FileReader();
           reader.onload = () => resolve(reader.result);
@@ -112,7 +123,7 @@ const AddProduct = ({ user }) => {
         });
       });
 
-      const base64Images = await Promise.all(imagePromises);
+      const base64Media = await Promise.all(mediaPromises);
 
       const payload = {
         title: formData.title,
@@ -122,8 +133,8 @@ const AddProduct = ({ user }) => {
         category: formData.category,
         condition: formData.condition,
         description: formData.description,
-        images: base64Images,
-        image: base64Images[0],
+        images: base64Media,
+        image: base64Media[0],
         sellerName: formData.sellerName,
         sellerPhone: formData.phone,
         sellerEmail: formData.email,
@@ -135,7 +146,11 @@ const AddProduct = ({ user }) => {
       navigate('/products');
     } catch (err) {
       console.error(err);
-      setError(err.response?.data?.message || 'Failed to list product. Please try again.');
+      if (err.response?.status === 413) {
+        setError('The selected video file is too large. Please upload a smaller video.');
+      } else {
+        setError(err.response?.data?.message || 'Failed to list product. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -271,32 +286,36 @@ const AddProduct = ({ user }) => {
 
           <div style={styles.formGroup}>
             <label style={styles.label}>
-              Product Photos (Upload 1 to 5 Photos) <span style={styles.requiredAsterisk}>*</span>
+              Product Photos or Videos (Upload 1 to 5 Media Files) <span style={styles.requiredAsterisk}>*</span>
             </label>
             <input
               type="file"
-              accept="image/*"
+              accept="image/*,video/*"
               multiple
-              onChange={handleImageChange}
+              onChange={handleMediaChange}
               style={styles.fileInput}
-              disabled={images.length >= 5}
+              disabled={mediaFiles.length >= 5}
             />
-            <small style={styles.hint}>Upload between 1 and 5 clear product images ({images.length}/5 selected).</small>
+            <small style={styles.hint}>Upload between 1 and 5 clear product photos or videos ({mediaFiles.length}/5 selected).</small>
 
-            {imagePreviews.length > 0 && (
+            {mediaPreviews.length > 0 && (
               <div style={styles.previewGrid}>
-                {imagePreviews.map((src, index) => (
+                {mediaPreviews.map((media, index) => (
                   <div key={index} style={styles.previewWrapper}>
-                    <img
-                      src={src}
-                      alt={`Product Preview ${index + 1}`}
-                      style={styles.previewImage}
-                    />
+                    {media.type === 'video' ? (
+                      <video src={media.url} style={styles.previewImage} muted />
+                    ) : (
+                      <img
+                        src={media.url}
+                        alt={`Product Preview ${index + 1}`}
+                        style={styles.previewImage}
+                      />
+                    )}
                     <button
                       type="button"
-                      onClick={() => handleRemoveImage(index)}
+                      onClick={() => handleRemoveMedia(index)}
                       style={styles.removeBadge}
-                      title="Remove Image"
+                      title="Remove Media"
                     >
                       ×
                     </button>
@@ -307,9 +326,7 @@ const AddProduct = ({ user }) => {
           </div>
 
           <div style={styles.sellerBox}>
-            <h3 style={styles.sellerHeader}>
-              Seller Contact Details <span style={styles.requiredAsterisk}>*</span>
-            </h3>
+            <h3 style={styles.sellerHeader}>Seller Contact Details</h3>
 
             <div style={styles.formGroup}>
               <label style={styles.label}>
@@ -332,10 +349,8 @@ const AddProduct = ({ user }) => {
                 type="tel"
                 name="phone"
                 value={formData.phone}
-                onChange={handleChange}
-                placeholder="Enter your phone number (e.g. +880 19xx-xxxxxx)"
-                style={styles.input}
-                required
+                readOnly
+                style={styles.readOnlyInput}
               />
             </div>
 
@@ -361,7 +376,7 @@ const AddProduct = ({ user }) => {
                 name="location"
                 value={formData.location}
                 onChange={handleChange}
-                placeholder="Enter your location"
+                placeholder="Enter your current location"
                 style={styles.input}
                 required
               />

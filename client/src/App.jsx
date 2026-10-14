@@ -9,7 +9,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
 
-const formatImgSrc = (img) => {
+const formatMediaSrc = (img) => {
   if (!img) return null;
   if (typeof img === 'object') {
     img = img.url || img.path || img.src || null;
@@ -17,11 +17,18 @@ const formatImgSrc = (img) => {
   if (typeof img === 'string') {
     const trimmed = img.trim();
     if (!trimmed || trimmed === 'undefined' || trimmed === 'null') return null;
-    if (trimmed.startsWith('http') || trimmed.startsWith('data:image') || trimmed.startsWith('blob:')) {
+    if (
+      trimmed.startsWith('http') || 
+      trimmed.startsWith('data:image') || 
+      trimmed.startsWith('data:video') || 
+      trimmed.startsWith('blob:')
+    ) {
       return trimmed;
     }
     if (trimmed.length > 50) {
-      return `data:image/jpeg;base64,${trimmed}`;
+      // Auto-detect base64 video vs image format
+      const prefix = trimmed.startsWith('AAAA') || trimmed.includes('video') ? 'data:video/mp4;base64,' : 'data:image/jpeg;base64,';
+      return `${prefix}${trimmed}`;
     }
     if (trimmed.startsWith('/uploads') || trimmed.startsWith('uploads/')) {
       return `http://localhost:5000/${trimmed.replace(/^\//, '')}`;
@@ -31,16 +38,21 @@ const formatImgSrc = (img) => {
   return null;
 };
 
+const isVideoUrl = (url) => {
+  if (!url) return false;
+  return url.startsWith('data:video') || url.includes('video/') || url.endsWith('.mp4') || url.endsWith('.webm') || url.endsWith('.mov');
+};
+
 const getProductImages = (product) => {
   if (!product) return [];
   let list = [];
   if (Array.isArray(product.images) && product.images.length > 0) {
-    list = product.images.map(formatImgSrc).filter(Boolean);
+    list = product.images.map(formatMediaSrc).filter(Boolean);
   } else if (Array.isArray(product.photos) && product.photos.length > 0) {
-    list = product.photos.map(formatImgSrc).filter(Boolean);
+    list = product.photos.map(formatMediaSrc).filter(Boolean);
   }
   if (list.length === 0) {
-    const single = formatImgSrc(product.image || product.imageUrl || product.photo);
+    const single = formatMediaSrc(product.image || product.imageUrl || product.photo);
     if (single) list.push(single);
   }
   return list;
@@ -98,52 +110,70 @@ const NotificationToast = ({ message, type = 'success', onClose }) => {
 };
 
 function ProductImageCarousel({ product, catName, isSoldOut }) {
-  const images = getProductImages(product);
-  const [activeImgIndex, setActiveImgIndex] = useState(0);
-  const [imgAnimClass, setImgAnimClass] = useState('img-fade-in');
+  const mediaList = getProductImages(product);
+  const [activeIdx, setActiveIdx] = useState(0);
+  const [animClass, setAnimClass] = useState('img-fade-in');
+  const [isMuted, setIsMuted] = useState(true);
 
-  const changeImage = (newIndex) => {
-    if (newIndex === activeImgIndex) return;
-    setImgAnimClass('img-fade-out');
+  const changeMedia = (newIndex) => {
+    if (newIndex === activeIdx) return;
+    setAnimClass('img-fade-out');
     setTimeout(() => {
-      setActiveImgIndex(newIndex);
-      setImgAnimClass('img-fade-in');
+      setActiveIdx(newIndex);
+      setAnimClass('img-fade-in');
     }, 150);
   };
 
-  const prevImage = (e) => {
+  const prevMedia = (e) => {
     e.stopPropagation();
-    const newIdx = activeImgIndex === 0 ? images.length - 1 : activeImgIndex - 1;
-    changeImage(newIdx);
+    const newIdx = activeIdx === 0 ? mediaList.length - 1 : activeIdx - 1;
+    changeMedia(newIdx);
   };
 
-  const nextImage = (e) => {
+  const nextMedia = (e) => {
     e.stopPropagation();
-    const newIdx = activeImgIndex === images.length - 1 ? 0 : activeImgIndex + 1;
-    changeImage(newIdx);
+    const newIdx = activeIdx === mediaList.length - 1 ? 0 : activeIdx + 1;
+    changeMedia(newIdx);
   };
 
-  const hasImages = images.length > 0;
-  const currentImageSrc = hasImages ? images[activeImgIndex] : null;
+  const toggleMute = (e) => {
+    e.stopPropagation();
+    setIsMuted(prev => !prev);
+  };
+
+  const hasMedia = mediaList.length > 0;
+  const currentSrc = hasMedia ? mediaList[activeIdx] : null;
+  const isCurrentVideo = isVideoUrl(currentSrc);
 
   return (
     <div style={prodStyles.cardHeaderImageContainer}>
-      {hasImages && currentImageSrc ? (
-        <img 
-          src={currentImageSrc} 
-          alt={product.title || 'Product Image'} 
-          className={imgAnimClass}
-          style={{ ...prodStyles.cardHeaderImg, transition: 'opacity 0.15s ease-in-out' }} 
-          onError={(e) => {
-            e.target.onerror = null;
-            e.target.style.display = 'none';
-            if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex';
-          }}
-        />
+      {hasMedia && currentSrc ? (
+        isCurrentVideo ? (
+          <video
+            src={currentSrc}
+            autoPlay
+            loop
+            muted={isMuted}
+            playsInline
+            className={animClass}
+            style={{ ...prodStyles.cardHeaderImg, transition: 'opacity 0.15s ease-in-out' }}
+          />
+        ) : (
+          <img 
+            src={currentSrc} 
+            alt={product.title || 'Product Media'} 
+            className={animClass}
+            style={{ ...prodStyles.cardHeaderImg, transition: 'opacity 0.15s ease-in-out' }} 
+            onError={(e) => {
+              e.target.onerror = null;
+              e.target.style.display = 'none';
+            }}
+          />
+        )
       ) : (
         <div style={prodStyles.noImageFallback}>
           <span style={{ fontSize: '2.5rem', marginBottom: '4px' }}>📷</span>
-          <span style={{ fontSize: '0.95rem', fontWeight: 'bold', color: '#6b7280' }}>No Image Available</span>
+          <span style={{ fontSize: '0.95rem', fontWeight: 'bold', color: '#6b7280' }}>No Media Available</span>
         </div>
       )}
 
@@ -161,13 +191,35 @@ function ProductImageCarousel({ product, catName, isSoldOut }) {
         {isSoldOut && <span style={prodStyles.soldOutBadge}>Sold out</span>}
       </div>
 
-      {images.length > 1 && (
+      {/* Floating Mute / Unmute Button for Video Cards */}
+      {isCurrentVideo && (
+        <button
+          type="button"
+          onClick={toggleMute}
+          style={prodStyles.cardMuteBtn}
+          title={isMuted ? "Unmute Video" : "Mute Video"}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.85)';
+            e.currentTarget.style.transform = 'scale(1.15)';
+            e.currentTarget.style.boxShadow = '0 4px 10px rgba(0,0,0,0.4)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.6)';
+            e.currentTarget.style.transform = 'scale(1)';
+            e.currentTarget.style.boxShadow = 'none';
+          }}
+        >
+          {isMuted ? '🔇' : '🔊'}
+        </button>
+      )}
+
+      {mediaList.length > 1 && (
         <>
           <button 
             type="button" 
-            onClick={prevImage} 
+            onClick={prevMedia} 
             style={prodStyles.arrowLeftBtn} 
-            title="Previous image"
+            title="Previous media"
             onMouseEnter={(e) => {
               e.currentTarget.style.backgroundColor = 'rgba(27, 67, 50, 0.9)';
               e.currentTarget.style.transform = 'translateY(-50%) scale(1.15)';
@@ -183,9 +235,9 @@ function ProductImageCarousel({ product, catName, isSoldOut }) {
           </button>
           <button 
             type="button" 
-            onClick={nextImage} 
+            onClick={nextMedia} 
             style={prodStyles.arrowRightBtn} 
-            title="Next image"
+            title="Next media"
             onMouseEnter={(e) => {
               e.currentTarget.style.backgroundColor = 'rgba(27, 67, 50, 0.9)';
               e.currentTarget.style.transform = 'translateY(-50%) scale(1.15)';
@@ -200,26 +252,26 @@ function ProductImageCarousel({ product, catName, isSoldOut }) {
             ❯
           </button>
           <div style={prodStyles.dotsContainer}>
-            {images.map((_, idx) => (
+            {mediaList.map((_, idx) => (
               <span
                 key={idx}
                 onClick={(e) => {
                   e.stopPropagation();
-                  changeImage(idx);
+                  changeMedia(idx);
                 }}
                 style={{
                   ...prodStyles.dot,
-                  backgroundColor: idx === activeImgIndex ? '#ffffff' : 'rgba(255, 255, 255, 0.5)',
-                  transform: idx === activeImgIndex ? 'scale(1.25)' : 'scale(1)'
+                  backgroundColor: idx === activeIdx ? '#ffffff' : 'rgba(255, 255, 255, 0.5)',
+                  transform: idx === activeIdx ? 'scale(1.25)' : 'scale(1)'
                 }}
                 onMouseEnter={(e) => {
-                  if (idx !== activeImgIndex) {
+                  if (idx !== activeIdx) {
                     e.currentTarget.style.transform = 'scale(1.3)';
                     e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
                   }
                 }}
                 onMouseLeave={(e) => {
-                  if (idx !== activeImgIndex) {
+                  if (idx !== activeIdx) {
                     e.currentTarget.style.transform = 'scale(1)';
                     e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.5)';
                   }
@@ -316,12 +368,8 @@ function ProductCard({ product, displayStock, isOwner, isSoldOut, currentPrice, 
             <button 
               onClick={() => onAddToCart(product)} 
               style={prodStyles.addToCartBtn}
-              onMouseEnter={(e) => {
-                e.target.style.backgroundColor = '#f1f8f5';
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.backgroundColor = '#ffffff';
-              }}
+              onMouseEnter={(e) => e.target.style.backgroundColor = '#f1f8f5'}
+              onMouseLeave={(e) => e.target.style.backgroundColor = '#ffffff'}
             >
               Add to Cart 🛒
             </button>
@@ -832,6 +880,7 @@ function App() {
   const [modalImageIndex, setModalImageIndex] = useState(0);
   const [modalImgAnimClass, setModalImgAnimClass] = useState('img-fade-in');
   const [isFullScreenImage, setIsFullScreenImage] = useState(false);
+  const [modalVideoMuted, setModalVideoMuted] = useState(true);
 
   const [modalStage, setModalStage] = useState('');
   const [fullScreenStage, setFullScreenStage] = useState('');
@@ -1014,6 +1063,7 @@ function App() {
     setModalImageIndex(0);
     setModalImgAnimClass('img-fade-in');
     setIsFullScreenImage(false);
+    setModalVideoMuted(true);
     setModalStage('page-enter');
   };
 
@@ -1109,7 +1159,7 @@ function App() {
       </main>
 
       {viewProductDetails && (() => {
-        const modalImages = getProductImages(viewProductDetails);
+        const modalMediaList = getProductImages(viewProductDetails);
         const seller = typeof viewProductDetails.seller === 'object' && viewProductDetails.seller !== null ? viewProductDetails.seller : {};
         
         const sellerName = viewProductDetails.sellerName || seller.name || seller.username || seller.fullName || 'Abdullah-Al-Sajid Md. Saad';
@@ -1126,6 +1176,9 @@ function App() {
         const modalDiscountPercent = modalHasDiscount
           ? Math.round(((modalPreviousPrice - modalCurrentPrice) / modalPreviousPrice) * 100)
           : 0;
+
+        const currentModalSrc = modalMediaList[modalImageIndex] || '';
+        const isCurrentModalVideo = isVideoUrl(currentModalSrc);
 
         return ReactDOM.createPortal(
           <>
@@ -1156,13 +1209,13 @@ function App() {
                   ✕ Close Full View
                 </button>
 
-                {modalImages.length > 1 && (
+                {modalMediaList.length > 1 && (
                   <button
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      const newIdx = modalImageIndex === 0 ? modalImages.length - 1 : modalImageIndex - 1;
-                      changeModalImageIndex(newIdx, modalImages.length);
+                      const newIdx = modalImageIndex === 0 ? modalMediaList.length - 1 : modalImageIndex - 1;
+                      changeModalImageIndex(newIdx, modalMediaList.length);
                     }}
                     style={prodStyles.fullScreenArrowLeft}
                     onMouseEnter={(e) => {
@@ -1180,21 +1233,33 @@ function App() {
                   </button>
                 )}
 
-                <img 
-                  src={modalImages[modalImageIndex]} 
-                  alt="Full Size View" 
-                  className={modalImgAnimClass}
-                  style={{ ...prodStyles.fullScreenImg, transition: 'opacity 0.15s ease-in-out' }} 
-                  onClick={(e) => e.stopPropagation()}
-                />
+                {isCurrentModalVideo ? (
+                  <video 
+                    src={currentModalSrc} 
+                    autoPlay 
+                    controls 
+                    muted={modalVideoMuted}
+                    className={modalImgAnimClass}
+                    style={{ ...prodStyles.fullScreenImg, transition: 'opacity 0.15s ease-in-out' }} 
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                ) : (
+                  <img 
+                    src={currentModalSrc} 
+                    alt="Full Size View" 
+                    className={modalImgAnimClass}
+                    style={{ ...prodStyles.fullScreenImg, transition: 'opacity 0.15s ease-in-out' }} 
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                )}
 
-                {modalImages.length > 1 && (
+                {modalMediaList.length > 1 && (
                   <button
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      const newIdx = modalImageIndex === modalImages.length - 1 ? 0 : modalImageIndex + 1;
-                      changeModalImageIndex(newIdx, modalImages.length);
+                      const newIdx = modalImageIndex === modalMediaList.length - 1 ? 0 : modalImageIndex + 1;
+                      changeModalImageIndex(newIdx, modalMediaList.length);
                     }}
                     style={prodStyles.fullScreenArrowRight}
                     onMouseEnter={(e) => {
@@ -1241,23 +1306,57 @@ function App() {
 
                 <div style={prodStyles.detailsModalBody}>
                   <div style={prodStyles.mainModalImageContainer}>
-                    {modalImages.length > 0 ? (
-                      <img 
-                        src={modalImages[modalImageIndex]} 
-                        alt={`Product Main Preview ${modalImageIndex + 1}`} 
-                        className={modalImgAnimClass}
-                        style={{ ...prodStyles.mainModalImg, transition: 'opacity 0.15s ease-in-out' }} 
-                      />
+                    {modalMediaList.length > 0 ? (
+                      isCurrentModalVideo ? (
+                        <video 
+                          src={currentModalSrc} 
+                          autoPlay 
+                          loop 
+                          muted={modalVideoMuted}
+                          playsInline
+                          className={modalImgAnimClass}
+                          style={{ ...prodStyles.mainModalImg, transition: 'opacity 0.15s ease-in-out' }} 
+                        />
+                      ) : (
+                        <img 
+                          src={currentModalSrc} 
+                          alt={`Product Main Preview ${modalImageIndex + 1}`} 
+                          className={modalImgAnimClass}
+                          style={{ ...prodStyles.mainModalImg, transition: 'opacity 0.15s ease-in-out' }} 
+                        />
+                      )
                     ) : (
-                      <div style={{ textAlign: 'center', color: '#888' }}>No Image Available</div>
+                      <div style={{ textAlign: 'center', color: '#888' }}>No Media Available</div>
                     )}
 
-                    {modalImages.length > 0 && (
+                    {/* Mute/Unmute Button in Modal */}
+                    {isCurrentModalVideo && (
+                      <button
+                        type="button"
+                        onClick={() => setModalVideoMuted(prev => !prev)}
+                        style={prodStyles.modalMuteBtn}
+                        title={modalVideoMuted ? "Unmute Video" : "Mute Video"}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = '#ffffff';
+                          e.currentTarget.style.transform = 'scale(1.18) translateY(-2px)';
+                          e.currentTarget.style.boxShadow = '0 6px 16px rgba(0,0,0,0.25)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
+                          e.currentTarget.style.transform = 'scale(1) translateY(0)';
+                          e.currentTarget.style.boxShadow = '0 2px 6px rgba(0,0,0,0.15)';
+                        }}
+                      >
+                        {modalVideoMuted ? '🔇' : '🔊'}
+                      </button>
+                    )}
+
+                    {modalMediaList.length > 0 && (
                       <button
                         type="button"
                         onClick={openFullScreenView}
                         style={prodStyles.magnifyGlassBtn}
-                        title="Click to view full size image"
+                        title="Click to view full size media"
                         onMouseEnter={(e) => {
                           e.currentTarget.style.backgroundColor = '#ffffff';
                           e.currentTarget.style.transform = 'scale(1.18) translateY(-2px)';
@@ -1273,13 +1372,13 @@ function App() {
                       </button>
                     )}
 
-                    {modalImages.length > 1 && (
+                    {modalMediaList.length > 1 && (
                       <>
                         <button 
                           type="button" 
                           onClick={() => {
-                            const newIdx = modalImageIndex === 0 ? modalImages.length - 1 : modalImageIndex - 1;
-                            changeModalImageIndex(newIdx, modalImages.length);
+                            const newIdx = modalImageIndex === 0 ? modalMediaList.length - 1 : modalImageIndex - 1;
+                            changeModalImageIndex(newIdx, modalMediaList.length);
                           }}
                           style={prodStyles.modalArrowLeft}
                           onMouseEnter={(e) => {
@@ -1296,8 +1395,8 @@ function App() {
                         <button 
                           type="button" 
                           onClick={() => {
-                            const newIdx = modalImageIndex === modalImages.length - 1 ? 0 : modalImageIndex + 1;
-                            changeModalImageIndex(newIdx, modalImages.length);
+                            const newIdx = modalImageIndex === modalMediaList.length - 1 ? 0 : modalImageIndex + 1;
+                            changeModalImageIndex(newIdx, modalMediaList.length);
                           }}
                           style={prodStyles.modalArrowRight}
                           onMouseEnter={(e) => {
@@ -1315,29 +1414,36 @@ function App() {
                     )}
                   </div>
 
-                  {modalImages.length > 1 && (
+                  {modalMediaList.length > 1 && (
                     <div style={prodStyles.modalGallery}>
-                      {modalImages.map((img, idx) => (
-                        <img 
-                          key={idx} 
-                          src={img} 
-                          alt={`Product Thumbnail ${idx + 1}`} 
-                          onClick={() => changeModalImageIndex(idx, modalImages.length)}
-                          style={{
-                            ...prodStyles.modalThumbnail,
-                            borderColor: idx === modalImageIndex ? '#2d6a4f' : '#ddd',
-                            transform: idx === modalImageIndex ? 'scale(1.08)' : 'scale(1)'
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.transform = 'scale(1.12)';
-                            e.currentTarget.style.borderColor = '#2d6a4f';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.transform = idx === modalImageIndex ? 'scale(1.08)' : 'scale(1)';
-                            e.currentTarget.style.borderColor = idx === modalImageIndex ? '#2d6a4f' : '#ddd';
-                          }}
-                        />
-                      ))}
+                      {modalMediaList.map((mediaSrc, idx) => {
+                        const isThumbVideo = isVideoUrl(mediaSrc);
+                        return (
+                          <div
+                            key={idx}
+                            onClick={() => changeModalImageIndex(idx, modalMediaList.length)}
+                            style={{
+                              ...prodStyles.modalThumbnailWrapper,
+                              borderColor: idx === modalImageIndex ? '#2d6a4f' : '#ddd',
+                              transform: idx === modalImageIndex ? 'scale(1.08)' : 'scale(1)'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.transform = 'scale(1.12)';
+                              e.currentTarget.style.borderColor = '#2d6a4f';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.transform = idx === modalImageIndex ? 'scale(1.08)' : 'scale(1)';
+                              e.currentTarget.style.borderColor = idx === modalImageIndex ? '#2d6a4f' : '#ddd';
+                            }}
+                          >
+                            {isThumbVideo ? (
+                              <video src={mediaSrc} style={prodStyles.modalThumbnailMedia} muted />
+                            ) : (
+                              <img src={mediaSrc} alt={`Thumbnail ${idx + 1}`} style={prodStyles.modalThumbnailMedia} />
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
 
@@ -1777,17 +1883,6 @@ const prodStyles = {
     backgroundColor: '#fff',
     outline: 'none',
   },
-  searchBtn: {
-    backgroundColor: '#2d6a4f',
-    color: '#ffffff',
-    border: 'none',
-    padding: '12px 22px',
-    borderRadius: '8px',
-    fontWeight: 'bold',
-    cursor: 'pointer',
-    fontSize: '1rem',
-    transition: 'background-color 0.2s ease',
-  },
   pillContainer: {
     display: 'flex',
     gap: '10px',
@@ -1903,6 +1998,42 @@ const prodStyles = {
     fontWeight: 'bold',
     padding: '4px 8px',
     borderRadius: '4px'
+  },
+  cardMuteBtn: {
+    position: 'absolute',
+    bottom: '10px',
+    right: '10px',
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '50%',
+    width: '32px',
+    height: '32px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+    fontSize: '0.9rem',
+    zIndex: 3,
+    transition: 'all 0.2s ease',
+  },
+  modalMuteBtn: {
+    position: 'absolute',
+    bottom: '10px',
+    right: '54px',
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    border: '1px solid #ccc',
+    borderRadius: '50%',
+    width: '36px',
+    height: '36px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+    fontSize: '1rem',
+    boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
+    zIndex: 3,
+    transition: 'all 0.2s ease'
   },
   arrowLeftBtn: {
     position: 'absolute',
@@ -2348,14 +2479,20 @@ const prodStyles = {
     overflowX: 'auto',
     paddingBottom: '4px'
   },
-  modalThumbnail: {
+  modalThumbnailWrapper: {
     width: '55px',
     height: '55px',
     borderRadius: '6px',
-    objectFit: 'cover',
+    overflow: 'hidden',
     border: '2px solid #ddd',
     cursor: 'pointer',
-    transition: 'all 0.2s ease'
+    transition: 'all 0.2s ease',
+    backgroundColor: '#000'
+  },
+  modalThumbnailMedia: {
+    width: '100%',
+    height: '100%',
+    objectFit: 'cover'
   },
   detailsInfoGrid: {
     display: 'grid',
