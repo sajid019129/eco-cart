@@ -368,16 +368,14 @@ function ProductCard({ product, displayStock, isOwner, isSoldOut, currentPrice, 
               onClick={() => onAddToCart(product)} 
               style={prodStyles.addToCartBtn}
               onMouseEnter={(e) => {
-                e.target.style.backgroundColor = '#2d6a4f';
-                e.target.style.color = '#ffffff';
+                e.target.style.backgroundColor = '#e8f5e9';
+                e.target.style.borderColor = '#1b4332';
                 e.target.style.transform = 'translateY(-2px)';
-                e.target.style.boxShadow = '0 4px 12px rgba(45, 106, 79, 0.25)';
               }}
               onMouseLeave={(e) => {
                 e.target.style.backgroundColor = '#ffffff';
-                e.target.style.color = '#2d6a4f';
+                e.target.style.borderColor = '#2d6a4f';
                 e.target.style.transform = 'translateY(0)';
-                e.target.style.boxShadow = 'none';
               }}
             >
               Add to Cart 🛒
@@ -1155,7 +1153,7 @@ function App() {
           } />
           <Route path="/add-product" element={
             <ProtectedRoute user={user}>
-              <AddProduct user={user} />
+              <AddProduct user={user} setProducts={setProducts} />
             </ProtectedRoute>
           } />
           <Route path="/cart" element={
