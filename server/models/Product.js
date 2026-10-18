@@ -4,7 +4,8 @@ const ProductSchema = new mongoose.Schema({
   title: {
     type: String,
     required: true,
-    trim: true
+    trim: true,
+    index: true // Added index for fast search queries
   },
   description: {
     type: String,
@@ -26,7 +27,8 @@ const ProductSchema = new mongoose.Schema({
   category: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Category',
-    required: true
+    required: true,
+    index: true // PERFORMANCE FIX: Index category for instant filter lookups
   },
   stock: {
     type: Number,
@@ -55,5 +57,8 @@ const ProductSchema = new mongoose.Schema({
     type: String
   }]
 }, { timestamps: true });
+
+// PERFORMANCE FIX: Compound index for sorting products instantly by creation date
+ProductSchema.index({ createdAt: -1 });
 
 module.exports = mongoose.model('Product', ProductSchema);

@@ -21,7 +21,13 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 const mongoURI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/ecocart';
 
-mongoose.connect(mongoURI)
+// PERFORMANCE FIX: Optimized connection pooling and socket timeouts to prevent cold-start delays
+mongoose.connect(mongoURI, {
+  serverSelectionTimeoutMS: 5000,
+  socketTimeoutMS: 45000,
+  maxPoolSize: 50,
+  minPoolSize: 10
+})
   .then(() => console.log('MongoDB Connected Successfully!'))
   .catch((err) => console.log('MongoDB Connection Error:', err));
 

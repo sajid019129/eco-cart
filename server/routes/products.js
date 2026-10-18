@@ -90,7 +90,12 @@ router.post('/', async (req, res) => {
     const product = new Product(productData);
     await product.save();
 
-    res.status(201).json(product);
+    // FIX: Populate category and seller fully before sending response so frontend state updates instantly without refresh delays
+    const populatedProduct = await Product.findById(product._id)
+      .populate('category', 'name')
+      .populate('seller', 'name email phone address');
+
+    res.status(201).json(populatedProduct);
   } catch (err) {
     console.error('Error adding product:', err);
     res.status(500).json({ error: 'Failed to add product', details: err.message });
@@ -116,7 +121,8 @@ router.get('/', async (req, res) => {
 
     const products = await Product.find(filter)
       .populate('category', 'name')
-      .populate('seller', 'name email phone address');
+      .populate('seller', 'name email phone address')
+      .sort({ createdAt: -1 });
       
     res.json(products);
   } catch (err) {

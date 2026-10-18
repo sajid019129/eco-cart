@@ -883,12 +883,69 @@ function App() {
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState('success');
 
-  const [products, setProducts] = useState([]);
+// 1. INSTANT 0ms PAINT: Load text, prices, and IDs instantly from lightweight localStorage
+  const [products, setProducts] = useState(() => {
+    const cachedText = localStorage.getItem('eco_cart_fast_text');
+    if (cachedText) {
+      try {
+        const parsed = JSON.parse(cachedText);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch {}
+    }
+    return [];
+  });
 
   useEffect(() => {
+    // 2. Load heavy base64 media instantly from IndexedDB
+    const request = indexedDB.open('EcoCartInstantDB', 1);
+    
+    request.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains('products')) {
+        db.createObjectStore('products');
+      }
+    };
+
+    request.onsuccess = (e) => {
+      const db = e.target.result;
+      const transaction = db.transaction('products', 'readonly');
+      const store = transaction.objectStore('products');
+      const getReq = store.get('all_items');
+
+      getReq.onsuccess = () => {
+        if (getReq.result && Array.isArray(getReq.result) && getReq.result.length > 0) {
+          setProducts(getReq.result);
+        }
+      };
+    };
+
+    // 3. Background sync with backend
     axios.get('http://localhost:5000/api/products')
-      .then(res => setProducts(res.data))
-      .catch(err => console.error(err));
+      .then(res => {
+        if (Array.isArray(res.data) && res.data.length > 0) {
+          setProducts(res.data);
+
+          // Save heavy media to IndexedDB
+          const openWrite = indexedDB.open('EcoCartInstantDB', 1);
+          openWrite.onsuccess = (e) => {
+            const db = e.target.result;
+            const tx = db.transaction('products', 'readwrite');
+            tx.objectStore('products').put(res.data, 'all_items');
+          };
+
+          // Save lightweight text metadata to localStorage for 0ms future refreshes
+          try {
+            const lightText = res.data.map(p => ({
+              ...p,
+              image: p.image?.startsWith('data:') ? 'cached' : p.image,
+              images: [],
+              photos: []
+            }));
+            localStorage.setItem('eco_cart_fast_text', JSON.stringify(lightText));
+          } catch {}
+        }
+      })
+      .catch(err => console.error('Failed to fetch products:', err));
   }, []);
 
   const [viewProductDetails, setViewProductDetails] = useState(null);
@@ -999,7 +1056,16 @@ function App() {
       };
 
       const res = await axios.put(`http://localhost:5000/api/products/${editingProduct._id}`, payload);
-      setProducts(prev => prev.map(p => p._id === res.data._id ? res.data : p));
+      const updatedProductsList = products.map(p => p._id === res.data._id ? res.data : p);
+      setProducts(updatedProductsList);
+      try {
+        const lightweight = updatedProductsList.map(p => ({
+          ...p,
+          image: p.image?.length > 100 ? p.image.substring(0, 100) + '...' : p.image,
+          images: Array.isArray(p.images) ? p.images.map(img => img?.length > 100 ? img.substring(0, 100) + '...' : img) : []
+        }));
+        localStorage.setItem('eco_cart_lightweight_cache', JSON.stringify(lightweight));
+      } catch (e) {}
       closeEditModal();
     } catch (err) {
       alert('Failed to update product details.');
@@ -1010,7 +1076,16 @@ function App() {
     if (!window.confirm('Are you sure you want to delete this listing?')) return;
     try {
       await axios.delete(`http://localhost:5000/api/products/${productId}`);
-      setProducts(prev => prev.filter(p => p._id !== productId));
+      const filteredProductsList = products.filter(p => p._id !== productId);
+      setProducts(filteredProductsList);
+      try {
+        const lightweight = filteredProductsList.map(p => ({
+          ...p,
+          image: p.image?.length > 100 ? p.image.substring(0, 100) + '...' : p.image,
+          images: Array.isArray(p.images) ? p.images.map(img => img?.length > 100 ? img.substring(0, 100) + '...' : img) : []
+        }));
+        localStorage.setItem('eco_cart_lightweight_cache', JSON.stringify(lightweight));
+      } catch (e) {}
     } catch (err) {
       alert('Failed to delete product.');
     }
@@ -1042,14 +1117,23 @@ function App() {
 
       setCart(formattedCart);
 
-      setProducts(prevProducts => 
-        prevProducts.map(p => {
+      setProducts(prevProducts => {
+        const updated = prevProducts.map(p => {
           if (p._id === productId && typeof p.stock === 'number') {
             return { ...p, stock: Math.max(0, p.stock - 1) };
           }
           return p;
-        })
-      );
+        });
+        try {
+          const lightweight = updated.map(p => ({
+            ...p,
+            image: p.image?.length > 100 ? p.image.substring(0, 100) + '...' : p.image,
+            images: Array.isArray(p.images) ? p.images.map(img => img?.length > 100 ? img.substring(0, 100) + '...' : img) : []
+          }));
+          localStorage.setItem('eco_cart_lightweight_cache', JSON.stringify(lightweight));
+        } catch (e) {}
+        return updated;
+      });
 
       if (!skipToast) {
         setToastType('success');
