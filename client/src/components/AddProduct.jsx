@@ -38,8 +38,8 @@ const AddProduct = ({ user, setProducts }) => {
     }
 
     for (let file of selectedFiles) {
-      if (file.size > 15 * 1024 * 1024) {
-        setError(`File "${file.name}" exceeds the 15MB size limit. Please choose a smaller file.`);
+      if (file.size > 100 * 1024 * 1024) {
+        setError('Video must be below 100 MB.');
         return;
       }
     }
@@ -74,6 +74,13 @@ const AddProduct = ({ user, setProducts }) => {
     if (mediaFiles.length < 1 || mediaFiles.length > 5) {
       setError('Please upload at least 1 and at most 5 product photos or videos.');
       return;
+    }
+
+    for (let file of mediaFiles) {
+      if (file.size > 100 * 1024 * 1024) {
+        setError('Video must be below 100 MB.');
+        return;
+      }
     }
 
     if (
@@ -113,37 +120,31 @@ const AddProduct = ({ user, setProducts }) => {
     setLoading(true);
 
     try {
-      const mediaPromises = mediaFiles.map((file) => {
-        return new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result);
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
-        });
+      const data = new FormData();
+      data.append('title', formData.title);
+      data.append('price', currentPrice);
+      if (originalPrice !== null) data.append('originalPrice', originalPrice);
+      data.append('stock', Number(formData.stock));
+      data.append('category', formData.category);
+      data.append('condition', formData.condition);
+      data.append('description', formData.description);
+      data.append('sellerName', formData.sellerName);
+      data.append('sellerPhone', formData.phone);
+      data.append('sellerEmail', formData.email);
+      data.append('sellerAddress', formData.location);
+      if (user?.id || user?._id) {
+        data.append('seller', user.id || user._id);
+      }
+
+      mediaFiles.forEach((file) => {
+        data.append('media', file);
       });
 
-      const base64Media = await Promise.all(mediaPromises);
-
-      const payload = {
-        title: formData.title,
-        price: currentPrice,
-        originalPrice: originalPrice,
-        stock: Number(formData.stock),
-        category: formData.category,
-        condition: formData.condition,
-        description: formData.description,
-        images: base64Media,
-        image: base64Media[0],
-        sellerName: formData.sellerName,
-        sellerPhone: formData.phone,
-        sellerEmail: formData.email,
-        sellerAddress: formData.location,
-        seller: user?.id || user?._id
-      };
-
-      const res = await axios.post('http://localhost:5000/api/products', payload);
+      const res = await axios.post('http://localhost:5000/api/products', data, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 60000
+      });
       
-      // Instantly update the products list in state for real-time synchronization
       if (setProducts) {
         setProducts(prev => [res.data, ...prev]);
       }
@@ -151,10 +152,12 @@ const AddProduct = ({ user, setProducts }) => {
       navigate('/products');
     } catch (err) {
       console.error(err);
-      if (err.response?.status === 413) {
-        setError('The selected video file is too large. Please upload a smaller video.');
+      if (err.code === 'ECONNABORTED') {
+        setError('Request timed out. The video file might be too heavy to process.');
+      } else if (err.response?.status === 413) {
+        setError('Video must be below 100 MB. File is too large.');
       } else {
-        setError(err.response?.data?.message || 'Failed to list product. Please try again.');
+        setError(err.response?.data?.error || err.response?.data?.message || 'Failed to list product. Please try again.');
       }
     } finally {
       setLoading(false);
@@ -291,7 +294,7 @@ const AddProduct = ({ user, setProducts }) => {
 
           <div style={styles.formGroup}>
             <label style={styles.label}>
-              Product Photos or Videos (Upload 1 to 5 Media Files) <span style={styles.requiredAsterisk}>*</span>
+              Product Photos or Videos (Upload 1 to 5 Media Files, Max 100 MB each) <span style={styles.requiredAsterisk}>*</span>
             </label>
             <input
               type="file"
@@ -301,7 +304,7 @@ const AddProduct = ({ user, setProducts }) => {
               style={styles.fileInput}
               disabled={mediaFiles.length >= 5}
             />
-            <small style={styles.hint}>Upload between 1 and 5 clear product photos or videos ({mediaFiles.length}/5 selected).</small>
+            <small style={styles.hint}>Upload between 1 and 5 clear product photos or videos ({mediaFiles.length}/5 selected). Video must be below 100 MB.</small>
 
             {mediaPreviews.length > 0 && (
               <div style={styles.previewGrid}>

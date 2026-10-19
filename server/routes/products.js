@@ -1,12 +1,37 @@
 const express = require('express');
 const router = express.Router();
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 const Product = require('../models/Product');
 const Category = require('../models/Category');
 const User = require('../models/User');
-const Cart = require('../models/Cart'); // Import Cart model for deletion cleanup
+const Cart = require('../models/Cart');
+
+// Ensure uploads directory exists
+const uploadDir = path.join(__dirname, '../uploads');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+// Configure multer for disk storage (Lightning fast local saves)
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({
+  limits: { fileSize: 100 * 1024 * 1024 }, // 100 MB limit
+  storage: storage
+});
 
 // POST /api/products - Create a new product listing
-router.post('/', async (req, res) => {
+router.post('/', upload.array('media', 5), async (req, res) => {
   try {
     const {
       title,
@@ -45,13 +70,19 @@ router.post('/', async (req, res) => {
       }
     }
 
-    let categoryDoc = await Category.findOne({ name: category });
+    // Robust case-insensitive category matching
+    let categoryDoc = await Category.findOne({ 
+      name: { $regex: new RegExp(`^${category}$`, 'i') } 
+    });
     if (!categoryDoc) {
       categoryDoc = await Category.create({ name: category });
     }
 
+    // Save lightweight file URLs instead of heavy base64 strings
     let productImages = [];
-    if (Array.isArray(images) && images.length > 0) {
+    if (req.files && req.files.length > 0) {
+      productImages = req.files.map((file) => `/uploads/${file.filename}`);
+    } else if (Array.isArray(images) && images.length > 0) {
       productImages = images;
     } else if (image) {
       productImages = [image];
@@ -90,7 +121,6 @@ router.post('/', async (req, res) => {
     const product = new Product(productData);
     await product.save();
 
-    // FIX: Populate category and seller fully before sending response so frontend state updates instantly without refresh delays
     const populatedProduct = await Product.findById(product._id)
       .populate('category', 'name')
       .populate('seller', 'name email phone address');
@@ -109,11 +139,13 @@ router.get('/', async (req, res) => {
     let filter = {};
 
     if (searchTerm) {
-      filter.title = { $regex: searchTerm, $options: 'i' };
+      filter.title = { $regex: searchTerm,$options: 'i' };
     }
 
-    if (category) {
-      const categoryDoc = await Category.findOne({ name: category });
+    if (category && category !== 'All') {
+      const categoryDoc = await Category.findOne({ 
+        name: { $regex: new RegExp(`^${category}$`, 'i') } 
+      });
       if (categoryDoc) {
         filter.category = categoryDoc._id;
       }
@@ -177,7 +209,9 @@ router.put('/:id', async (req, res) => {
     }
 
     if (category) {
-      let categoryDoc = await Category.findOne({ name: category });
+      let categoryDoc = await Category.findOne({ 
+        name: { $regex: new RegExp(`^${category}$`, 'i') } 
+      });
       if (!categoryDoc) {
         categoryDoc = await Category.create({ name: category });
       }
@@ -207,7 +241,6 @@ router.delete('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Product not found' });
     }
 
-    // Automatically remove this product from all user carts
     await Cart.updateMany(
       { 'items.product': productId },
       { $pull: { items: { product: productId } } }

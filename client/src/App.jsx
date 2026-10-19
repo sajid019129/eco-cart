@@ -56,12 +56,14 @@ const getProductImages = (product) => {
     const single = formatMediaSrc(product.image || product.imageUrl || product.photo);
     if (single) list.push(single);
   }
-  return list;
+  return list.length > 0 ? list : [];
 };
 
 const getCategoryName = (category) => {
   if (!category) return 'Miscellaneous';
-  if (typeof category === 'object') return category.name || 'Miscellaneous';
+  if (typeof category === 'object') {
+    return category?.name || category?.title || 'Miscellaneous';
+  }
   return String(category);
 };
 
@@ -617,11 +619,12 @@ function ProductsPage({ user, cart, onAddToCart, viewProductDetails, setViewProd
   ];
 
   const filteredProducts = products.filter((item) => {
+    if (!item) return false;
     const itemCat = getCategoryName(item.category).toLowerCase();
-    const matchesCat = selectedCategory === 'All' || itemCat.includes(selectedCategory.toLowerCase());
+    const matchesCat = selectedCategory === 'All' || itemCat === selectedCategory.toLowerCase() || itemCat.includes(selectedCategory.toLowerCase());
     const matchesSearch = !searchQuery.trim() || 
-      item.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.description?.toLowerCase().includes(searchQuery.toLowerCase());
+      (item.title && item.title.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (item.description && item.description.toLowerCase().includes(searchQuery.toLowerCase()));
     return matchesCat && matchesSearch;
   });
 
@@ -730,7 +733,7 @@ function ProductsPage({ user, cart, onAddToCart, viewProductDetails, setViewProd
           {filteredProducts.length > 0 ? (
             filteredProducts.map((p) => {
               const catName = getCategoryName(p.category);
-              const sellerObj = typeof p.seller === 'object' ? p.seller : {};
+              const sellerObj = p.seller && typeof p.seller === 'object' ? p.seller : {};
               const sellerId = sellerObj._id || sellerObj.id || p.seller;
               const isOwner = Boolean(currentUserId && sellerId && String(currentUserId) === String(sellerId));
               

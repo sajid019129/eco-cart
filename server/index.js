@@ -1,6 +1,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const path = require('path');
 require('dotenv').config();
 
 const app = express();
@@ -15,9 +16,12 @@ app.use(cors({
   credentials: true
 }));
 
-// INCREASED TO 50MB TO SUPPORT LARGE VIDEO UPLOADS
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ limit: '50mb', extended: true }));
+// INCREASED TO 150MB TO SUPPORT 100MB+ VIDEO UPLOADS WITH BASE64 OVERHEAD
+app.use(express.json({ limit: '150mb' }));
+app.use(express.urlencoded({ limit: '150mb', extended: true }));
+
+// SERVE UPLOADED MEDIA STATICALLY
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 const mongoURI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/ecocart';
 
