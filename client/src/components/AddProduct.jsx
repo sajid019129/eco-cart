@@ -132,6 +132,7 @@ const AddProduct = ({ user, setProducts }) => {
       data.append('sellerPhone', formData.phone);
       data.append('sellerEmail', formData.email);
       data.append('sellerAddress', formData.location);
+      data.append('location', formData.location); // <-- Appends product location correctly
       if (user?.id || user?._id) {
         data.append('seller', user.id || user._id);
       }
@@ -554,7 +555,7 @@ const styles = {
   },
   sellerHeader: {
     margin: '0',
-    fontSize: '1rem',
+    fontSize: '1.0rem',
     color: '#1b4332',
   },
   select: {

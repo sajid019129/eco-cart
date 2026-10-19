@@ -1498,7 +1498,7 @@ function App() {
         const sellerName = viewProductDetails.sellerName || seller.name || seller.username || seller.fullName || sellerObj?.name || 'Seller Name Unavailable';
         const sellerPhone = viewProductDetails.sellerPhone || seller.phone || seller.phoneNumber || seller.contact || sellerObj?.phone || 'Not Provided';
         const sellerEmail = viewProductDetails.sellerEmail || seller.email || sellerObj?.email || 'Not Provided';
-        const sellerAddress = viewProductDetails.sellerAddress || seller.address || seller.location || sellerObj?.address || 'Bangladesh';
+        const sellerAddress = viewProductDetails.location || viewProductDetails.sellerAddress || seller.location || seller.address || sellerObj?.location || sellerObj?.address || 'Bangladesh';
 
         const modalOriginalStock = viewProductDetails.stock ?? 1;
         const modalDisplayStock = Math.max(0, modalOriginalStock);

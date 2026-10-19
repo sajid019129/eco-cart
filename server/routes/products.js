@@ -46,6 +46,7 @@ router.post('/', upload.array('media', 5), async (req, res) => {
       sellerPhone,
       sellerEmail,
       sellerAddress,
+      location,
       images,
       image,
       imageUrl,
@@ -110,6 +111,7 @@ router.post('/', upload.array('media', 5), async (req, res) => {
       sellerPhone: sellerPhone || (userRecord ? (userRecord.phone || userRecord.phoneNumber) : ''),
       sellerEmail: sellerEmail || (userRecord ? userRecord.email : ''),
       sellerAddress: sellerAddress || (userRecord ? (userRecord.address || userRecord.location) : ''),
+      location: location || sellerAddress || (userRecord ? (userRecord.address || userRecord.location) : ''),
       ecoRating: ecoRating ? Number(ecoRating) : 5,
       ecoTags: ecoTags || []
     };
@@ -180,6 +182,7 @@ router.put('/:id', async (req, res) => {
       sellerPhone,
       sellerEmail,
       sellerAddress,
+      location,
       ecoRating,
       ecoTags
     } = req.body;
@@ -199,6 +202,7 @@ router.put('/:id', async (req, res) => {
     if (sellerPhone !== undefined) updateFields.sellerPhone = sellerPhone;
     if (sellerEmail !== undefined) updateFields.sellerEmail = sellerEmail;
     if (sellerAddress !== undefined) updateFields.sellerAddress = sellerAddress;
+    if (location !== undefined) updateFields.location = location;
 
     if (Array.isArray(images)) {
       updateFields.images = images;
