@@ -352,7 +352,7 @@ function ProductCard({ product, displayStock, isOwner, isSoldOut, currentPrice, 
                 Restock / Edit
               </button>
               <button 
-                onClick={() => onDeleteProduct(product._id)} 
+                onClick={() => onDeleteProduct(product)} 
                 style={prodStyles.deleteBtn}
                 onMouseEnter={(e) => e.target.style.backgroundColor = '#b71c1c'}
                 onMouseLeave={(e) => e.target.style.backgroundColor = '#d32f2f'}
@@ -602,7 +602,7 @@ function Home({ user, cart, onAddToCart, onViewDetails, featuredProducts }) {
   );
 }
 
-function ProductsPage({ user, cart, onAddToCart, viewProductDetails, setViewProductDetails, editingProduct, setEditingProduct, handleOpenEdit, handleSaveEdit, handleDeleteProduct, editStock, setEditStock, editPrice, setEditPrice, editOriginalPrice, setEditOriginalPrice, editModalStage, setEditModalStage, closeEditModal, handleEditModalAnimationEnd, products, setProducts }) {
+function ProductsPage({ user, cart, onAddToCart, viewProductDetails, setViewProductDetails, editingProduct, setEditingProduct, handleOpenEdit, handleSaveEdit, deletingProduct, handleOpenDelete, confirmDeleteProduct, deleteModalStage, closeDeleteModal, handleDeleteModalAnimationEnd, deleteSuccessMessage, editStock, setEditStock, editPrice, setEditPrice, editOriginalPrice, setEditOriginalPrice, editModalStage, setEditModalStage, closeEditModal, handleEditModalAnimationEnd, products, setProducts }) {
   const navigate = useNavigate();
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
@@ -763,7 +763,7 @@ function ProductsPage({ user, cart, onAddToCart, viewProductDetails, setViewProd
                   onAddToCart={handleAddToCart}
                   onBuyNow={handleBuyNow}
                   onOpenEdit={handleOpenEdit}
-                  onDeleteProduct={handleDeleteProduct}
+                  onDeleteProduct={handleOpenDelete}
                   onViewDetails={setViewProductDetails}
                 />
               );
@@ -875,6 +875,95 @@ function ProductsPage({ user, cart, onAddToCart, viewProductDetails, setViewProd
         </div>,
         document.body
       )}
+
+      {deletingProduct && ReactDOM.createPortal(
+        <div
+          className={`page-transition ${deleteModalStage}`}
+          onAnimationEnd={handleDeleteModalAnimationEnd}
+          style={prodStyles.modalOverlay}
+          onClick={deleteSuccessMessage ? undefined : closeDeleteModal}
+        >
+          <div style={prodStyles.modal} onClick={(e) => e.stopPropagation()}>
+            {deleteSuccessMessage ? (
+              <div style={{ textAlign: 'center', padding: '20px 0' }}>
+                <div style={{
+                  width: '60px',
+                  height: '60px',
+                  borderRadius: '50%',
+                  backgroundColor: '#d8f3dc',
+                  color: '#2d6a4f',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '2rem',
+                  margin: '0 auto 15px auto',
+                  boxShadow: '0 4px 12px rgba(45, 106, 79, 0.2)'
+                }}>
+                  ✓
+                </div>
+                <h3 style={{ margin: '0 0 10px 0', color: '#1b4332' }}>Deleted Successfully! 🗑️</h3>
+                <p style={{ margin: 0, color: '#4b5563', fontSize: '0.95rem' }}>
+                  {deleteSuccessMessage}
+                </p>
+              </div>
+            ) : (
+              <>
+                <h3 style={{ margin: '0 0 10px 0', color: '#d32f2f' }}>Confirm Deletion 🗑️</h3>
+                <p style={{ margin: '0 0 20px 0', color: '#4b5563', fontSize: '0.95rem', lineHeight: '1.5' }}>
+                  Are you sure you want to delete <strong>"{deletingProduct.title}"</strong>? This action cannot be undone.
+                </p>
+                <div style={prodStyles.modalButtons}>
+                  <button
+                    type="button"
+                    onClick={confirmDeleteProduct}
+                    style={{
+                      flex: 1,
+                      backgroundColor: '#d32f2f',
+                      color: '#ffffff',
+                      border: 'none',
+                      padding: '10px',
+                      borderRadius: '6px',
+                      fontWeight: 'bold',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = '#b71c1c';
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow = '0 6px 16px rgba(211, 47, 47, 0.3)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = '#d32f2f';
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
+                  >
+                    Yes
+                  </button>
+                  <button
+                    type="button"
+                    onClick={closeDeleteModal}
+                    style={prodStyles.cancelBtn}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = '#424242';
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow = '0 6px 16px rgba(0,0,0,0.2)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = '#757575';
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
+                  >
+                    No
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }
@@ -966,6 +1055,9 @@ function App() {
   const [editPrice, setEditPrice] = useState(0);
   const [editOriginalPrice, setEditOriginalPrice] = useState('');
   const [editModalStage, setEditModalStage] = useState('');
+  const [deletingProduct, setDeletingProduct] = useState(null);
+  const [deleteModalStage, setDeleteModalStage] = useState('');
+  const [deleteSuccessMessage, setDeleteSuccessMessage] = useState(null);
   
   const [user, setUser] = useState(() => {
     const savedUser = localStorage.getItem('user');
@@ -1076,12 +1168,31 @@ function App() {
     }
   };
 
-  const handleDeleteProduct = async (productId) => {
-    if (!window.confirm('Are you sure you want to delete this listing?')) return;
+  const handleOpenDelete = (product) => {
+    setDeletingProduct(product);
+    setDeleteModalStage('page-enter');
+  };
+
+  const closeDeleteModal = () => {
+    setDeleteModalStage('page-exit');
+  };
+
+  const confirmDeleteProduct = async () => {
+    if (!deletingProduct) return;
+    const productId = deletingProduct._id;
+    const productTitle = deletingProduct.title || 'Product';
+
+    const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+    const token = storedUser.token || user?.token;
+
     try {
-      await axios.delete(`http://localhost:5000/api/products/${productId}`);
+      await axios.delete(`http://localhost:5000/api/products/${productId}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
+
       const filteredProductsList = products.filter(p => p._id !== productId);
       setProducts(filteredProductsList);
+
       try {
         const lightweight = filteredProductsList.map(p => ({
           ...p,
@@ -1090,8 +1201,32 @@ function App() {
         }));
         localStorage.setItem('eco_cart_lightweight_cache', JSON.stringify(lightweight));
       } catch (e) {}
+
+      setDeletingProduct(prev => ({ ...prev, successText: `"${productTitle}" has been deleted successfully.` }));
     } catch (err) {
-      alert('Failed to delete product.');
+      console.error('Delete error details:', err.response?.data || err.message);
+      alert('Failed to delete product: ' + (err.response?.data?.error || err.response?.data?.message || err.message));
+      closeDeleteModal();
+      return;
+    }
+
+    setDeleteModalStage('page-exit');
+  };
+
+  const handleDeleteModalAnimationEnd = () => {
+    if (deleteModalStage === 'page-exit') {
+      if (deletingProduct?.successText && !deleteSuccessMessage) {
+        setDeleteSuccessMessage(deletingProduct.successText);
+        setDeleteModalStage('page-enter');
+
+        setTimeout(() => {
+          setDeleteModalStage('page-exit');
+        }, 2000);
+      } else {
+        setDeletingProduct(null);
+        setDeleteSuccessMessage(null);
+        setDeleteModalStage('');
+      }
     }
   };
 
@@ -1225,7 +1360,13 @@ function App() {
               setEditingProduct={setEditingProduct}
               handleOpenEdit={handleOpenEdit}
               handleSaveEdit={handleSaveEdit}
-              handleDeleteProduct={handleDeleteProduct}
+              deletingProduct={deletingProduct}
+              handleOpenDelete={handleOpenDelete}
+              confirmDeleteProduct={confirmDeleteProduct}
+              deleteModalStage={deleteModalStage}
+              closeDeleteModal={closeDeleteModal}
+              handleDeleteModalAnimationEnd={handleDeleteModalAnimationEnd}
+              deleteSuccessMessage={deleteSuccessMessage}
               editStock={editStock}
               setEditStock={setEditStock}
               editPrice={editPrice}

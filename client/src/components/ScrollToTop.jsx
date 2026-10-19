@@ -5,11 +5,16 @@ const ScrollToTop = () => {
   const { pathname } = useLocation();
 
   useEffect(() => {
-    // Instantly resets the scroll position to the top-left corner
+    // Disable browser's automatic scroll memory on refresh/back navigation
+    if ('scrollRestoration' in window.history) {
+      window.history.scrollRestoration = 'manual';
+    }
+    
+    // Instantly reset scroll to top-left on every route change or refresh
     window.scrollTo({
       top: 0,
       left: 0,
-      behavior: 'instant' 
+      behavior: 'instant'
     });
   }, [pathname]);
 
