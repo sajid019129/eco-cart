@@ -8,6 +8,8 @@ function ForgotPassword() {
   const [otp, setOtp] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
@@ -190,22 +192,63 @@ function ForgotPassword() {
         {step === 3 && (
           <form onSubmit={handleResetPassword} style={styles.form}>
             <p style={styles.instruction}>Create a new password for your account.</p>
-            <input
-              type="password"
-              placeholder="New Password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              required
-              style={styles.input}
-            />
-            <input
-              type="password"
-              placeholder="Confirm New Password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required
-              style={styles.input}
-            />
+            
+            <div style={styles.passwordContainer}>
+              <input
+                type={showNewPassword ? 'text' : 'password'}
+                placeholder="New Password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                required
+                style={styles.passwordInput}
+              />
+              <button
+                type="button"
+                onClick={() => setShowNewPassword(!showNewPassword)}
+                style={styles.shapeBtn}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#d8f3dc';
+                  e.currentTarget.style.borderColor = '#2d6a4f';
+                  e.currentTarget.style.transform = 'translateY(-50%) scale(1.05)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = '#e8f5e9';
+                  e.currentTarget.style.borderColor = '#a3b899';
+                  e.currentTarget.style.transform = 'translateY(-50%) scale(1)';
+                }}
+              >
+                {showNewPassword ? 'Hide' : 'Show'}
+              </button>
+            </div>
+
+            <div style={styles.passwordContainer}>
+              <input
+                type={showConfirmPassword ? 'text' : 'password'}
+                placeholder="Confirm New Password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                style={styles.passwordInput}
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                style={styles.shapeBtn}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#d8f3dc';
+                  e.currentTarget.style.borderColor = '#2d6a4f';
+                  e.currentTarget.style.transform = 'translateY(-50%) scale(1.05)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = '#e8f5e9';
+                  e.currentTarget.style.borderColor = '#a3b899';
+                  e.currentTarget.style.transform = 'translateY(-50%) scale(1)';
+                }}
+              >
+                {showConfirmPassword ? 'Hide' : 'Show'}
+              </button>
+            </div>
+
             <button 
               type="submit" 
               disabled={loading} 
@@ -300,6 +343,39 @@ const styles = {
     fontSize: '0.95rem',
     outline: 'none',
     boxSizing: 'border-box',
+  },
+  passwordContainer: {
+    position: 'relative',
+    display: 'flex',
+    alignItems: 'center',
+    width: '100%',
+  },
+  passwordInput: {
+    width: '100%',
+    padding: '12px 65px 12px 15px',
+    borderRadius: '6px',
+    border: '1px solid #ccc',
+    fontSize: '0.95rem',
+    outline: 'none',
+    boxSizing: 'border-box',
+  },
+  shapeBtn: {
+    position: 'absolute',
+    right: '8px',
+    top: '50%',
+    transform: 'translateY(-50%)',
+    backgroundColor: '#e8f5e9',
+    color: '#2d6a4f',
+    border: '1px solid #a3b899',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontSize: '0.8rem',
+    fontWeight: 'bold',
+    padding: '5px 10px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'all 0.2s ease',
   },
   button: {
     backgroundColor: '#2d6a4f',

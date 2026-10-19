@@ -4,6 +4,7 @@ import axios from 'axios';
 
 function Login({ setUser }) {
   const [formData, setFormData] = useState({ email: '', password: '' });
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -58,15 +59,34 @@ function Login({ setUser }) {
             required
             style={styles.input}
           />
-          <input
-            type="password"
-            name="password"
-            placeholder="Password"
-            value={formData.password}
-            onChange={handleChange}
-            required
-            style={styles.input}
-          />
+          <div style={styles.passwordContainer}>
+            <input
+              type={showPassword ? 'text' : 'password'}
+              name="password"
+              placeholder="Password"
+              value={formData.password}
+              onChange={handleChange}
+              required
+              style={styles.passwordInput}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              style={styles.shapeBtn}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#d8f3dc';
+                e.currentTarget.style.borderColor = '#2d6a4f';
+                e.currentTarget.style.transform = 'translateY(-50%) scale(1.05)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#e8f5e9';
+                e.currentTarget.style.borderColor = '#a3b899';
+                e.currentTarget.style.transform = 'translateY(-50%) scale(1)';
+              }}
+            >
+              {showPassword ? 'Hide' : 'Show'}
+            </button>
+          </div>
 
           <div style={styles.forgotBox}>
             <Link 
@@ -173,6 +193,39 @@ const styles = {
     fontSize: '0.95rem',
     outline: 'none',
     boxSizing: 'border-box',
+  },
+  passwordContainer: {
+    position: 'relative',
+    display: 'flex',
+    alignItems: 'center',
+    width: '100%',
+  },
+  passwordInput: {
+    width: '100%',
+    padding: '12px 65px 12px 15px',
+    borderRadius: '6px',
+    border: '1px solid #ccc',
+    fontSize: '0.95rem',
+    outline: 'none',
+    boxSizing: 'border-box',
+  },
+  shapeBtn: {
+    position: 'absolute',
+    right: '8px',
+    top: '50%',
+    transform: 'translateY(-50%)',
+    backgroundColor: '#e8f5e9',
+    color: '#2d6a4f',
+    border: '1px solid #a3b899',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontSize: '0.8rem',
+    fontWeight: 'bold',
+    padding: '5px 10px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'all 0.2s ease',
   },
   forgotBox: {
     display: 'flex',
