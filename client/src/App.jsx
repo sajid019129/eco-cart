@@ -8,6 +8,7 @@ import Cart from './components/Cart';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
+import ScrollToTop from './components/ScrollToTop';
 
 const formatMediaSrc = (img) => {
   if (!img) return null;
@@ -1201,6 +1202,7 @@ function App() {
   return (
     <div style={styles.appContainer}>
       <Navbar user={user} setUser={handleSetUser} setCart={setCart} cartCount={validCartCount} />
+      <ScrollToTop />
       <NotificationToast message={toastMessage} type={toastType} onClose={() => setToastMessage('')} />
 
       <main 
