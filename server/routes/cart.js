@@ -5,7 +5,10 @@ const Product = require('../models/Product');
 
 router.get('/:userId', async (req, res) => {
   try {
-    let cart = await Cart.findOne({ user: req.params.userId }).populate('items.product');
+    let cart = await Cart.findOne({ user: req.params.userId }).populate({
+      path: 'items.product',
+      populate: { path: 'seller' }
+    });
     
     if (cart && cart.items.length > 0) {
       const validItems = cart.items.filter(item => item.product !== null);
@@ -50,7 +53,10 @@ router.post('/add', async (req, res) => {
     await product.save();
     await cart.save();
 
-    const updatedCart = await Cart.findOne({ user: userId }).populate('items.product');
+    const updatedCart = await Cart.findOne({ user: userId }).populate({
+      path: 'items.product',
+      populate: { path: 'seller' }
+    });
     res.json(updatedCart);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -84,7 +90,10 @@ router.put('/update', async (req, res) => {
       }
       await cart.save();
       
-      const updatedCart = await Cart.findOne({ user: userId }).populate('items.product');
+      const updatedCart = await Cart.findOne({ user: userId }).populate({
+        path: 'items.product',
+        populate: { path: 'seller' }
+      });
       return res.json(updatedCart);
     }
     res.status(404).json({ message: 'Item not found in cart' });
@@ -111,7 +120,10 @@ router.delete('/remove/:userId/:productId', async (req, res) => {
     cart.items = cart.items.filter(p => p.product.toString() !== productId);
     await cart.save();
     
-    const updatedCart = await Cart.findOne({ user: userId }).populate('items.product');
+    const updatedCart = await Cart.findOne({ user: userId }).populate({
+      path: 'items.product',
+      populate: { path: 'seller' }
+    });
     res.json(updatedCart);
   } catch (err) {
     res.status(500).json({ error: err.message });

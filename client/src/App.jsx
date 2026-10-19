@@ -87,27 +87,96 @@ const ProtectedRoute = ({ user, children }) => {
   return children;
 };
 
-const NotificationToast = ({ message, type = 'success', onClose }) => {
-  if (!message) return null;
-  const isError = type === 'error';
+const NotificationToast = ({ data, onClose }) => {
+  if (!data?.message) return null;
+  const isError = data.type === 'error';
 
   return (
-    <div style={{
-      ...toastStyles.toast,
-      borderLeft: `5px solid ${isError ? '#d32f2f' : '#52b788'}`
-    }}>
+    <div
+      key={data.key}
+      style={{
+        position: 'fixed',
+        top: '90px',
+        right: '30px',
+        backgroundColor: '#ffffff',
+        color: '#1b4332',
+        padding: '16px 22px',
+        borderRadius: '12px',
+        boxShadow: '0 10px 30px rgba(0,0,0,0.22)',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '16px',
+        zIndex: 9999,
+        animation: 'slideInBounce 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
+        minWidth: '310px',
+        maxWidth: '380px',
+        borderLeft: `6px solid ${isError ? '#d32f2f' : '#2d6a4f'}`
+      }}
+    >
       <div style={{
-        ...toastStyles.iconBox,
+        width: '42px',
+        height: '42px',
+        borderRadius: '50%',
         backgroundColor: isError ? '#ffebee' : '#d8f3dc',
-        color: isError ? '#d32f2f' : '#2d6a4f'
+        color: isError ? '#d32f2f' : '#2d6a4f',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontWeight: 'bold',
+        fontSize: '1.25rem',
+        flexShrink: 0
       }}>
         {isError ? '!' : '✓'}
       </div>
-      <div style={toastStyles.textBox}>
-        <strong>{isError ? 'Stock Limit Reached' : 'Added to Cart'}</strong>
-        <span style={toastStyles.itemTitle}>{message}</span>
+      <div style={{ display: 'flex', flexDirection: 'column', flexGrow: 1, overflow: 'hidden' }}>
+        <strong style={{ fontSize: '1.02rem', color: '#1b4332' }}>
+          {isError ? 'Stock Limit Reached' : 'Added to Cart! 🛒'}
+        </strong>
+        <span style={{ color: '#4b5563', fontSize: '0.9rem', marginTop: '2px', fontWeight: '500', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          {data.message}
+        </span>
       </div>
-      <button onClick={onClose} style={toastStyles.closeBtn}>×</button>
+      <button
+        onClick={onClose}
+        style={{
+          background: 'none',
+          border: 'none',
+          fontSize: '1.6rem',
+          color: '#999',
+          cursor: 'pointer',
+          padding: '2px 6px',
+          lineHeight: 1,
+          borderRadius: '50%',
+          transition: 'all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.color = '#1b4332';
+          e.currentTarget.style.backgroundColor = '#f1f3f5';
+          e.currentTarget.style.transform = 'scale(1.2) rotate(90deg)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.color = '#999';
+          e.currentTarget.style.backgroundColor = 'transparent';
+          e.currentTarget.style.transform = 'scale(1) rotate(0deg)';
+        }}
+      >
+        ×
+      </button>
+      <style>{`
+        @keyframes slideInBounce {
+          0% {
+            opacity: 0;
+            transform: translateX(80px) scale(0.9);
+          }
+          70% {
+            transform: translateX(-6px) scale(1.02);
+          }
+          100% {
+            opacity: 1;
+            transform: translateX(0) scale(1);
+          }
+        }
+      `}</style>
     </div>
   );
 };
@@ -973,8 +1042,7 @@ function App() {
   const navigate = useNavigate();
   const [displayLocation, setDisplayLocation] = useState(location);
   const [transitionStage, setTransitionStage] = useState('page-enter');
-  const [toastMessage, setToastMessage] = useState('');
-  const [toastType, setToastType] = useState('success');
+  const [toastData, setToastData] = useState({ message: '', type: 'success', key: 0 });
 
 // 1. INSTANT 0ms PAINT: Load text, prices, and IDs instantly from lightweight localStorage
   const [products, setProducts] = useState(() => {
@@ -1275,15 +1343,27 @@ function App() {
       });
 
       if (!skipToast) {
-        setToastType('success');
-        setToastMessage(product.title);
-        setTimeout(() => setToastMessage(''), 3500);
+        const clickKey = Date.now();
+        setToastData({
+          message: product.title,
+          type: 'success',
+          key: clickKey
+        });
+        setTimeout(() => {
+          setToastData(prev => prev.key === clickKey ? { ...prev, message: '' } : prev);
+        }, 3500);
       }
     } catch (err) {
       console.error('Failed to add to cart:', err);
-      setToastType('error');
-      setToastMessage(err.response?.data?.error || 'Could not update stock.');
-      setTimeout(() => setToastMessage(''), 3500);
+      const errKey = Date.now();
+      setToastData({
+        message: err.response?.data?.error || 'Could not update stock.',
+        type: 'error',
+        key: errKey
+      });
+      setTimeout(() => {
+        setToastData(prev => prev.key === errKey ? { ...prev, message: '' } : prev);
+      }, 3500);
     }
   };
 
@@ -1341,7 +1421,7 @@ function App() {
     <div style={styles.appContainer}>
       <Navbar user={user} setUser={handleSetUser} setCart={setCart} cartCount={validCartCount} />
       <ScrollToTop />
-      <NotificationToast message={toastMessage} type={toastType} onClose={() => setToastMessage('')} />
+      <NotificationToast key={toastData.key} data={toastData} onClose={() => setToastData(prev => ({ ...prev, message: '' }))} />
 
       <main 
         className={`page-transition ${transitionStage}`}
@@ -1392,7 +1472,15 @@ function App() {
                 user={user} 
                 cart={cart}
                 setCart={setCart}
-                setProducts={setProducts} 
+                setProducts={setProducts}
+                onViewDetails={openGlobalDetailsModal}
+                showToast={(message, type = 'success') => {
+                  const key = Date.now();
+                  setToastData({ message, type, key });
+                  setTimeout(() => {
+                    setToastData(prev => prev.key === key ? { ...prev, message: '' } : prev);
+                  }, 3500);
+                }}
               />
             </ProtectedRoute>
           } />
@@ -1404,12 +1492,13 @@ function App() {
 
       {viewProductDetails && (() => {
         const modalMediaList = getProductImages(viewProductDetails);
-        const seller = typeof viewProductDetails.seller === 'object' && viewProductDetails.seller !== null ? viewProductDetails.seller : {};
-        
-        const sellerName = viewProductDetails.sellerName || seller.name || seller.username || seller.fullName || 'Abdullah-Al-Sajid Md. Saad';
-        const sellerPhone = viewProductDetails.sellerPhone || seller.phone || seller.phoneNumber || seller.contact || '+880 1912-915937';
-        const sellerEmail = viewProductDetails.sellerEmail || seller.email || '23201020@uap-bd.edu';
-        const sellerAddress = viewProductDetails.sellerAddress || seller.address || seller.location || 'Uttara, Dhaka, Bangladesh';
+        const sellerObj = viewProductDetails.seller;
+        const seller = typeof sellerObj === 'object' && sellerObj !== null ? sellerObj : {};
+
+        const sellerName = viewProductDetails.sellerName || seller.name || seller.username || seller.fullName || sellerObj?.name || 'Seller Name Unavailable';
+        const sellerPhone = viewProductDetails.sellerPhone || seller.phone || seller.phoneNumber || seller.contact || sellerObj?.phone || 'Not Provided';
+        const sellerEmail = viewProductDetails.sellerEmail || seller.email || sellerObj?.email || 'Not Provided';
+        const sellerAddress = viewProductDetails.sellerAddress || seller.address || seller.location || sellerObj?.address || 'Bangladesh';
 
         const modalOriginalStock = viewProductDetails.stock ?? 1;
         const modalDisplayStock = Math.max(0, modalOriginalStock);

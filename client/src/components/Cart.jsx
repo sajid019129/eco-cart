@@ -2,8 +2,63 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 
-function Cart({ user, cart = [], setCart, setProducts }) {
+const formatMediaSrc = (img) => {
+  if (!img) return null;
+  if (typeof img === 'object') {
+    img = img.url || img.path || img.src || null;
+  }
+  if (typeof img === 'string') {
+    const trimmed = img.trim();
+    if (!trimmed || trimmed === 'undefined' || trimmed === 'null') return null;
+    if (
+      trimmed.startsWith('http') || 
+      trimmed.startsWith('data:image') || 
+      trimmed.startsWith('data:video') || 
+      trimmed.startsWith('blob:')
+    ) {
+      return trimmed;
+    }
+    if (trimmed.length > 50) {
+      const prefix = trimmed.startsWith('AAAA') || trimmed.includes('video') ? 'data:video/mp4;base64,' : 'data:image/jpeg;base64,';
+      return `${prefix}${trimmed}`;
+    }
+    if (trimmed.startsWith('/uploads') || trimmed.startsWith('uploads/')) {
+      return `http://localhost:5000/${trimmed.replace(/^\//, '')}`;
+    }
+    return trimmed;
+  }
+  return null;
+};
+
+const isVideoUrl = (url) => {
+  if (!url) return false;
+  return url.startsWith('data:video') || url.includes('video/') || url.endsWith('.mp4') || url.endsWith('.webm') || url.endsWith('.mov');
+};
+
+const getProductThumbnail = (product) => {
+  if (!product) return null;
+  let list = [];
+  if (Array.isArray(product.images) && product.images.length > 0) {
+    list = product.images.map(formatMediaSrc).filter(Boolean);
+  } else if (Array.isArray(product.photos) && product.photos.length > 0) {
+    list = product.photos.map(formatMediaSrc).filter(Boolean);
+  }
+  if (list.length === 0) {
+    const single = formatMediaSrc(product.image || product.imageUrl || product.photo);
+    if (single) list.push(single);
+  }
+
+  for (let media of list.slice(0, 5)) {
+    if (!isVideoUrl(media)) {
+      return media;
+    }
+  }
+  return list[0] || null;
+};
+
+function Cart({ user, cart = [], setCart, setProducts, showToast, onViewDetails }) {
   const [loading, setLoading] = useState(true);
+  const [animatingId, setAnimatingId] = useState(null);
 
   const activeUser = user || JSON.parse(localStorage.getItem('user') || 'null');
   const userId = activeUser?.id || activeUser?._id;
@@ -46,9 +101,31 @@ function Cart({ user, cart = [], setCart, setProducts }) {
     fetchCart();
   }, [userId]);
 
-  const updateQuantity = async (productId, currentQty, delta) => {
+  const updateQuantity = async (productId, productTitle, currentQty, delta) => {
     if (!userId) return;
     const newQuantity = currentQty + delta;
+
+    if (newQuantity <= 0) {
+      setAnimatingId(productId);
+      setTimeout(async () => {
+        try {
+          const res = await axios.delete(`http://localhost:5000/api/cart/remove/${userId}/${productId}`);
+          const serverItems = (res.data.items || []).filter(item => item.product !== null);
+          const formattedCart = serverItems.map((item) => ({
+            ...item.product,
+            quantity: item.quantity,
+            product: item.product
+          }));
+          if (setCart) setCart(formattedCart);
+          await refreshProducts();
+        } catch (err) {
+          console.error('Error removing item:', err);
+        } finally {
+          setAnimatingId(null);
+        }
+      }, 300);
+      return;
+    }
 
     try {
       const res = await axios.put('http://localhost:5000/api/cart/update', {
@@ -65,29 +142,39 @@ function Cart({ user, cart = [], setCart, setProducts }) {
       }));
       if (setCart) setCart(formattedCart);
       await refreshProducts();
+
+      if (delta > 0 && showToast) {
+        showToast(productTitle, 'success');
+      }
     } catch (err) {
       console.error('Error updating quantity:', err);
       alert(err.response?.data?.error || 'Failed to update quantity.');
     }
   };
 
-  const removeItem = async (productId) => {
+  const removeItem = async (productId, productTitle) => {
     if (!userId) return;
 
-    try {
-      const res = await axios.delete(`http://localhost:5000/api/cart/remove/${userId}/${productId}`);
-      const serverItems = (res.data.items || []).filter(item => item.product !== null);
-      const formattedCart = serverItems.map((item) => ({
-        ...item.product,
-        quantity: item.quantity,
-        product: item.product
-      }));
-      if (setCart) setCart(formattedCart);
-      await refreshProducts();
-    } catch (err) {
-      console.error('Error removing item:', err);
-      alert('Failed to remove item from cart.');
-    }
+    setAnimatingId(productId);
+
+    setTimeout(async () => {
+      try {
+        const res = await axios.delete(`http://localhost:5000/api/cart/remove/${userId}/${productId}`);
+        const serverItems = (res.data.items || []).filter(item => item.product !== null);
+        const formattedCart = serverItems.map((item) => ({
+          ...item.product,
+          quantity: item.quantity,
+          product: item.product
+        }));
+        if (setCart) setCart(formattedCart);
+        await refreshProducts();
+      } catch (err) {
+        console.error('Error removing item:', err);
+        alert('Failed to remove item from cart.');
+      } finally {
+        setAnimatingId(null);
+      }
+    }, 300);
   };
 
   const handleCheckout = async () => {
@@ -138,29 +225,98 @@ function Cart({ user, cart = [], setCart, setProducts }) {
                 if (!prod) return null;
 
                 const productId = prod._id || prod.id;
+                const productTitle = prod.title || prod.name || 'Product';
                 const currentQty = item.quantity || 1;
+                const isRemoving = animatingId === productId;
+                const thumbImg = getProductThumbnail(prod);
 
                 return (
-                  <div key={productId} style={styles.itemCard}>
-                    <div style={styles.itemInfo}>
-                      <h3 style={styles.itemTitle}>{prod.name || prod.title}</h3>
-                      <span style={styles.itemCategory}>
-                        {typeof prod.category === 'object' ? prod.category?.name : prod.category || 'General'}
-                      </span>
-                      <span style={styles.itemPrice}>৳ {Number(prod.price || 0).toFixed(2)}</span>
+                  <div 
+                    key={productId} 
+                    style={{
+                      ...styles.itemCard,
+                      animation: isRemoving ? 'slideOutRight 0.3s ease forwards' : 'none'
+                    }}
+                  >
+                    <div style={styles.itemLeftContent}>
+                      <div style={styles.thumbContainer}>
+                        {thumbImg ? (
+                          <img src={thumbImg} alt={productTitle} style={styles.thumbImg} />
+                        ) : (
+                          <span style={{ fontSize: '1.5rem' }}>📦</span>
+                        )}
+                      </div>
+                      <div style={styles.itemInfo}>
+                        <h3 style={styles.itemTitle}>{productTitle}</h3>
+                        <span style={styles.itemPrice}>৳ {Number(prod.price || 0).toFixed(2)}</span>
+                        <button 
+                          type="button" 
+                          onClick={() => onViewDetails && onViewDetails(prod)} 
+                          style={styles.detailsBtn}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = '#2d6a4f';
+                            e.currentTarget.style.transform = 'translateY(-2px)';
+                            e.currentTarget.style.boxShadow = '0 4px 12px rgba(27, 67, 50, 0.3)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = '#1b4332';
+                            e.currentTarget.style.transform = 'translateY(0)';
+                            e.currentTarget.style.boxShadow = 'none';
+                          }}
+                        >
+                          View Details
+                        </button>
+                      </div>
                     </div>
 
                     <div style={styles.itemActions}>
                       <div style={styles.qtyBox}>
-                        <button onClick={() => updateQuantity(productId, currentQty, -1)} style={styles.qtyBtn}>
+                        <button 
+                          onClick={() => updateQuantity(productId, productTitle, currentQty, -1)} 
+                          style={styles.qtyBtn}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = '#2d6a4f';
+                            e.currentTarget.style.color = '#ffffff';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = '#f1f3f5';
+                            e.currentTarget.style.color = '#1b4332';
+                          }}
+                        >
                           -
                         </button>
                         <span style={styles.qtyText}>{currentQty}</span>
-                        <button onClick={() => updateQuantity(productId, currentQty, 1)} style={styles.qtyBtn}>
+                        <button 
+                          onClick={() => updateQuantity(productId, productTitle, currentQty, 1)} 
+                          style={styles.qtyBtn}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = '#2d6a4f';
+                            e.currentTarget.style.color = '#ffffff';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = '#f1f3f5';
+                            e.currentTarget.style.color = '#1b4332';
+                          }}
+                        >
                           +
                         </button>
                       </div>
-                      <button onClick={() => removeItem(productId)} style={styles.removeBtn}>
+                      <button 
+                        onClick={() => removeItem(productId, productTitle)} 
+                        style={styles.removeBtn}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = '#d32f2f';
+                          e.currentTarget.style.color = '#ffffff';
+                          e.currentTarget.style.transform = 'translateY(-2px)';
+                          e.currentTarget.style.boxShadow = '0 4px 12px rgba(211, 47, 47, 0.25)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = 'transparent';
+                          e.currentTarget.style.color = '#d32f2f';
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.boxShadow = 'none';
+                        }}
+                      >
                         Remove
                       </button>
                     </div>
@@ -188,8 +344,16 @@ function Cart({ user, cart = [], setCart, setProducts }) {
               <button
                 onClick={handleCheckout}
                 style={styles.checkoutBtn}
-                onMouseEnter={(e) => (e.target.style.backgroundColor = '#1b4332')}
-                onMouseLeave={(e) => (e.target.style.backgroundColor = '#2d6a4f')}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#1b4332';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 6px 16px rgba(27, 67, 50, 0.3)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = '#2d6a4f';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
               >
                 Proceed to Checkout
               </button>
@@ -202,10 +366,14 @@ function Cart({ user, cart = [], setCart, setProducts }) {
               to="/products"
               style={styles.browseBtn}
               onMouseEnter={(e) => {
-                e.target.style.backgroundColor = '#1b4332';
+                e.currentTarget.style.backgroundColor = '#1b4332';
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 6px 16px rgba(27, 67, 50, 0.3)';
               }}
               onMouseLeave={(e) => {
-                e.target.style.backgroundColor = '#2d6a4f';
+                e.currentTarget.style.backgroundColor = '#2d6a4f';
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = 'none';
               }}
             >
               Browse Marketplace 🛍️
@@ -213,6 +381,18 @@ function Cart({ user, cart = [], setCart, setProducts }) {
           </div>
         )}
       </div>
+      <style>{`
+        @keyframes slideOutRight {
+          0% {
+            opacity: 1;
+            transform: translateX(0) scale(1);
+          }
+          100% {
+            opacity: 0;
+            transform: translateX(80px) scale(0.95);
+          }
+        }
+      `}</style>
     </div>
   );
 }
@@ -247,34 +427,69 @@ const styles = {
   },
   itemCard: {
     backgroundColor: '#ffffff',
-    padding: '20px',
+    padding: '16px 20px',
     borderRadius: '10px',
-    boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
+    boxShadow: '0 4px 14px rgba(0,0,0,0.06)',
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
     flexWrap: 'wrap',
-    gap: '15px'
+    gap: '15px',
+    transition: 'all 0.25s ease',
+    border: '1px solid #e5e7eb'
+  },
+  itemLeftContent: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '15px',
+    flex: '1 1 250px'
+  },
+  thumbContainer: {
+    width: '65px',
+    height: '65px',
+    borderRadius: '8px',
+    backgroundColor: '#f3f4f6',
+    overflow: 'hidden',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+    border: '1px solid #e5e7eb'
+  },
+  thumbImg: {
+    width: '100%',
+    height: '100%',
+    objectFit: 'cover'
   },
   itemInfo: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '4px'
+    gap: '3px'
   },
   itemTitle: {
     margin: 0,
     fontSize: '1.1rem',
-    color: '#2b2b2b'
-  },
-  itemCategory: {
-    fontSize: '0.85rem',
-    color: '#666'
+    color: '#2b2b2b',
+    fontWeight: '600'
   },
   itemPrice: {
-    fontSize: '1.1rem',
+    fontSize: '1.05rem',
     fontWeight: 'bold',
-    color: '#2d6a4f',
-    marginTop: '4px'
+    color: '#2d6a4f'
+  },
+  detailsBtn: {
+    backgroundColor: '#1b4332',
+    color: '#ffffff',
+    border: 'none',
+    padding: '6px 12px',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    textAlign: 'center',
+    fontSize: '0.8rem',
+    fontWeight: 'bold',
+    marginTop: '6px',
+    width: 'fit-content',
+    transition: 'all 0.2s ease',
   },
   itemActions: {
     display: 'flex',
@@ -284,40 +499,53 @@ const styles = {
   qtyBox: {
     display: 'flex',
     alignItems: 'center',
-    border: '1px solid #ccc',
-    borderRadius: '6px',
-    overflow: 'hidden'
+    border: '1px solid #d1d5db',
+    borderRadius: '8px',
+    overflow: 'hidden',
+    backgroundColor: '#f9fafb',
+    boxShadow: '0 2px 6px rgba(0,0,0,0.02)'
   },
   qtyBtn: {
     border: 'none',
-    backgroundColor: '#f0f0f0',
-    padding: '6px 12px',
+    backgroundColor: '#f1f3f5',
+    color: '#1b4332',
+    padding: '8px 14px',
     cursor: 'pointer',
-    fontWeight: 'bold'
+    fontWeight: 'bold',
+    fontSize: '1rem',
+    transition: 'all 0.2s ease'
   },
   qtyText: {
-    padding: '0 12px',
-    fontWeight: 'bold'
+    padding: '0 14px',
+    fontWeight: 'bold',
+    color: '#1f2937',
+    fontSize: '0.95rem'
   },
   removeBtn: {
     backgroundColor: 'transparent',
-    color: '#e63946',
-    border: 'none',
+    color: '#d32f2f',
+    border: '1px solid #fca5a5',
+    padding: '8px 14px',
+    borderRadius: '6px',
     cursor: 'pointer',
-    fontWeight: '600'
+    fontWeight: '600',
+    fontSize: '0.9rem',
+    transition: 'all 0.2s ease'
   },
   summaryCard: {
     flex: '1 1 300px',
     backgroundColor: '#ffffff',
     padding: '25px',
     borderRadius: '10px',
-    boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
-    height: 'fit-content'
+    boxShadow: '0 4px 14px rgba(0,0,0,0.06)',
+    height: 'fit-content',
+    border: '1px solid #e5e7eb'
   },
   summaryTitle: {
     margin: '0 0 20px 0',
     fontSize: '1.3rem',
-    color: '#1b4332'
+    color: '#1b4332',
+    fontWeight: '700'
   },
   summaryRow: {
     display: 'flex',
@@ -331,29 +559,30 @@ const styles = {
     color: '#ffffff',
     border: 'none',
     padding: '12px',
-    borderRadius: '6px',
+    borderRadius: '8px',
     fontWeight: 'bold',
     fontSize: '1rem',
     cursor: 'pointer',
     marginTop: '15px',
-    transition: 'background-color 0.2s ease'
+    transition: 'all 0.2s ease'
   },
   emptyCart: {
     backgroundColor: '#ffffff',
     padding: '60px',
     textAlign: 'center',
     borderRadius: '12px',
-    boxShadow: '0 2px 10px rgba(0,0,0,0.05)'
+    boxShadow: '0 4px 14px rgba(0,0,0,0.06)',
+    border: '1px solid #e5e7eb'
   },
   browseBtn: {
     backgroundColor: '#2d6a4f',
     color: '#fff',
     padding: '12px 24px',
-    borderRadius: '6px',
+    borderRadius: '8px',
     textDecoration: 'none',
     fontWeight: 'bold',
     display: 'inline-block',
-    transition: 'background-color 0.2s ease'
+    transition: 'all 0.2s ease'
   }
 };
 

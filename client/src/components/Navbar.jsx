@@ -81,6 +81,21 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
           border-bottom: 2px solid #52b788;
         }
 
+        @keyframes badgePop {
+          0% {
+            transform: scale(0.6);
+            opacity: 0;
+          }
+          60% {
+            transform: scale(1.25);
+            opacity: 1;
+          }
+          100% {
+            transform: scale(1);
+            opacity: 1;
+          }
+        }
+
         .cart-badge {
           background-color: #e63946;
           color: #ffffff;
@@ -94,6 +109,8 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
           align-items: center;
           justify-content: center;
           margin-left: 4px;
+          animation: badgePop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+          box-shadow: 0 2px 6px rgba(230, 57, 70, 0.4);
         }
 
         .btn-login {
@@ -191,7 +208,11 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
 
           <Link to="/cart" className={`nav-link ${isActive('/cart') ? 'active' : ''}`}>
             Cart 🛒
-            {cartCount > 0 && <span className="cart-badge">{cartCount}</span>}
+            {cartCount > 0 && (
+              <span key={cartCount} className="cart-badge">
+                {cartCount}
+              </span>
+            )}
           </Link>
 
           {user ? (
