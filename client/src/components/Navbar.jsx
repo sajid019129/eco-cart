@@ -215,6 +215,10 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
             )}
           </Link>
 
+          <Link to="/track-order" className={`nav-link ${isActive('/track-order') ? 'active' : ''}`}>
+            Track Order 📦
+          </Link>
+
           {user ? (
             <>
               <Link to="/add-product" className="btn-action">
