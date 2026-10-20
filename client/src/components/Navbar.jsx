@@ -108,9 +108,62 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          margin-left: 4px;
+          margin-left: 6px;
           animation: badgePop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
           box-shadow: 0 2px 6px rgba(230, 57, 70, 0.4);
+        }
+
+        @keyframes proSellerIntenseGlow {
+          0% {
+            transform: scale(1);
+            background-color: #2d6a4f;
+            box-shadow: 0 0 4px rgba(82, 183, 136, 0.4);
+            border-color: #52b788;
+          }
+          50% {
+            transform: scale(1.04);
+            background-color: #52b788;
+            box-shadow: 0 0 18px 6px rgba(255, 215, 0, 0.75), 0 0 28px 10px rgba(82, 183, 136, 0.8), inset 0 0 10px rgba(255, 255, 255, 0.4);
+            border-color: #ffd700;
+          }
+          100% {
+            transform: scale(1);
+            background-color: #2d6a4f;
+            box-shadow: 0 0 4px rgba(82, 183, 136, 0.4);
+            border-color: #52b788;
+          }
+        }
+
+        .btn-sell-pro {
+          background-color: #2d6a4f;
+          color: #ffffff;
+          padding: 9px 20px;
+          border-radius: 8px;
+          text-decoration: none;
+          font-weight: 800;
+          font-size: 0.98rem;
+          border: 2px solid #52b788;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          animation: proSellerIntenseGlow 1.2s infinite ease-in-out;
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          letter-spacing: 0.3px;
+        }
+
+        .btn-sell-pro:hover {
+          transform: translateY(-2px);
+          background-color: #52b788;
+          border-color: #ffd700;
+        }
+
+        .btn-sell-pro.active {
+          animation: none;
+          background-color: rgba(82, 183, 136, 0.25);
+          color: #52b788;
+          border: 2px solid #52b788;
+          box-shadow: 0 4px 12px rgba(82, 183, 136, 0.3);
         }
 
         .btn-login {
@@ -199,15 +252,15 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
 
         <div className="nav-links">
           <Link to="/" className={`nav-link ${isActive('/') ? 'active' : ''}`}>
-            Home
+            🏠 Home
           </Link>
 
           <Link to="/products" className={`nav-link ${isActive('/products') ? 'active' : ''}`}>
-            Products
+            📦 Buy Products
           </Link>
 
           <Link to="/cart" className={`nav-link ${isActive('/cart') ? 'active' : ''}`}>
-            Cart 🛒
+            🛒 Cart
             {cartCount > 0 && (
               <span key={cartCount} className="cart-badge">
                 {cartCount}
@@ -216,13 +269,13 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
           </Link>
 
           <Link to="/track-order" className={`nav-link ${isActive('/track-order') ? 'active' : ''}`}>
-            Track Order 📦
+            🚚 Track Order
           </Link>
 
           {user ? (
             <>
-              <Link to="/add-product" className="btn-action">
-                + Sell Item
+              <Link to="/add-product" className={`btn-sell-pro ${isActive('/add-product') ? 'active' : ''}`}>
+                💰 Sell Items & Earn
               </Link>
               
               <div className="user-badge">

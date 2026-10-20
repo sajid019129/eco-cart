@@ -216,7 +216,7 @@ const TrackOrder = () => {
 
       <div className="track-page">
         <div className="track-card">
-          <h1 className="track-title">Track Your Order 📦</h1>
+          <h1 className="track-title">Track Your Order 🚚</h1>
           <p className="track-subtitle">Enter your Eco-Cart Order Number to view real-time shipping status and cash memo</p>
 
           <form onSubmit={handleTrackSearch} className="search-box">

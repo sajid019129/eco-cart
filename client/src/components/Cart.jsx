@@ -335,8 +335,8 @@ function Cart({ user, cart = [], setCart, setProducts, showToast, onViewDetails 
               <div style={styles.summaryRow}>
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                   <span>Shipping Fee</span>
-                  <span className="lightning-text" style={{ fontSize: '0.95rem', color: '#2d6a4f', fontWeight: '500', marginTop: '3px' }}>
-                    💥 Same Charge All Over BD 💥
+                  <span style={{ fontSize: '0.95rem', color: '#d32f2f', fontWeight: '700', marginTop: '6px' }}>
+                    Flat Delivery All Over BD!
                   </span>
                 </div>
                 <span style={{ fontWeight: 'bold', color: '#1b4332' }}>৳ {shippingFee.toFixed(2)}</span>
@@ -367,7 +367,7 @@ function Cart({ user, cart = [], setCart, setProducts, showToast, onViewDetails 
           </div>
         ) : (
           <div style={styles.emptyCart}>
-            <p style={{ fontSize: '1.2rem', color: '#555', marginBottom: '20px' }}>Your cart is empty.</p>
+            <p style={{ fontSize: '1.2rem', color: '#555', marginBottom: '20px' }}>Your cart is empty</p>
             <Link
               to="/products"
               style={styles.browseBtn}
@@ -397,25 +397,6 @@ function Cart({ user, cart = [], setCart, setProducts, showToast, onViewDetails 
             opacity: 0;
             transform: translateX(80px) scale(0.95);
           }
-        }
-        @keyframes lightningGlow {
-          0% {
-            opacity: 0.75;
-            text-shadow: 0 0 2px rgba(45, 106, 79, 0.2);
-          }
-          50% {
-            opacity: 1;
-            text-shadow: 0 0 10px rgba(45, 106, 79, 0.8), 0 0 16px rgba(40, 167, 69, 0.6);
-            transform: scale(1.02);
-          }
-          100% {
-            opacity: 0.75;
-            text-shadow: 0 0 2px rgba(45, 106, 79, 0.2);
-          }
-        }
-        .lightning-text {
-          animation: lightningGlow 1.2s infinite ease-in-out;
-          display: inline-block;
         }
       `}</style>
     </div>

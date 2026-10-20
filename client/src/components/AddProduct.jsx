@@ -168,7 +168,7 @@ const AddProduct = ({ user, setProducts }) => {
   return (
     <div style={styles.container}>
       <div style={styles.card}>
-        <h2 style={styles.title}>Post Item for Sale 📦</h2>
+        <h2 style={styles.title}>Post Items for Sale 📦</h2>
         <p style={styles.subtitle}>List your pre-owned or new items for the community marketplace</p>
 
         {error && <div style={styles.errorAlert}>{error}</div>}
