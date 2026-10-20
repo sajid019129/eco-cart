@@ -191,15 +191,13 @@ function Cart({ user, cart = [], setCart, setProducts, showToast, onViewDetails 
     }
   };
 
-  const calculateTotal = () => {
-    return cart
-      .reduce((acc, item) => {
-        const prod = item.product;
-        if (!prod) return acc;
-        const price = prod.price || 0;
-        return acc + price * (item.quantity || 1);
-      }, 0)
-      .toFixed(2);
+  const calculateSubtotal = () => {
+    return cart.reduce((acc, item) => {
+      const prod = item.product;
+      if (!prod) return acc;
+      const price = prod.price || 0;
+      return acc + price * (item.quantity || 1);
+    }, 0);
   };
 
   if (loading) {
@@ -211,6 +209,9 @@ function Cart({ user, cart = [], setCart, setProducts, showToast, onViewDetails 
   }
 
   const validCartItems = cart.filter(item => item.product && (item.product._id || item.product.id));
+  const subtotal = calculateSubtotal();
+  const shippingFee = validCartItems.length > 0 ? 70 : 0;
+  const total = subtotal + shippingFee;
 
   return (
     <div style={styles.pageContainer}>
@@ -329,16 +330,21 @@ function Cart({ user, cart = [], setCart, setProducts, showToast, onViewDetails 
               <h3 style={styles.summaryTitle}>Order Summary</h3>
               <div style={styles.summaryRow}>
                 <span>Subtotal</span>
-                <span>৳ {calculateTotal()}</span>
+                <span>৳ {subtotal.toFixed(2)}</span>
               </div>
               <div style={styles.summaryRow}>
-                <span>Eco Shipping</span>
-                <span style={{ color: '#2b9348', fontWeight: 'bold' }}>FREE</span>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <span>Shipping Fee</span>
+                  <span className="lightning-text" style={{ fontSize: '0.9rem', color: '#2d6a4f', fontWeight: '700' }}>
+                    Eco-Cart All-BD Flat Rate
+                  </span>
+                </div>
+                <span style={{ fontWeight: 'bold', color: '#1b4332' }}>৳ {shippingFee.toFixed(2)}</span>
               </div>
               <hr style={{ border: 'none', borderTop: '1px solid #eee', margin: '15px 0' }} />
               <div style={{ ...styles.summaryRow, fontSize: '1.2rem', fontWeight: 'bold', color: '#1b4332' }}>
                 <span>Total</span>
-                <span>৳ {calculateTotal()}</span>
+                <span>৳ {total.toFixed(2)}</span>
               </div>
 
               <button
@@ -391,6 +397,25 @@ function Cart({ user, cart = [], setCart, setProducts, showToast, onViewDetails 
             opacity: 0;
             transform: translateX(80px) scale(0.95);
           }
+        }
+        @keyframes lightningGlow {
+          0% {
+            opacity: 0.75;
+            text-shadow: 0 0 2px rgba(45, 106, 79, 0.2);
+          }
+          50% {
+            opacity: 1;
+            text-shadow: 0 0 10px rgba(45, 106, 79, 0.8), 0 0 16px rgba(40, 167, 69, 0.6);
+            transform: scale(1.02);
+          }
+          100% {
+            opacity: 0.75;
+            text-shadow: 0 0 2px rgba(45, 106, 79, 0.2);
+          }
+        }
+        .lightning-text {
+          animation: lightningGlow 1.2s infinite ease-in-out;
+          display: inline-block;
         }
       `}</style>
     </div>
