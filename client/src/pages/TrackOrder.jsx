@@ -90,8 +90,8 @@ const TrackOrder = () => {
           flex: 1;
           padding: 12px 16px;
           border: 1.5px solid #ced4da;
-          border-radius: 8px;
-          font-size: 1rem;
+          border-radius: 6px;
+          font-size: 0.95rem;
           outline: none;
           transition: border-color 0.2s, box-shadow 0.2s;
         }
@@ -102,21 +102,21 @@ const TrackOrder = () => {
         }
 
         .btn-track {
-          background-color: #1b4332;
+          background-color: #2d6a4f;
           color: #ffffff;
-          padding: 0 26px;
-          border-radius: 8px;
-          font-weight: 800;
-          font-size: 1rem;
+          padding: 12px 24px;
+          border-radius: 6px;
+          font-weight: 700;
+          font-size: 0.95rem;
           border: none;
           cursor: pointer;
           transition: all 0.2s ease;
         }
 
         .btn-track:hover {
-          background-color: #2d6a4f;
-          box-shadow: 0 4px 12px rgba(27, 67, 50, 0.3);
+          background-color: #1b4332;
           transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(45, 106, 79, 0.3);
         }
 
         .error-alert {
