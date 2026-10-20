@@ -8,6 +8,7 @@ import Cart from './components/Cart';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
+import TrackOrder from './pages/TrackOrder';
 import ScrollToTop from './components/ScrollToTop';
 
 const formatMediaSrc = (img) => {
@@ -1486,6 +1487,7 @@ function App() {
           } />
           <Route path="/login" element={<Login setUser={handleSetUser} />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/track-order" element={<TrackOrder />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
         </Routes>
       </main>
