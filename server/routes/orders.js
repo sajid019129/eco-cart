@@ -10,12 +10,12 @@ router.post('/', async (req, res) => {
     const { buyerId, items, paymentMethod, paymentDetails, shippingAddress } = req.body;
 
     if (!buyerId || !items || items.length === 0) {
-      return.status(400).json({ error: 'Buyer ID and items are required.' });
+      return res.status(400).json({ error: 'Buyer ID and items are required.' });
     }
 
     const buyerUser = await User.findById(buyerId);
     if (!buyerUser) {
-      return.status(404).json({ error: 'Buyer not found.' });
+      return res.status(404).json({ error: 'Buyer not found.' });
     }
 
     let orderItems = [];
@@ -25,10 +25,9 @@ router.post('/', async (req, res) => {
     for (const cartItem of items) {
       const productDoc = await Product.findById(cartItem.productId || cartItem.product);
       if (!productDoc) {
-        return.status(404).json({ error: `Product not found: ${cartItem.productId}` });
+        return res.status(404).json({ error: `Product not found: ${cartItem.productId || cartItem.product}` });
       }
 
-      // Fetch seller info
       const sellerUser = productDoc.seller ? await User.findById(productDoc.seller) : null;
       
       sellerInfo = {
@@ -83,6 +82,23 @@ router.post('/', async (req, res) => {
   }
 });
 
+// GET /api/orders/track/:orderNumber - Track order by Order ID/Number
+router.get('/track/:orderNumber', async (req, res) => {
+  try {
+    const { orderNumber } = req.params;
+    const order = await Order.findOne({ orderNumber: orderNumber.trim().toUpperCase() });
+    
+    if (!order) {
+      return res.status(404).json({ error: 'Order not found with this Order Number.' });
+    }
+
+    res.json(order);
+  } catch (err) {
+    console.error('Tracking error:', err);
+    res.status(500).json({ error: 'Failed to track order', details: err.message });
+  }
+});
+
 // GET /api/orders/:userId - Get all orders for a buyer or seller
 router.get('/:userId', async (req, res) => {
   try {
@@ -107,7 +123,7 @@ router.put('/:id/status', async (req, res) => {
       { new: true }
     );
     if (!updatedOrder) {
-      return.status(404).json({ error: 'Order not found' });
+      return res.status(404).json({ error: 'Order not found' });
     }
     res.json(updatedOrder);
   } catch (err) {

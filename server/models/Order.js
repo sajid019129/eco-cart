@@ -1,6 +1,12 @@
 const mongoose = require('mongoose');
 
 const OrderSchema = new mongoose.Schema({
+  orderNumber: {
+    type: String,
+    unique: true,
+    required: true,
+    default: () => `ECO-${Date.now().toString().slice(-6)}-${Math.floor(1000 + Math.random() * 9000)}`
+  },
   buyer: {
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     name: { type: String, required: true },
@@ -28,7 +34,7 @@ const OrderSchema = new mongoose.Schema({
   totalAmount: { type: Number, required: true },
   paymentMethod: { type: String, enum: ['Digital', 'COD'], required: true },
   paymentDetails: {
-    provider: { type: String, default: '' }, // e.g., 'bKash' or 'Nagad'
+    provider: { type: String, default: '' },
     accountNumber: { type: String, default: '' },
     trxId: { type: String, default: '' }
   },
