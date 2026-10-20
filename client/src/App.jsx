@@ -12,6 +12,9 @@ import TrackOrder from './pages/TrackOrder';
 import LogisticsDashboard from './pages/LogisticsDashboard';
 import SellerDashboard from './pages/SellerDashboard';
 import ScrollToTop from './components/ScrollToTop';
+import CheckoutModal from './components/CheckoutModal';
+import OrderSuccessModal from './components/OrderSuccessModal';
+import InvoiceModal from './components/InvoiceModal';
 
 const formatMediaSrc = (img) => {
   if (!img) return null;
@@ -674,7 +677,7 @@ function Home({ user, cart, onAddToCart, onViewDetails, featuredProducts }) {
   );
 }
 
-function ProductsPage({ user, cart, onAddToCart, viewProductDetails, setViewProductDetails, editingProduct, setEditingProduct, handleOpenEdit, handleSaveEdit, deletingProduct, handleOpenDelete, confirmDeleteProduct, deleteModalStage, closeDeleteModal, handleDeleteModalAnimationEnd, deleteSuccessMessage, editStock, setEditStock, editPrice, setEditPrice, editOriginalPrice, setEditOriginalPrice, editModalStage, setEditModalStage, closeEditModal, handleEditModalAnimationEnd, products, setProducts }) {
+function ProductsPage({ user, cart, onAddToCart, onBuyNow, viewProductDetails, setViewProductDetails, editingProduct, setEditingProduct, handleOpenEdit, handleSaveEdit, deletingProduct, handleOpenDelete, confirmDeleteProduct, deleteModalStage, closeDeleteModal, handleDeleteModalAnimationEnd, deleteSuccessMessage, editStock, setEditStock, editPrice, setEditPrice, editOriginalPrice, setEditOriginalPrice, editModalStage, setEditModalStage, closeEditModal, handleEditModalAnimationEnd, products, setProducts }) {
   const navigate = useNavigate();
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
@@ -716,13 +719,14 @@ function ProductsPage({ user, cart, onAddToCart, viewProductDetails, setViewProd
     await onAddToCart(product);
   };
 
-  const handleBuyNow = async (product) => {
+  const handleBuyNow = (product) => {
     if (!user) {
       navigate('/login');
       return;
     }
-    await onAddToCart(product, true);
-    navigate('/cart');
+    if (onBuyNow) {
+      onBuyNow(product);
+    }
   };
 
   const currentUserId = user?._id || user?.id || user?.userId;
@@ -1158,6 +1162,11 @@ function App() {
     }
   });
 
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [checkoutDirectItem, setCheckoutDirectItem] = useState(null);
+  const [completedOrder, setCompletedOrder] = useState(null);
+  const [showInvoice, setShowInvoice] = useState(false);
+
   useEffect(() => {
     if (currentUserId) {
       localStorage.setItem(`cart_${currentUserId}`, JSON.stringify(cart));
@@ -1424,6 +1433,12 @@ function App() {
     }
   };
 
+  const handleOrderSuccess = async (orderData) => {
+    setCompletedOrder(orderData);
+    setIsCheckoutOpen(false);
+    setCheckoutDirectItem(null);
+  };
+
   const validCartCount = cart.reduce((acc, item) => {
     const qty = Number(item.quantity || 1);
     return acc + (isNaN(qty) ? 1 : qty);
@@ -1445,7 +1460,18 @@ function App() {
             <ProductsPage 
               user={user} 
               cart={cart} 
-              onAddToCart={handleAddToCart} 
+              onAddToCart={handleAddToCart}
+              onBuyNow={(product) => {
+                if (!user) {
+                  navigate('/login');
+                  return;
+                }
+                setCheckoutDirectItem({
+                  product: product,
+                  quantity: 1
+                });
+                setIsCheckoutOpen(true);
+              }}
               viewProductDetails={viewProductDetails} 
               setViewProductDetails={openGlobalDetailsModal} 
               editingProduct={editingProduct}
@@ -1879,6 +1905,40 @@ function App() {
           document.body
         );
       })()}
+
+      {isCheckoutOpen && (
+        <CheckoutModal
+          user={user}
+          cart={checkoutDirectItem ? [checkoutDirectItem] : cart}
+          onClose={() => {
+            setIsCheckoutOpen(false);
+            setCheckoutDirectItem(null);
+          }}
+          onSuccess={handleOrderSuccess}
+          showToast={(msg, type) => {
+            const key = Date.now();
+            setToastData({ message: msg, type: type || 'success', key });
+            setTimeout(() => {
+              setToastData(prev => prev.key === key ? { ...prev, message: '' } : prev);
+            }, 3500);
+          }}
+        />
+      )}
+
+      {completedOrder && (
+        <OrderSuccessModal
+          order={completedOrder}
+          onClose={() => setCompletedOrder(null)}
+          onViewInvoice={() => setShowInvoice(true)}
+        />
+      )}
+
+      {showInvoice && completedOrder && (
+        <InvoiceModal
+          order={completedOrder}
+          onClose={() => setShowInvoice(false)}
+        />
+      )}
     </div>
   );
 }

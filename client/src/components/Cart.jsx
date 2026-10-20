@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
+import CheckoutModal from './CheckoutModal';
+import InvoiceModal from './InvoiceModal';
+import OrderSuccessModal from './OrderSuccessModal';
 
 const formatMediaSrc = (img) => {
   if (!img) return null;
@@ -59,6 +62,10 @@ const getProductThumbnail = (product) => {
 function Cart({ user, cart = [], setCart, setProducts, showToast, onViewDetails }) {
   const [loading, setLoading] = useState(true);
   const [animatingId, setAnimatingId] = useState(null);
+
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [completedOrder, setCompletedOrder] = useState(null);
+  const [showInvoice, setShowInvoice] = useState(false);
 
   const activeUser = user || JSON.parse(localStorage.getItem('user') || 'null');
   const userId = activeUser?.id || activeUser?._id;
@@ -177,18 +184,44 @@ function Cart({ user, cart = [], setCart, setProducts, showToast, onViewDetails 
     }, 300);
   };
 
-  const handleCheckout = async () => {
+  const removeAllCartItems = async () => {
     if (!userId) return;
 
     try {
-      await axios.post('http://localhost:5000/api/cart/checkout', { userId });
-      alert('Order Placed Successfully! Thank you for purchasing sustainably.');
+      for (const item of cart) {
+        const prod = item.product || item;
+        const productId = prod._id || prod.id;
+        if (productId) {
+          await axios.delete(`http://localhost:5000/api/cart/remove/${userId}/${productId}`);
+        }
+      }
       if (setCart) setCart([]);
       await refreshProducts();
     } catch (err) {
-      console.error('Checkout error:', err);
-      alert(err.response?.data?.error || 'Failed to complete checkout.');
+      console.error('Error clearing cart:', err);
+      alert('Failed to clear cart items.');
     }
+  };
+
+  const handleCheckout = () => {
+    if (!userId) {
+      alert('Please log in to proceed to checkout.');
+      return;
+    }
+    const validCartItems = cart.filter(item => item.product && (item.product._id || item.product.id));
+    if (validCartItems.length === 0) {
+      alert('Your cart is empty!');
+      return;
+    }
+    setIsCheckoutOpen(true);
+  };
+
+  const handleOrderSuccess = async (orderData) => {
+    setCompletedOrder(orderData);
+    setIsCheckoutOpen(false);
+    if (setCart) setCart([]);
+    localStorage.removeItem(`cart_${userId}`);
+    await refreshProducts();
   };
 
   const calculateSubtotal = () => {
@@ -237,6 +270,16 @@ function Cart({ user, cart = [], setCart, setProducts, showToast, onViewDetails 
                     style={{
                       ...styles.itemCard,
                       animation: isRemoving ? 'slideOutRight 0.3s ease forwards' : 'none'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow = '0 6px 18px rgba(27, 67, 50, 0.1)';
+                      e.currentTarget.style.borderColor = '#2d6a4f';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = '0 4px 14px rgba(0,0,0,0.03)';
+                      e.currentTarget.style.borderColor = '#e5e7eb';
                     }}
                   >
                     <div style={styles.itemLeftContent}>
@@ -347,22 +390,49 @@ function Cart({ user, cart = [], setCart, setProducts, showToast, onViewDetails 
                 <span>৳ {total.toFixed(2)}</span>
               </div>
 
-              <button
-                onClick={handleCheckout}
-                style={styles.checkoutBtn}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#1b4332';
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = '0 6px 16px rgba(27, 67, 50, 0.3)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = '#2d6a4f';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = 'none';
-                }}
-              >
-                Proceed to Checkout
-              </button>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '15px' }}>
+                <button
+                  onClick={handleCheckout}
+                  style={styles.checkoutBtn}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = '#2d6a4f';
+                    e.currentTarget.style.color = '#ffffff';
+                    e.currentTarget.style.borderColor = '#2d6a4f';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(45, 106, 79, 0.25)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                    e.currentTarget.style.color = '#2d6a4f';
+                    e.currentTarget.style.borderColor = '#2d6a4f';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                >
+                  Proceed to Checkout
+                </button>
+
+                <button
+                  onClick={removeAllCartItems}
+                  style={styles.removeAllBtn}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = '#d32f2f';
+                    e.currentTarget.style.color = '#ffffff';
+                    e.currentTarget.style.borderColor = '#d32f2f';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(211, 47, 47, 0.25)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                    e.currentTarget.style.color = '#d32f2f';
+                    e.currentTarget.style.borderColor = '#fca5a5';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                >
+                  Remove All Products
+                </button>
+              </div>
             </div>
           </div>
         ) : (
@@ -387,6 +457,32 @@ function Cart({ user, cart = [], setCart, setProducts, showToast, onViewDetails 
           </div>
         )}
       </div>
+
+      {isCheckoutOpen && (
+        <CheckoutModal 
+          user={activeUser}
+          cart={validCartItems}
+          onClose={() => setIsCheckoutOpen(false)}
+          onSuccess={handleOrderSuccess}
+          showToast={showToast}
+        />
+      )}
+
+      {completedOrder && (
+        <OrderSuccessModal 
+          order={completedOrder}
+          onClose={() => setCompletedOrder(null)}
+          onViewInvoice={() => setShowInvoice(true)}
+        />
+      )}
+
+      {showInvoice && completedOrder && (
+        <InvoiceModal 
+          order={completedOrder}
+          onClose={() => setShowInvoice(false)}
+        />
+      )}
+
       <style>{`
         @keyframes slideOutRight {
           0% {
@@ -420,6 +516,19 @@ const styles = {
     color: '#1b4332',
     marginBottom: '25px'
   },
+  removeAllBtn: {
+    width: '100%',
+    backgroundColor: 'transparent',
+    color: '#d32f2f',
+    border: '1px solid #fca5a5',
+    padding: '12px',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontWeight: '700',
+    fontSize: '1rem',
+    transition: 'all 0.2s ease',
+    boxShadow: '0 2px 6px rgba(0,0,0,0.02)'
+  },
   layout: {
     display: 'flex',
     gap: '30px',
@@ -435,14 +544,15 @@ const styles = {
     backgroundColor: '#ffffff',
     padding: '16px 20px',
     borderRadius: '10px',
-    boxShadow: '0 4px 14px rgba(0,0,0,0.06)',
+    boxShadow: '0 4px 14px rgba(0,0,0,0.03)',
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
     flexWrap: 'wrap',
     gap: '15px',
     transition: 'all 0.25s ease',
-    border: '1px solid #e5e7eb'
+    border: '1px solid #e5e7eb',
+    cursor: 'pointer'
   },
   itemLeftContent: {
     display: 'flex',
@@ -561,15 +671,14 @@ const styles = {
   },
   checkoutBtn: {
     width: '100%',
-    backgroundColor: '#2d6a4f',
-    color: '#ffffff',
-    border: 'none',
+    backgroundColor: 'transparent',
+    color: '#2d6a4f',
+    border: '1px solid #2d6a4f',
     padding: '12px',
     borderRadius: '8px',
-    fontWeight: 'bold',
+    fontWeight: '700',
     fontSize: '1rem',
     cursor: 'pointer',
-    marginTop: '15px',
     transition: 'all 0.2s ease'
   },
   emptyCart: {
