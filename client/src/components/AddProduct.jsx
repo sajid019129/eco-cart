@@ -183,6 +183,7 @@ const AddProduct = ({ user, setProducts }) => {
               name="title"
               value={formData.title}
               onChange={handleChange}
+              className="eco-track-input"
               style={styles.input}
               required
             />
@@ -200,6 +201,7 @@ const AddProduct = ({ user, setProducts }) => {
                 step="1"
                 value={formData.price}
                 onChange={handleChange}
+                className="eco-track-input"
                 style={styles.input}
                 required
               />
@@ -215,6 +217,7 @@ const AddProduct = ({ user, setProducts }) => {
                 value={formData.originalPrice}
                 onChange={handleChange}
                 placeholder="Optional"
+                className="eco-track-input"
                 style={styles.input}
               />
             </div>
@@ -231,6 +234,7 @@ const AddProduct = ({ user, setProducts }) => {
               step="1"
               value={formData.stock}
               onChange={handleChange}
+              className="eco-track-input"
               style={styles.input}
               required
             />
@@ -244,6 +248,7 @@ const AddProduct = ({ user, setProducts }) => {
               name="category"
               value={formData.category}
               onChange={handleChange}
+              className="eco-track-input"
               style={styles.select}
               required
             >
@@ -266,6 +271,7 @@ const AddProduct = ({ user, setProducts }) => {
               name="condition"
               value={formData.condition}
               onChange={handleChange}
+              className="eco-track-input"
               style={styles.select}
               required
             >
@@ -288,6 +294,7 @@ const AddProduct = ({ user, setProducts }) => {
               value={formData.description}
               onChange={handleChange}
               placeholder="Provide adequate descriptions of the product"
+              className="eco-track-input"
               style={styles.textarea}
               required
             />
@@ -386,6 +393,7 @@ const AddProduct = ({ user, setProducts }) => {
                 value={formData.location}
                 onChange={handleChange}
                 placeholder="Enter your current location"
+                className="eco-track-input"
                 style={styles.input}
                 required
               />
@@ -415,6 +423,12 @@ const AddProduct = ({ user, setProducts }) => {
           </button>
         </form>
       </div>
+      <style>{`
+        .eco-track-input:focus {
+          border-color: #2d6a4f !important;
+          box-shadow: 0 0 0 3px rgba(45, 106, 79, 0.15) !important;
+        }
+      `}</style>
     </div>
   );
 };
@@ -487,6 +501,8 @@ const styles = {
     border: '1px solid #ccc',
     fontSize: '0.95rem',
     outline: 'none',
+    backgroundColor: '#fff',
+    transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
   },
   readOnlyInput: {
     padding: '10px 14px',
@@ -567,6 +583,7 @@ const styles = {
     fontSize: '0.95rem',
     backgroundColor: '#fff',
     outline: 'none',
+    transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
   },
   textarea: {
     padding: '10px 14px',
@@ -576,6 +593,8 @@ const styles = {
     outline: 'none',
     resize: 'vertical',
     fontFamily: 'inherit',
+    backgroundColor: '#fff',
+    transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
   },
   submitBtn: {
     backgroundColor: '#2d6a4f',

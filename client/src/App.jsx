@@ -742,11 +742,13 @@ function ProductsPage({ user, cart, onAddToCart, viewProductDetails, setViewProd
               placeholder="Search electronics, books, stationery, clothing..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              className="eco-track-input"
               style={prodStyles.searchInput}
             />
             <select
               value={selectedCategory}
               onChange={(e) => handleCategorySelect(e.target.value)}
+              className="eco-track-input"
               style={prodStyles.categorySelect}
             >
               {categories.map((cat) => (
@@ -755,6 +757,13 @@ function ProductsPage({ user, cart, onAddToCart, viewProductDetails, setViewProd
             </select>
           </div>
         </form>
+
+        <style>{`
+          .eco-track-input:focus {
+            border-color: #2d6a4f !important;
+            box-shadow: 0 0 0 3px rgba(45, 106, 79, 0.15) !important;
+          }
+        `}</style>
 
         <div style={prodStyles.pillContainer}>
           {categories.map((cat) => {
