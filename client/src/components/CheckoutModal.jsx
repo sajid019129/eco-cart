@@ -2,10 +2,12 @@ import React, { useState } from 'react';
 
 const CheckoutModal = ({ product, user, onClose, onSuccess }) => {
   const [quantity, setQuantity] = useState(1);
-  const [paymentMethod, setPaymentMethod] = useState('COD'); // 'COD' or 'Digital'
-  const [provider, setProvider] = useState('bKash');
+  const [paymentMethod, setPaymentMethod] = useState('bKash'); // bKash, Nagad, Upay, Mastercard, Cash on Delivery
   const [accountNumber, setAccountNumber] = useState('');
   const [trxId, setTrxId] = useState('');
+  const [cardNumber, setCardNumber] = useState('');
+  const [cardExpiry, setCardExpiry] = useState('');
+  const [cardCvc, setCardCvc] = useState('');
   const [shippingPhone, setShippingPhone] = useState(user?.phone || '');
   const [shippingLocation, setShippingLocation] = useState(user?.address || user?.location || '');
   const [loading, setLoading] = useState(false);
@@ -33,8 +35,13 @@ const CheckoutModal = ({ product, user, onClose, onSuccess }) => {
       return;
     }
 
-    if (paymentMethod === 'Digital' && (!accountNumber.trim() || !trxId.trim())) {
-      setError('Please provide your sender account number and Transaction ID (TrxID).');
+    if (['bKash', 'Nagad', 'Upay'].includes(paymentMethod) && (!accountNumber.trim() || !trxId.trim())) {
+      setError(`Please provide your ${paymentMethod} account number and Transaction ID (TrxID).`);
+      return;
+    }
+
+    if (paymentMethod === 'Mastercard' && (!cardNumber.trim() || !cardExpiry.trim() || !cardCvc.trim())) {
+      setError('Please provide valid Mastercard details.');
       return;
     }
 
@@ -48,8 +55,12 @@ const CheckoutModal = ({ product, user, onClose, onSuccess }) => {
         body: JSON.stringify({
           buyerId: user._id || user.id,
           items: [{ productId: product._id, quantity }],
-          paymentMethod,
-          paymentDetails: paymentMethod === 'Digital' ? { provider, accountNumber, trxId } : {},
+          paymentMethod: ['bKash', 'Nagad', 'Upay', 'Mastercard'].includes(paymentMethod) ? 'Digital' : 'COD',
+          paymentDetails: {
+            provider: paymentMethod,
+            accountNumber: ['bKash', 'Nagad', 'Upay'].includes(paymentMethod) ? accountNumber : (paymentMethod === 'Mastercard' ? cardNumber : ''),
+            trxId: ['bKash', 'Nagad', 'Upay'].includes(paymentMethod) ? trxId : (paymentMethod === 'Mastercard' ? 'CARD-SECURE-PAY' : 'COD')
+          },
           shippingAddress: { phone: shippingPhone, location: shippingLocation }
         })
       });
@@ -89,7 +100,7 @@ const CheckoutModal = ({ product, user, onClose, onSuccess }) => {
         .modal-card {
           background: #ffffff;
           width: 92%;
-          max-width: 520px;
+          max-width: 540px;
           border-radius: 12px;
           padding: 24px;
           box-shadow: 0 10px 30px rgba(0,0,0,0.25);
@@ -182,7 +193,7 @@ const CheckoutModal = ({ product, user, onClose, onSuccess }) => {
           margin-bottom: 6px;
         }
 
-        .form-input, .form-select {
+        .form-input {
           width: 100%;
           padding: 10px 12px;
           border: 1.5px solid #cccccc;
@@ -193,19 +204,19 @@ const CheckoutModal = ({ product, user, onClose, onSuccess }) => {
           box-sizing: border-box;
         }
 
-        .form-input:focus, .form-select:focus {
+        .form-input:focus {
           border-color: #52b788;
           box-shadow: 0 0 0 3px rgba(82, 183, 136, 0.25);
         }
 
-        .payment-options {
-          display: flex;
-          gap: 12px;
-          margin-bottom: 12px;
+        .payment-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 10px;
+          margin-bottom: 14px;
         }
 
         .pay-card {
-          flex: 1;
           border: 2px solid #e9ecef;
           border-radius: 8px;
           padding: 10px;
@@ -213,13 +224,19 @@ const CheckoutModal = ({ product, user, onClose, onSuccess }) => {
           cursor: pointer;
           transition: all 0.2s;
           font-weight: 700;
-          font-size: 0.9rem;
+          font-size: 0.88rem;
           color: #2d6a4f;
+          background: #fdfdfd;
         }
 
         .pay-card.selected {
           border-color: #52b788;
-          background: rgba(82, 183, 136, 0.12);
+          background: rgba(82, 183, 136, 0.15);
+          color: #1b4332;
+        }
+
+        .pay-card.full-width {
+          grid-column: span 2;
         }
 
         .price-breakdown {
@@ -337,46 +354,54 @@ const CheckoutModal = ({ product, user, onClose, onSuccess }) => {
             </div>
 
             <div className="form-group">
-              <label className="form-label">Payment Option</label>
-              <div className="payment-options">
+              <label className="form-label">Select Payment Method</label>
+              <div className="payment-grid">
                 <div
-                  className={`pay-card ${paymentMethod === 'COD' ? 'selected' : ''}`}
-                  onClick={() => setPaymentMethod('COD')}
+                  className={`pay-card ${paymentMethod === 'bKash' ? 'selected' : ''}`}
+                  onClick={() => setPaymentMethod('bKash')}
                 >
-                  💵 Cash on Delivery
+                  🩷 bKash
                 </div>
                 <div
-                  className={`pay-card ${paymentMethod === 'Digital' ? 'selected' : ''}`}
-                  onClick={() => setPaymentMethod('Digital')}
+                  className={`pay-card ${paymentMethod === 'Nagad' ? 'selected' : ''}`}
+                  onClick={() => setPaymentMethod('Nagad')}
                 >
-                  📱 Digital (bKash/Nagad)
+                  🧡 Nagad
+                </div>
+                <div
+                  className={`pay-card ${paymentMethod === 'Upay' ? 'selected' : ''}`}
+                  onClick={() => setPaymentMethod('Upay')}
+                >
+                  💚 Upay
+                </div>
+                <div
+                  className={`pay-card ${paymentMethod === 'Mastercard' ? 'selected' : ''}`}
+                  onClick={() => setPaymentMethod('Mastercard')}
+                >
+                  💳 Mastercard
+                </div>
+                <div
+                  className={`pay-card full-width ${paymentMethod === 'Cash on Delivery' ? 'selected' : ''}`}
+                  onClick={() => setPaymentMethod('Cash on Delivery')}
+                >
+                  💵 Cash on Delivery
                 </div>
               </div>
             </div>
 
-            {paymentMethod === 'Digital' && (
+            {['bKash', 'Nagad', 'Upay'].includes(paymentMethod) && (
               <div style={{ background: '#f0fff4', padding: '12px', borderRadius: '8px', marginBottom: '14px', border: '1px solid #52b788' }}>
                 <div className="form-group">
-                  <label className="form-label">Select Gateway</label>
-                  <select className="form-select" value={provider} onChange={(e) => setProvider(e.target.value)}>
-                    <option value="bKash">bKash Merchant (01700000000)</option>
-                    <option value="Nagad">Nagad Merchant (01800000000)</option>
-                    <option value="Rocket">Rocket Merchant (01900000000)</option>
-                  </select>
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Sender Phone Number</label>
+                  <label className="form-label">Your {paymentMethod} Account Number</label>
                   <input
                     type="text"
                     className="form-input"
-                    placeholder="Your bKash/Nagad Number"
+                    placeholder={`01XXXXXXXXX`}
                     value={accountNumber}
                     onChange={(e) => setAccountNumber(e.target.value)}
                     required
                   />
                 </div>
-
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label">Transaction ID (TrxID)</label>
                   <input
@@ -387,6 +412,47 @@ const CheckoutModal = ({ product, user, onClose, onSuccess }) => {
                     onChange={(e) => setTrxId(e.target.value)}
                     required
                   />
+                </div>
+              </div>
+            )}
+
+            {paymentMethod === 'Mastercard' && (
+              <div style={{ background: '#f0fff4', padding: '12px', borderRadius: '8px', marginBottom: '14px', border: '1px solid #52b788' }}>
+                <div className="form-group">
+                  <label className="form-label">Card Number</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="5412 7500 0000 0000"
+                    value={cardNumber}
+                    onChange={(e) => setCardNumber(e.target.value)}
+                    required
+                  />
+                </div>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
+                    <label className="form-label">Expiry (MM/YY)</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="MM/YY"
+                      value={cardExpiry}
+                      onChange={(e) => setCardExpiry(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
+                    <label className="form-label">CVC</label>
+                    <input
+                      type="password"
+                      className="form-input"
+                      placeholder="123"
+                      maxLength="4"
+                      value={cardCvc}
+                      onChange={(e) => setCardCvc(e.target.value)}
+                      required
+                    />
+                  </div>
                 </div>
               </div>
             )}
