@@ -89,11 +89,11 @@ const TrackOrder = () => {
         .track-input {
           flex: 1;
           padding: 12px 16px;
-          border: 2px solid #ced4da;
+          border: 1.5px solid #ced4da;
           border-radius: 8px;
           font-size: 1rem;
           outline: none;
-          transition: border-color 0.2s;
+          transition: border-color 0.2s, box-shadow 0.2s;
         }
 
         .track-input:focus {
@@ -102,20 +102,21 @@ const TrackOrder = () => {
         }
 
         .btn-track {
-          background-color: #52b788;
-          color: #081c15;
-          padding: 0 24px;
+          background-color: #1b4332;
+          color: #ffffff;
+          padding: 0 26px;
           border-radius: 8px;
           font-weight: 800;
           font-size: 1rem;
           border: none;
           cursor: pointer;
-          transition: all 0.2s;
+          transition: all 0.2s ease;
         }
 
         .btn-track:hover {
-          background-color: #74c69d;
-          box-shadow: 0 4px 12px rgba(82, 183, 136, 0.4);
+          background-color: #2d6a4f;
+          box-shadow: 0 4px 12px rgba(27, 67, 50, 0.3);
+          transform: translateY(-2px);
         }
 
         .error-alert {
@@ -204,11 +205,13 @@ const TrackOrder = () => {
           font-weight: 700;
           border: none;
           cursor: pointer;
-          transition: background 0.2s;
+          transition: all 0.2s ease;
         }
 
         .btn-invoice:hover {
           background: #2d6a4f;
+          transform: translateY(-2px);
+          box-shadow: 0 4px 10px rgba(27, 67, 50, 0.3);
         }
       `}</style>
 
