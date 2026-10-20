@@ -60,7 +60,7 @@ const CheckoutModal = ({ user, cart = [], onClose, onSuccess }) => {
     return initial;
   });
 
-  const [paymentMethod, setPaymentMethod] = useState('Cash on Delivery');
+  const [paymentMethod, setPaymentMethod] = useState('');
   const [accountNumber, setAccountNumber] = useState('');
   const [cardNumber, setCardNumber] = useState('');
   const [shippingLocation, setShippingLocation] = useState('');
@@ -97,12 +97,6 @@ const CheckoutModal = ({ user, cart = [], onClose, onSuccess }) => {
     }, 0);
   };
 
-  const totalItemsCount = cart.reduce((acc, item) => {
-    const prod = item.product || item;
-    const id = prod._id || prod.id;
-    return acc + (quantities[id] || item.quantity || 1);
-  }, 0);
-
   const subtotal = calculateSubtotal();
   const shippingFee = cart.length > 0 ? 70 : 0;
   const totalAmount = subtotal + shippingFee;
@@ -116,6 +110,11 @@ const CheckoutModal = ({ user, cart = [], onClose, onSuccess }) => {
 
     if (!shippingLocation.trim()) {
       setError('Please provide your delivery location / address.');
+      return;
+    }
+
+    if (!paymentMethod) {
+      setError('Please select a payment method');
       return;
     }
 
@@ -189,13 +188,13 @@ const CheckoutModal = ({ user, cart = [], onClose, onSuccess }) => {
 
         .modal-card {
           background: #ffffff;
-          width: 92%;
-          max-width: 720px;
+          width: 90%;
+          max-width: 580px;
           border-radius: 12px;
-          padding: 30px;
+          padding: 24px;
           box-shadow: 0 10px 30px rgba(0,0,0,0.25);
           font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-          max-height: 90vh;
+          max-height: 85vh;
           overflow-y: auto;
           position: relative;
           animation: ${isClosing ? 'slideOut 0.25s ease-out forwards' : 'slideIn 0.25s ease-out'};
@@ -208,11 +207,11 @@ const CheckoutModal = ({ user, cart = [], onClose, onSuccess }) => {
           align-items: center;
           border-bottom: none;
           padding-bottom: 0;
-          margin-bottom: 8px;
+          margin-bottom: 4px;
         }
 
         .modal-title {
-          font-size: 1.8rem;
+          font-size: 1.5rem;
           font-weight: 800;
           color: #1b4332;
           margin: 0;
@@ -220,14 +219,14 @@ const CheckoutModal = ({ user, cart = [], onClose, onSuccess }) => {
 
         .modal-subtitle {
           color: #4b5563;
-          font-size: 0.95rem;
-          margin-bottom: 24px;
+          font-size: 0.9rem;
+          margin-bottom: 16px;
         }
 
         .close-btn {
           background: transparent;
           border: none;
-          font-size: 1.8rem;
+          font-size: 1.6rem;
           cursor: pointer;
           color: #6c757d;
           transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -239,19 +238,25 @@ const CheckoutModal = ({ user, cart = [], onClose, onSuccess }) => {
           transform: scale(1.2);
         }
 
+        .prod-summary-container {
+          max-height: 220px;
+          overflow-y: auto;
+          padding-right: 4px;
+          margin-bottom: 18px;
+        }
+
         .prod-summary-list {
           display: flex;
           flex-direction: column;
-          gap: 12px;
-          margin-bottom: 24px;
+          gap: 10px;
         }
 
         .prod-summary-item {
           display: flex;
-          gap: 16px;
+          gap: 14px;
           align-items: center;
           background: #ffffff;
-          padding: 16px 20px;
+          padding: 12px 16px;
           border-radius: 10px;
           border: 1px solid #e5e7eb;
           box-shadow: 0 4px 14px rgba(0,0,0,0.03);
@@ -265,8 +270,8 @@ const CheckoutModal = ({ user, cart = [], onClose, onSuccess }) => {
         }
 
         .prod-img {
-          width: 65px;
-          height: 65px;
+          width: 55px;
+          height: 55px;
           object-fit: cover;
           border-radius: 8px;
           border: 1px solid #e5e7eb;
@@ -277,11 +282,11 @@ const CheckoutModal = ({ user, cart = [], onClose, onSuccess }) => {
           display: flex;
           align-items: center;
           border: 1px solid #d1d5db;
-          border-radius: 8px;
+          border-radius: 6px;
           overflow: hidden;
           background: #f9fafb;
           box-shadow: 0 2px 6px rgba(0,0,0,0.02);
-          margin-top: 6px;
+          margin-top: 4px;
           width: fit-content;
         }
 
@@ -289,10 +294,10 @@ const CheckoutModal = ({ user, cart = [], onClose, onSuccess }) => {
           border: none;
           background-color: #f1f3f5;
           color: #1b4332;
-          padding: 6px 12px;
+          padding: 4px 10px;
           cursor: pointer;
           font-weight: bold;
-          font-size: 1rem;
+          font-size: 0.9rem;
           transition: all 0.2s ease;
         }
 
@@ -302,30 +307,30 @@ const CheckoutModal = ({ user, cart = [], onClose, onSuccess }) => {
         }
 
         .qty-text {
-          padding: 0 12px;
+          padding: 0 10px;
           font-weight: bold;
           color: #1f2937;
-          font-size: 0.95rem;
+          font-size: 0.9rem;
         }
 
         .form-section-box {
           background: #ffffff;
           border: 1px solid #e5e7eb;
           border-radius: 10px;
-          padding: 20px;
-          margin-bottom: 20px;
+          padding: 16px;
+          margin-bottom: 16px;
           box-shadow: 0 4px 14px rgba(0,0,0,0.03);
         }
 
         .section-box-title {
-          font-size: 1.1rem;
+          font-size: 1.05rem;
           font-weight: 700;
           color: #1b4332;
-          margin: 0 0 16px 0;
+          margin: 0 0 12px 0;
         }
 
         .form-group {
-          margin-bottom: 16px;
+          margin-bottom: 12px;
         }
 
         .form-group:last-child {
@@ -334,18 +339,18 @@ const CheckoutModal = ({ user, cart = [], onClose, onSuccess }) => {
 
         .form-label {
           display: block;
-          font-size: 0.9rem;
+          font-size: 0.85rem;
           font-weight: 700;
           color: #1b4332;
-          margin-bottom: 6px;
+          margin-bottom: 4px;
         }
 
         .form-input {
           width: 100%;
-          padding: 12px 14px;
+          padding: 10px 12px;
           border: 1px solid #d1d5db;
           border-radius: 8px;
-          font-size: 0.95rem;
+          font-size: 0.9rem;
           outline: none;
           transition: border-color 0.2s, box-shadow 0.2s;
           box-sizing: border-box;
@@ -366,89 +371,97 @@ const CheckoutModal = ({ user, cart = [], onClose, onSuccess }) => {
           border: 1px solid #d1d5db;
         }
 
-        .payment-stack {
-          display: flex;
-          flex-direction: column;
-          gap: 10px;
+        .payment-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 12px;
         }
 
-        .pay-row {
+        .pay-card {
           display: flex;
           align-items: center;
-          gap: 14px;
+          justify-content: center;
+          gap: 12px;
           border: 1px solid #d1d5db;
-          border-radius: 8px;
-          padding: 12px 16px;
+          border-radius: 10px;
+          padding: 16px 18px;
           cursor: pointer;
           transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-          font-weight: 600;
-          font-size: 0.95rem;
+          font-weight: 700;
+          font-size: 1.05rem;
           color: #1b4332;
           background: #ffffff;
+          text-align: center;
         }
 
-        .pay-row:hover {
+        .pay-card.full-width {
+          grid-column: span 2;
+        }
+
+        .pay-card:hover {
           border-color: #2d6a4f;
           background: #f8f9fa;
-          transform: translateY(-1px);
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(27, 67, 50, 0.08);
         }
 
-        .pay-row.selected {
+        .pay-card.selected {
           border-color: #1b4332;
           background: #f1f8f5;
-          box-shadow: 0 4px 12px rgba(27, 67, 50, 0.12);
+          box-shadow: 0 4px 14px rgba(27, 67, 50, 0.15);
         }
 
         .pay-logo {
-          width: 34px;
-          height: 34px;
+          width: 48px;
+          height: 48px;
           object-fit: contain;
-          border-radius: 50%;
+          border-radius: 8px;
           background: #fff;
           border: 1px solid #e5e7eb;
-          padding: 2px;
+          padding: 4px;
+          flex-shrink: 0;
         }
 
         .summary-card {
           background: #ffffff;
           border: 1px solid #e5e7eb;
-          padding: 25px;
+          padding: 18px 20px;
           border-radius: 10px;
           box-shadow: 0 4px 14px rgba(0,0,0,0.06);
-          margin-bottom: 20px;
+          margin-bottom: 16px;
           font-family: inherit;
         }
 
         .summary-row {
           display: flex;
           justify-content: space-between;
-          margin-bottom: 12px;
+          margin-bottom: 10px;
           color: #555;
-          font-size: 0.95rem;
+          font-size: 0.9rem;
           font-weight: 600;
         }
 
         .shipping-note {
-          font-size: 0.95rem;
+          font-size: 0.85rem;
           color: #d32f2f;
           font-weight: 700;
-          margin-top: 6px;
+          margin-top: 4px;
         }
 
         .summary-total {
           display: flex;
           justify-content: space-between;
-          font-size: 1.2rem;
+          font-size: 1.1rem;
           font-weight: bold;
           color: #1b4332;
           border-top: 1px solid #eee;
-          padding-top: 15px;
-          margin-top: 15px;
+          padding-top: 12px;
+          margin-top: 12px;
         }
 
         .button-group {
           display: flex;
-          gap: 12px;
+          gap: 10px;
         }
 
         .checkout-btn {
@@ -456,10 +469,10 @@ const CheckoutModal = ({ user, cart = [], onClose, onSuccess }) => {
           background: transparent;
           color: #2d6a4f;
           border: 1px solid #2d6a4f;
-          padding: 14px 24px;
+          padding: 12px 20px;
           border-radius: 8px;
           font-weight: 700;
-          font-size: 1.05rem;
+          font-size: 1rem;
           cursor: pointer;
           transition: all 0.2s ease;
         }
@@ -482,10 +495,10 @@ const CheckoutModal = ({ user, cart = [], onClose, onSuccess }) => {
           background: transparent;
           color: #d32f2f;
           border: 1px solid #fca5a5;
-          padding: 14px 24px;
+          padding: 12px 20px;
           border-radius: 8px;
           font-weight: 700;
-          font-size: 1.05rem;
+          font-size: 1rem;
           cursor: pointer;
           transition: all 0.2s ease;
         }
@@ -501,10 +514,10 @@ const CheckoutModal = ({ user, cart = [], onClose, onSuccess }) => {
         .error-banner {
           background: #ffebee;
           color: #d32f2f;
-          padding: 12px 16px;
+          padding: 10px 14px;
           border-radius: 6px;
-          font-size: 0.95rem;
-          margin-bottom: 20px;
+          font-size: 0.9rem;
+          margin-bottom: 16px;
           font-weight: 600;
           border: 1px solid #fca5a5;
         }
@@ -533,45 +546,47 @@ const CheckoutModal = ({ user, cart = [], onClose, onSuccess }) => {
             <h3 className="modal-title">Secure Checkout 💸</h3>
             <button className="close-btn" onClick={handleClose}>&times;</button>
           </div>
-          <div className="modal-subtitle">Review your items and complete your secure order</div>
+          <div className="modal-subtitle">Review your items and complete your order securely</div>
 
           {error && <div className="error-banner">{error}</div>}
 
-          <div className="prod-summary-list">
-            {cart.map((item, idx) => {
-              const prod = item.product || item;
-              const id = prod._id || prod.id || idx;
-              const qty = quantities[id] || item.quantity || 1;
-              const price = Number(prod.price || 0);
-              const thumb = getFirstImageThumbnail(prod);
+          <div className="prod-summary-container">
+            <div className="prod-summary-list">
+              {cart.map((item, idx) => {
+                const prod = item.product || item;
+                const id = prod._id || prod.id || idx;
+                const qty = quantities[id] || item.quantity || 1;
+                const price = Number(prod.price || 0);
+                const thumb = getFirstImageThumbnail(prod);
 
-              return (
-                <div key={id} className="prod-summary-item">
-                  <img src={thumb || '/placeholder.png'} alt={prod.title || 'Product'} className="prod-img" />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 600, color: '#2b2b2b', fontSize: '1.1rem' }}>{prod.title || prod.name}</div>
-                    <div style={{ color: '#2d6a4f', fontSize: '1.05rem', fontWeight: 'bold', marginTop: '3px' }}>৳ {price.toFixed(2)}</div>
-                    <div className="qty-box">
-                      <button 
-                        type="button"
-                        className="qty-btn" 
-                        onClick={() => handleQtyChange(id, -1)}
-                      >
-                        -
-                      </button>
-                      <span className="qty-text">{qty}</span>
-                      <button 
-                        type="button"
-                        className="qty-btn" 
-                        onClick={() => handleQtyChange(id, 1)}
-                      >
-                        +
-                      </button>
+                return (
+                  <div key={id} className="prod-summary-item">
+                    <img src={thumb || '/placeholder.png'} alt={prod.title || 'Product'} className="prod-img" />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 600, color: '#2b2b2b', fontSize: '1rem' }}>{prod.title || prod.name}</div>
+                      <div style={{ color: '#2d6a4f', fontSize: '0.95rem', fontWeight: 'bold', marginTop: '2px' }}>৳ {price.toFixed(2)}</div>
+                      <div className="qty-box">
+                        <button 
+                          type="button"
+                          className="qty-btn" 
+                          onClick={() => handleQtyChange(id, -1)}
+                        >
+                          -
+                        </button>
+                        <span className="qty-text">{qty}</span>
+                        <button 
+                          type="button"
+                          className="qty-btn" 
+                          onClick={() => handleQtyChange(id, 1)}
+                        >
+                          +
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
 
           <form onSubmit={handleSubmitOrder}>
@@ -625,37 +640,37 @@ const CheckoutModal = ({ user, cart = [], onClose, onSuccess }) => {
 
             <div className="form-section-box">
               <h4 className="section-box-title">Select Payment Method <span style={{ color: '#d32f2f' }}>*</span></h4>
-              <div className="payment-stack">
+              <div className="payment-grid">
                 <div
-                  className={`pay-row ${paymentMethod === 'bKash' ? 'selected' : ''}`}
+                  className={`pay-card ${paymentMethod === 'bKash' ? 'selected' : ''}`}
                   onClick={() => setPaymentMethod('bKash')}
                 >
                   <img src="/bKash.jpg" alt="bKash" className="pay-logo" />
                   <span>bKash</span>
                 </div>
                 <div
-                  className={`pay-row ${paymentMethod === 'Nagad' ? 'selected' : ''}`}
+                  className={`pay-card ${paymentMethod === 'Nagad' ? 'selected' : ''}`}
                   onClick={() => setPaymentMethod('Nagad')}
                 >
                   <img src="/Nagad.jpg" alt="Nagad" className="pay-logo" />
                   <span>Nagad</span>
                 </div>
                 <div
-                  className={`pay-row ${paymentMethod === 'Upay' ? 'selected' : ''}`}
+                  className={`pay-card ${paymentMethod === 'Upay' ? 'selected' : ''}`}
                   onClick={() => setPaymentMethod('Upay')}
                 >
                   <img src="/Upay.jpg" alt="Upay" className="pay-logo" />
                   <span>Upay</span>
                 </div>
                 <div
-                  className={`pay-row ${paymentMethod === 'Mastercard' ? 'selected' : ''}`}
+                  className={`pay-card ${paymentMethod === 'Mastercard' ? 'selected' : ''}`}
                   onClick={() => setPaymentMethod('Mastercard')}
                 >
                   <img src="/MasterCard.png" alt="Mastercard" className="pay-logo" />
                   <span>Mastercard</span>
                 </div>
                 <div
-                  className={`pay-row ${paymentMethod === 'Cash on Delivery' ? 'selected' : ''}`}
+                  className={`pay-card full-width ${paymentMethod === 'Cash on Delivery' ? 'selected' : ''}`}
                   onClick={() => setPaymentMethod('Cash on Delivery')}
                 >
                   <img src="/Cash on Delivery.jpg" alt="Cash on Delivery" className="pay-logo" />
