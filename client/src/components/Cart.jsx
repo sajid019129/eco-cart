@@ -335,8 +335,8 @@ function Cart({ user, cart = [], setCart, setProducts, showToast, onViewDetails 
               <div style={styles.summaryRow}>
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                   <span>Shipping Fee</span>
-                  <span className="lightning-text" style={{ fontSize: '0.9rem', color: '#2d6a4f', fontWeight: '700' }}>
-                    Eco-Cart All-BD Flat Rate
+                  <span className="lightning-text" style={{ fontSize: '0.95rem', color: '#2d6a4f', fontWeight: '500', marginTop: '3px' }}>
+                    💥 Same Charge All Over BD 💥
                   </span>
                 </div>
                 <span style={{ fontWeight: 'bold', color: '#1b4332' }}>৳ {shippingFee.toFixed(2)}</span>
@@ -434,8 +434,8 @@ const styles = {
     margin: '0 auto'
   },
   title: {
-    fontSize: '2rem',
-    fontWeight: '700',
+    fontSize: '1.8rem',
+    fontWeight: '800',
     color: '#1b4332',
     marginBottom: '25px'
   },
@@ -547,7 +547,7 @@ const styles = {
     fontSize: '0.95rem'
   },
   removeBtn: {
-    backgroundColor: 'transparent',
+    background: 'transparent',
     color: '#d32f2f',
     border: '1px solid #fca5a5',
     padding: '8px 14px',

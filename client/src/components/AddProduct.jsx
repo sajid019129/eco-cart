@@ -95,7 +95,7 @@ const AddProduct = ({ user, setProducts }) => {
       !formData.email.trim() ||
       !formData.location.trim()
     ) {
-      setError('Please fill up all required fields and information.');
+      setError('Please fill up all required fields and information');
       return;
     }
 
@@ -132,7 +132,7 @@ const AddProduct = ({ user, setProducts }) => {
       data.append('sellerPhone', formData.phone);
       data.append('sellerEmail', formData.email);
       data.append('sellerAddress', formData.location);
-      data.append('location', formData.location); // <-- Appends product location correctly
+      data.append('location', formData.location);
       if (user?.id || user?._id) {
         data.append('seller', user.id || user._id);
       }
@@ -169,7 +169,7 @@ const AddProduct = ({ user, setProducts }) => {
     <div style={styles.container}>
       <div style={styles.card}>
         <h2 style={styles.title}>Post Item for Sale 📦</h2>
-        <p style={styles.subtitle}>List your pre-owned or new items for the community marketplace.</p>
+        <p style={styles.subtitle}>List your pre-owned or new items for the community marketplace</p>
 
         {error && <div style={styles.errorAlert}>{error}</div>}
 
@@ -440,11 +440,13 @@ const styles = {
     margin: '0 0 6px 0',
     color: '#1b4332',
     fontSize: '1.8rem',
+    fontWeight: '800'
   },
   subtitle: {
-    color: '#666',
+    color: '#4b5563',
     fontSize: '0.95rem',
     marginBottom: '25px',
+    fontWeight: '400'
   },
   errorAlert: {
     backgroundColor: '#ffebee',

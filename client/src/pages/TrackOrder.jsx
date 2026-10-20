@@ -70,13 +70,11 @@ const TrackOrder = () => {
           font-weight: 800;
           color: #1b4332;
           margin-bottom: 8px;
-          text-align: center;
         }
 
         .track-subtitle {
           color: #4b5563;
           font-size: 0.95rem;
-          text-align: center;
           margin-bottom: 24px;
           font-weight: 400;
         }
@@ -218,7 +216,7 @@ const TrackOrder = () => {
 
       <div className="track-page">
         <div className="track-card">
-          <h1 className="track-title">📦 Track Your Order</h1>
+          <h1 className="track-title">Track Your Order 📦</h1>
           <p className="track-subtitle">Enter your Eco-Cart Order Number to view real-time shipping status and cash memo</p>
 
           <form onSubmit={handleTrackSearch} className="search-box">
