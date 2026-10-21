@@ -15,6 +15,7 @@ import ScrollToTop from './components/ScrollToTop';
 import CheckoutModal from './components/CheckoutModal';
 import OrderSuccessModal from './components/OrderSuccessModal';
 import InvoiceModal from './components/InvoiceModal';
+import ProductSearch from './components/ProductSearch';
 
 const formatMediaSrc = (img) => {
   if (!img) return null;
@@ -482,6 +483,41 @@ function ProductCard({ product, displayStock, isOwner, isSoldOut, currentPrice, 
 }
 
 function Home({ user, cart, onAddToCart, onViewDetails, featuredProducts }) {
+  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [locationQuery, setLocationQuery] = useState('');
+  const [selectedPriceRange, setSelectedPriceRange] = useState('All Prices');
+
+  const handleFilterChange = ({ searchTerm: nextSearchTerm, location, category, priceRange } = {}) => {
+    setSearchTerm(nextSearchTerm || '');
+    setLocationQuery(location || '');
+    if (category !== undefined) setSelectedCategory(category || 'All');
+    if (priceRange) setSelectedPriceRange(priceRange);
+  };
+
+  const handleCategorySelect = (cat) => setSelectedCategory(cat);
+
+  const filteredHomeProducts = featuredProducts.filter((item) => {
+    if (!item) return false;
+    const itemCat = getCategoryName(item.category).toLowerCase();
+    const category = selectedCategory.toLowerCase();
+    const matchesCat = selectedCategory === 'All' || itemCat === category || itemCat.includes(category);
+    const matchesSearch = !searchTerm.trim() || (item.title && item.title.toLowerCase().includes(searchTerm.trim().toLowerCase()));
+    const itemLocation = (item.location || item.sellerAddress || item.address || '').toLowerCase();
+    const matchesLocation = !locationQuery.trim() || itemLocation.includes(locationQuery.trim().toLowerCase());
+    const price = Number(item.price || 0);
+    let matchesPrice = true;
+    if (selectedPriceRange === 'Below 1000') matchesPrice = price < 1000;
+    else if (selectedPriceRange === '1000-5000') matchesPrice = price >= 1000 && price <= 5000;
+    else if (selectedPriceRange === '5000-10000') matchesPrice = price >= 5000 && price <= 10000;
+    else if (selectedPriceRange === '10000-25000') matchesPrice = price >= 10000 && price <= 25000;
+    else if (selectedPriceRange === '25000-50000') matchesPrice = price >= 25000 && price <= 50000;
+    else if (selectedPriceRange === '50000-75000') matchesPrice = price >= 50000 && price <= 75000;
+    else if (selectedPriceRange === '75000-100000') matchesPrice = price >= 75000 && price <= 100000;
+    else if (selectedPriceRange === 'Above 100000') matchesPrice = price > 100000;
+    return matchesCat && matchesSearch && matchesLocation && matchesPrice;
+  });
+
   return (
     <div style={styles.container}>
       <section style={styles.hero}>
@@ -570,9 +606,17 @@ function Home({ user, cart, onAddToCart, onViewDetails, featuredProducts }) {
         </div>
       </section>
 
+      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 20px' }}>
+        <ProductSearch
+          selectedCategory={selectedCategory}
+          onCategoryChange={handleCategorySelect}
+          onSearch={handleFilterChange}
+        />
+      </div>
+
       <section style={styles.productsSection}>
         <div style={styles.sectionHeader}>
-          <h2 style={{ margin: 0, color: '#1b4332' }}>Trending Resell & Declutter Goods</h2>
+          <h2 style={{ margin: 0, color: '#1b4332' }}>{selectedCategory === 'All' ? 'Trending Resell & Declutter Goods' : `${selectedCategory} Goods`}</h2>
           <Link 
             to="/products" 
             style={styles.viewAll}
@@ -590,8 +634,8 @@ function Home({ user, cart, onAddToCart, onViewDetails, featuredProducts }) {
         </div>
 
         <div style={styles.grid}>
-          {featuredProducts.length > 0 ? (
-            featuredProducts.map((p) => {
+          {filteredHomeProducts.length > 0 ? (
+            filteredHomeProducts.map((p) => {
               const catName = getCategoryName(p.category);
               const originalStock = p.stock ?? 1;
               const displayStock = Math.max(0, originalStock);
@@ -660,15 +704,20 @@ function Home({ user, cart, onAddToCart, onViewDetails, featuredProducts }) {
             })
           ) : (
             <div style={styles.emptyState}>
-              <p style={styles.emptyStateText}>No products available yet. Be the first seller to list an item!</p>
-              <Link 
-                to={user ? "/add-product" : "/login"} 
+              <p style={styles.emptyStateText}>No products found matching your filter criteria on Home.</p>
+              <button
+                onClick={() => {
+                  setSearchTerm('');
+                  setLocationQuery('');
+                  setSelectedCategory('All');
+                  setSelectedPriceRange('All Prices');
+                }}
                 style={styles.emptyStateBtn}
                 onMouseEnter={(e) => e.target.style.backgroundColor = '#1b4332'}
                 onMouseLeave={(e) => e.target.style.backgroundColor = '#2d6a4f'}
               >
-                {user ? "+ Sell an Item" : "+ Login to Sell Items"}
-              </Link>
+                Reset Filters
+              </button>
             </div>
           )}
         </div>
@@ -681,6 +730,8 @@ function ProductsPage({ user, cart, onAddToCart, onBuyNow, viewProductDetails, s
   const navigate = useNavigate();
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
+  const [locationQuery, setLocationQuery] = useState('');
+  const [priceRangeQuery, setPriceRangeQuery] = useState('All Prices');
 
   const categories = [
     'All',
@@ -697,14 +748,46 @@ function ProductsPage({ user, cart, onAddToCart, onBuyNow, viewProductDetails, s
     if (!item) return false;
     const itemCat = getCategoryName(item.category).toLowerCase();
     const matchesCat = selectedCategory === 'All' || itemCat === selectedCategory.toLowerCase() || itemCat.includes(selectedCategory.toLowerCase());
-    const matchesSearch = !searchQuery.trim() || 
-      (item.title && item.title.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (item.description && item.description.toLowerCase().includes(searchQuery.toLowerCase()));
-    return matchesCat && matchesSearch;
+
+    const matchesSearch = !searchQuery.trim() ||
+      (item.title && item.title.toLowerCase().includes(searchQuery.toLowerCase().trim()));
+
+    const itemLocation = (item.location || item.sellerAddress || item.address || '').toLowerCase();
+    const matchesLocation = !locationQuery.trim() || itemLocation.includes(locationQuery.trim().toLowerCase());
+
+    // Price range filtering logic
+    const price = Number(item.price || 0);
+    let matchesPrice = true;
+    if (priceRangeQuery === 'Below 1000') {
+      matchesPrice = price < 1000;
+    } else if (priceRangeQuery === '1000-5000') {
+      matchesPrice = price >= 1000 && price <= 5000;
+    } else if (priceRangeQuery === '5000-10000') {
+      matchesPrice = price >= 5000 && price <= 10000;
+    } else if (priceRangeQuery === '10000-25000') {
+      matchesPrice = price >= 10000 && price <= 25000;
+    } else if (priceRangeQuery === '25000-50000') {
+      matchesPrice = price >= 25000 && price <= 50000;
+    } else if (priceRangeQuery === '50000-75000') {
+      matchesPrice = price >= 50000 && price <= 75000;
+    } else if (priceRangeQuery === '75000-100000') {
+      matchesPrice = price >= 75000 && price <= 100000;
+    } else if (priceRangeQuery === 'Above 100000') {
+      matchesPrice = price > 100000;
+    }
+
+    return matchesCat && matchesSearch && matchesLocation && matchesPrice;
   });
 
-  const handleSearchSubmit = (e) => {
-    e.preventDefault();
+  const handleFilterChange = ({ searchTerm, location, category, priceRange } = {}) => {
+    setSearchQuery(searchTerm);
+    setLocationQuery(location);
+    if (category !== undefined) {
+      setSelectedCategory(category ? category : 'All');
+    }
+    if (priceRange) {
+      setPriceRangeQuery(priceRange);
+    }
   };
 
   const handleCategorySelect = (cat) => {
@@ -741,28 +824,11 @@ function ProductsPage({ user, cart, onAddToCart, onBuyNow, viewProductDetails, s
       </section>
 
       <div style={prodStyles.mainContainer}>
-        <form onSubmit={handleSearchSubmit} style={prodStyles.searchCard}>
-          <div style={prodStyles.searchGroup}>
-            <input
-              type="text"
-              placeholder="Search electronics, books, stationery, clothing..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="eco-track-input"
-              style={prodStyles.searchInput}
-            />
-            <select
-              value={selectedCategory}
-              onChange={(e) => handleCategorySelect(e.target.value)}
-              className="eco-track-input"
-              style={prodStyles.categorySelect}
-            >
-              {categories.map((cat) => (
-                <option key={cat} value={cat}>{cat}</option>
-              ))}
-            </select>
-          </div>
-        </form>
+        <ProductSearch
+          selectedCategory={selectedCategory}
+          onCategoryChange={handleCategorySelect}
+          onSearch={handleFilterChange}
+        />
 
         <style>{`
           .eco-track-input:focus {
@@ -861,6 +927,7 @@ function ProductsPage({ user, cart, onAddToCart, onBuyNow, viewProductDetails, s
               <button 
                 onClick={() => {
                   setSearchQuery('');
+                  setLocationQuery('');
                   setSelectedCategory('All');
                 }} 
                 style={prodStyles.resetBtn}
@@ -2007,7 +2074,7 @@ const styles = {
   hero: {
     background: 'linear-gradient(135deg, #2d6a4f 0%, #1b4332 100%)',
     color: '#ffffff',
-    padding: '50px 20px',
+    padding: '25px 20px 20px 20px',
     textAlign: 'center',
   },
   heroContent: {
@@ -2024,7 +2091,7 @@ const styles = {
     fontSize: '1.8rem',
     fontWeight: 'bold',
     fontStyle: 'italic',
-    marginBottom: '30px',
+    marginBottom: '16px',
     color: '#d8f3dc'
   },
   ctaBox: {
@@ -2300,6 +2367,7 @@ const prodStyles = {
   },
   pillContainer: {
     display: 'flex',
+    justifyContent: 'center',
     gap: '10px',
     overflowX: 'auto',
     paddingBottom: '10px',

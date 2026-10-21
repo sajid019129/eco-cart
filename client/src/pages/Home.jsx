@@ -20,9 +20,8 @@ const styles = {
   hero: {
     backgroundColor: '#e8f5e9',
     textAlign: 'center',
-    padding: '5rem 1rem',
+    padding: '2.2rem 1rem',
     borderBottom: '2px solid #c8e6c9',
-    minHeight: '80vh',
     display: 'flex',
     flexDirection: 'column',
     justifyContent: 'center',
@@ -47,7 +46,7 @@ const styles = {
   welcomeUser: {
     fontSize: '1.2rem',
     color: '#2e7d32',
-    marginTop: '2rem',
+    marginTop: '1.2rem',
     fontWeight: 'bold',
     backgroundColor: '#ffffff',
     padding: '0.6rem 1.2rem',

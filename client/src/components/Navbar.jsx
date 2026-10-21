@@ -8,8 +8,15 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
   const location = useLocation();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [dropdownMounted, setDropdownMounted] = useState(false);
+  
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [notifMounted, setNotifMounted] = useState(false);
+
   const dropdownRef = useRef(null);
+  const notifRef = useRef(null);
   const closeTimerRef = useRef(null);
+  const notifCloseTimerRef = useRef(null);
+  const autoHideTimerRef = useRef(null);
 
   const openDropdown = () => {
     if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
@@ -28,7 +35,43 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
 
   const toggleDropdown = () => {
     if (dropdownOpen) closeDropdown();
-    else openDropdown();
+    else {
+      if (notifOpen) closeNotif();
+      openDropdown();
+    }
+  };
+
+  const openNotif = () => {
+    if (notifCloseTimerRef.current) clearTimeout(notifCloseTimerRef.current);
+    if (autoHideTimerRef.current) clearTimeout(autoHideTimerRef.current);
+
+    setNotifMounted(true);
+    setNotifOpen(true);
+
+    // Auto dismiss after 3.5 seconds if logged out
+    if (!user) {
+      autoHideTimerRef.current = setTimeout(() => {
+        closeNotif();
+      }, 3500);
+    }
+  };
+
+  const closeNotif = () => {
+    setNotifOpen(false);
+    if (autoHideTimerRef.current) clearTimeout(autoHideTimerRef.current);
+    if (notifCloseTimerRef.current) clearTimeout(notifCloseTimerRef.current);
+    notifCloseTimerRef.current = setTimeout(() => {
+      setNotifMounted(false);
+      notifCloseTimerRef.current = null;
+    }, 180);
+  };
+
+  const toggleNotif = () => {
+    if (notifOpen) closeNotif();
+    else {
+      if (dropdownOpen) closeDropdown();
+      openNotif();
+    }
   };
 
   const handleLogout = () => {
@@ -41,15 +84,35 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
     navigate('/login');
   };
 
-  // Close dropdown when clicking outside
+  const handleNavClick = (path) => {
+    if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+    setDropdownOpen(false);
+    setDropdownMounted(false);
+    navigate(path);
+  };
+
+  const handleProtectedNav = (e, path) => {
+    if (!user) {
+      e.preventDefault();
+      navigate('/login');
+    }
+  };
+
+  // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         if (dropdownOpen) closeDropdown();
       }
+      if (notifRef.current && !notifRef.current.contains(event.target)) {
+        if (notifOpen) closeNotif();
+      }
     };
     const handleKeyDown = (event) => {
-      if (event.key === 'Escape' && dropdownOpen) closeDropdown();
+      if (event.key === 'Escape') {
+        if (dropdownOpen) closeDropdown();
+        if (notifOpen) closeNotif();
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     document.addEventListener('keydown', handleKeyDown);
@@ -57,10 +120,15 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('keydown', handleKeyDown);
       if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+      if (notifCloseTimerRef.current) clearTimeout(notifCloseTimerRef.current);
+      if (autoHideTimerRef.current) clearTimeout(autoHideTimerRef.current);
     };
-  }, [dropdownOpen]);
+  }, [dropdownOpen, notifOpen]);
 
   const isActive = (path) => location.pathname === path;
+
+  // Resolve user display name properly
+  const userFullName = user?.name || user?.username || 'User';
 
   return (
     <>
@@ -70,19 +138,26 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
           justify-content: space-between;
           align-items: center;
           background-color: #1b4332;
-          padding: 14px 28px;
+          padding: 12px 24px;
           color: #ffffff;
           box-shadow: 0 4px 12px rgba(0,0,0,0.15);
           font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
           position: sticky;
           top: 0;
           z-index: 1000;
-          flex-wrap: wrap;
-          gap: 15px;
+          flex-wrap: nowrap;
+          gap: 20px;
+        }
+
+        .nav-left-group {
+          display: flex;
+          align-items: center;
+          gap: 24px;
+          flex-shrink: 0;
         }
 
         .nav-logo {
-          font-size: 1.6rem;
+          font-size: 1.5rem;
           font-weight: 800;
           color: #ffffff;
           text-decoration: none;
@@ -100,40 +175,50 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
         .nav-links {
           display: flex;
           align-items: center;
-          gap: 16px;
+          gap: 10px;
         }
 
         .right-actions-group {
           display: flex;
           align-items: center;
-          gap: 16px;
-          margin-left: auto;
+          gap: 12px;
+          flex-shrink: 0;
         }
 
+        /* Modern Box-Button Navigation Links */
         .nav-link {
+          background-color: #2d6a4f;
           color: #d8f3dc;
           text-decoration: none;
           font-weight: 600;
-          padding: 8px 14px;
-          border-radius: 6px;
-          transition: all 0.2s ease;
-          font-size: 0.98rem;
+          padding: 7px 14px;
+          border-radius: 8px;
+          border: 2px solid #52b788;
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+          font-size: 0.93rem;
           display: flex;
           align-items: center;
           gap: 6px;
           position: relative;
+          white-space: nowrap;
+          box-shadow: 0 2px 5px rgba(0,0,0,0.05);
         }
 
         .nav-link:hover {
-          background-color: rgba(255, 255, 255, 0.15);
-          color: #ffffff;
-          transform: translateY(-1px);
+          background-color: #52b788;
+          border-color: #74c69d;
+          color: #081c15;
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(82, 183, 136, 0.3);
         }
 
+        /* Active State: Bold text with black color and highlighted border */
         .nav-link.active {
-          background-color: rgba(82, 183, 136, 0.25);
-          color: #52b788;
-          border-bottom: 2px solid #52b788;
+          background-color: #52b788;
+          color: #081c15;
+          border: 2px solid #74c69d;
+          font-weight: 800;
+          box-shadow: 0 4px 12px rgba(82, 183, 136, 0.4);
         }
 
         @keyframes badgePop {
@@ -154,16 +239,16 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
         .cart-badge {
           background-color: #e63946;
           color: #ffffff;
-          font-size: 0.75rem;
+          font-size: 0.7rem;
           font-weight: bold;
           border-radius: 50%;
-          padding: 2px 6px;
-          min-width: 18px;
-          height: 18px;
+          padding: 2px 5px;
+          min-width: 16px;
+          height: 16px;
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          margin-left: 6px;
+          margin-left: 4px;
           animation: badgePop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
           box-shadow: 0 2px 6px rgba(230, 57, 70, 0.4);
         }
@@ -173,7 +258,7 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
             transform: scale(1);
           }
           50% {
-            transform: scale(1.08);
+            transform: scale(1.06);
           }
           100% {
             transform: scale(1);
@@ -183,11 +268,11 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
         .btn-sell-pro {
           background-color: #2d6a4f;
           color: #ffffff;
-          padding: 9px 20px;
+          padding: 7px 16px;
           border-radius: 8px;
           text-decoration: none;
           font-weight: 800;
-          font-size: 0.98rem;
+          font-size: 0.93rem;
           border: 2px solid #52b788;
           cursor: pointer;
           transition: all 0.2s ease;
@@ -195,82 +280,129 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
           display: inline-flex;
           align-items: center;
           gap: 6px;
-          letter-spacing: 0.3px;
+          white-space: nowrap;
         }
 
         .btn-sell-pro:hover {
           background-color: #52b788;
           border-color: #74c69d;
+          color: #081c15;
           box-shadow: 0 4px 14px rgba(82, 183, 136, 0.4);
         }
 
         .btn-sell-pro.active {
           animation: none;
-          background-color: rgba(82, 183, 136, 0.25);
-          color: #52b788;
-          border: 2px solid #52b788;
-          box-shadow: 0 4px 12px rgba(82, 183, 136, 0.3);
+          background-color: #52b788;
+          color: #081c15;
+          border: 2px solid #74c69d;
+          font-weight: 800;
+          box-shadow: 0 4px 12px rgba(82, 183, 136, 0.4);
         }
 
-        /* Notification Bell Styling */
+        /* Notification Bell Container & Dropdown with Sharp Arrow */
+        .notification-container {
+          position: relative;
+          display: inline-block;
+        }
+
         .notification-btn {
           background-color: #2d6a4f;
           color: #ffffff;
-          width: 44px;
-          height: 44px;
+          width: 38px;
+          height: 38px;
           border-radius: 8px;
           border: 2px solid #52b788;
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          font-size: 1.25rem;
+          font-size: 1.1rem;
           cursor: pointer;
           transition: all 0.2s ease;
-          position: relative;
+          flex-shrink: 0;
         }
 
         .notification-btn:hover {
           background-color: #52b788;
           border-color: #74c69d;
+          color: #081c15;
           transform: translateY(-2px);
           box-shadow: 0 4px 12px rgba(82, 183, 136, 0.4);
         }
 
-        .btn-login {
-          border: 1.5px solid #ffffff;
-          color: #ffffff;
-          padding: 8px 18px;
-          border-radius: 6px;
-          text-decoration: none;
-          font-weight: 700;
-          font-size: 0.95rem;
-          transition: all 0.2s ease;
-        }
-
-        .btn-login:hover {
-          background-color: #ffffff;
+        .notification-dropdown {
+          position: absolute;
+          right: -10px;
+          top: calc(100% + 14px);
+          white-space: nowrap;
+          padding: 12px 18px;
+          background: #ffffff;
+          border-radius: 13px;
+          box-shadow: 0 14px 36px rgba(0, 0, 0, 0.23), 0 3px 8px rgba(0, 0, 0, 0.08);
+          border: 1px solid #e5e7eb;
+          z-index: 1001;
+          transform-origin: top right;
           color: #1b4332;
-          box-shadow: 0 4px 10px rgba(255, 255, 255, 0.2);
-          transform: translateY(-2px);
+          font-size: 0.92rem;
+          font-weight: 750;
+          text-align: center;
         }
 
-        .btn-action {
+        /* Sharp arrow pointing from the right upper side directly to the bell */
+        .notification-dropdown::before {
+          content: '';
+          position: absolute;
+          top: -7px;
+          right: 22px;
+          width: 12px;
+          height: 12px;
+          background: #ffffff;
+          border-top: 1px solid #e5e7eb;
+          border-left: 1px solid #e5e7eb;
+          transform: rotate(45deg);
+          border-radius: 2px;
+        }
+
+        .notification-dropdown.open {
+          animation: dropdownEnter 0.2s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+        }
+
+        .notification-dropdown.closing {
+          animation: dropdownExit 0.18s ease-in both;
+          pointer-events: none;
+        }
+
+        /* Identical Uniform Styling for Login & Register Buttons (White text when not selected) */
+        .auth-btn {
+          background-color: #2d6a4f;
+          color: #ffffff;
+          border: 2px solid #52b788;
+          padding: 7px 16px;
+          border-radius: 8px;
+          text-decoration: none;
+          font-weight: 600;
+          font-size: 0.93rem;
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          white-space: nowrap;
+          box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        .auth-btn:hover {
+          background-color: #52b788;
+          border-color: #74c69d;
+          color: #081c15;
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(82, 183, 136, 0.3);
+        }
+
+        .auth-btn.active {
           background-color: #52b788;
           color: #081c15;
-          padding: 8px 18px;
-          border-radius: 6px;
-          text-decoration: none;
-          font-weight: 700;
-          font-size: 0.95rem;
-          border: none;
-          cursor: pointer;
-          transition: all 0.2s ease;
-        }
-
-        .btn-action:hover {
-          background-color: #74c69d;
+          border: 2px solid #74c69d;
+          font-weight: 800;
           box-shadow: 0 4px 12px rgba(82, 183, 136, 0.4);
-          transform: translateY(-2px);
         }
 
         /* Profile dropdown */
@@ -282,9 +414,9 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
         .user-badge {
           display: inline-flex;
           align-items: center;
-          gap: 10px;
+          gap: 8px;
           background: rgba(255, 255, 255, 0.08);
-          padding: 6px 8px 6px 8px;
+          padding: 5px 12px 5px 6px;
           border-radius: 30px;
           border: 1px solid rgba(82, 183, 136, 0.4);
           cursor: pointer;
@@ -309,9 +441,9 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
         }
 
         .nav-avatar {
-          width: 34px;
-          height: 34px;
-          flex: 0 0 34px;
+          width: 30px;
+          height: 30px;
+          flex: 0 0 30px;
           border-radius: 50%;
           object-fit: cover;
           border: 2px solid #52b788;
@@ -324,23 +456,21 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
         }
 
         .user-name {
-          font-size: 0.95rem;
+          font-size: 0.9rem;
           font-weight: 650;
           color: #ffffff;
-          max-width: 150px;
-          overflow: hidden;
+          max-width: none;
           white-space: nowrap;
-          text-overflow: ellipsis;
         }
 
         .profile-arrow {
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          width: 30px;
-          height: 30px;
-          flex: 0 0 30px;
-          margin-left: 1px;
+          width: 24px;
+          height: 24px;
+          flex: 0 0 24px;
+          margin-left: 2px;
           border-radius: 50%;
           color: #d8f3dc;
           background: transparent;
@@ -357,7 +487,7 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
           color: #ffffff;
           background: #2d6a4f;
           box-shadow: 0 0 0 2px rgba(82, 183, 136, 0.62),
-            0 0 0 5px rgba(82, 183, 136, 0.12);
+            0 0 0 4px rgba(82, 183, 136, 0.12);
           transform: rotate(180deg);
         }
 
@@ -365,8 +495,8 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
           position: absolute;
           right: 0;
           top: calc(100% + 12px);
-          width: 232px;
-          min-width: 210px;
+          width: 250px;
+          min-width: 230px;
           padding: 6px;
           background: #ffffff;
           border-radius: 13px;
@@ -435,13 +565,13 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
           padding: 10px 11px;
           margin: 3px 0;
           text-align: left;
-          background: transparent;
-          border: 1px solid transparent;
+          background: #f8f9fa;
+          border: 1px solid #e5e7eb;
           border-radius: 8px;
           font-family: inherit;
           font-size: 0.91rem;
           font-weight: 650;
-          color: #34463b;
+          color: #1b4332;
           cursor: pointer;
           text-decoration: none;
           transition: background-color 0.18s ease, color 0.18s ease,
@@ -450,12 +580,12 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
         }
 
         .dropdown-item:hover {
-          background: #edf7f0;
-          border-color: #d8eddf;
-          color: #1b4332;
+          background: #1b4332;
+          border-color: #1b4332;
+          color: #ffffff;
           padding-left: 15px;
           transform: translateY(-1px);
-          box-shadow: 0 3px 8px rgba(27, 67, 50, 0.07);
+          box-shadow: 0 5px 12px rgba(27, 67, 50, 0.22);
         }
 
         .dropdown-item:focus-visible {
@@ -463,14 +593,14 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
           outline-offset: 1px;
         }
 
-        .dropdown-item.logout {
+        .dropdown-item.danger-action {
           color: #c62828;
           background: #fff5f5;
           border: 1px solid #f8dada;
           margin-top: 7px;
         }
 
-        .dropdown-item.logout:hover {
+        .dropdown-item.danger-action:hover {
           color: #ffffff;
           background: #d9363e;
           border-color: #d9363e;
@@ -479,7 +609,7 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
         }
 
         @media (prefers-reduced-motion: reduce) {
-          .user-badge, .nav-avatar, .profile-arrow, .dropdown-item, .btn-sell-pro, .notification-btn {
+          .user-badge, .nav-avatar, .profile-arrow, .dropdown-item, .btn-sell-pro, .notification-btn, .nav-link, .auth-btn, .notification-dropdown {
             transition: none;
             animation: none;
           }
@@ -487,47 +617,61 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
       `}</style>
 
       <nav className="navbar-container">
-        <Link to="/" className="nav-logo">
-          Eco-Cart 🛍️
-        </Link>
-
-        <div className="nav-links">
-          <Link to="/" className={`nav-link ${isActive('/') ? 'active' : ''}`}>
-            🏠 Home
+        {/* Left Group: Logo + Main Navigation Links */}
+        <div className="nav-left-group">
+          <Link to="/" className="nav-logo">
+            Eco-Cart 🛍️
           </Link>
 
-          <Link to="/products" className={`nav-link ${isActive('/products') ? 'active' : ''}`}>
-            📦 Buy Products
-          </Link>
+          <div className="nav-links">
+            <Link to="/" className={`nav-link ${isActive('/') ? 'active' : ''}`}>
+              🏠 Home
+            </Link>
 
-          <Link to="/cart" className={`nav-link ${isActive('/cart') ? 'active' : ''}`}>
-            🛒 Cart
-            {cartCount > 0 && (
-              <span key={cartCount} className="cart-badge">
-                {cartCount}
-              </span>
-            )}
-          </Link>
+            <Link to="/products" className={`nav-link ${isActive('/products') ? 'active' : ''}`}>
+              📦 Buy Products
+            </Link>
 
-          <Link to="/track-order" className={`nav-link ${isActive('/track-order') ? 'active' : ''}`}>
-            🚚 Track Order
-          </Link>
+            <Link to="/cart" className={`nav-link ${isActive('/cart') ? 'active' : ''}`} onClick={(e) => handleProtectedNav(e, '/cart')}>
+              🛒 Cart
+              {cartCount > 0 && user && (
+                <span key={cartCount} className="cart-badge">
+                  {cartCount}
+                </span>
+              )}
+            </Link>
+
+            <Link to="/track-order" className={`nav-link ${isActive('/track-order') ? 'active' : ''}`} onClick={(e) => handleProtectedNav(e, '/track-order')}>
+              🚚 Track Order
+            </Link>
+          </div>
         </div>
 
+        {/* Right Group: Notifications, Sell Items, and Profile Dropdown */}
         <div className="right-actions-group">
-          <button 
-            type="button" 
-            className="notification-btn" 
-            title="Notifications"
-            aria-label="Notifications"
-            onClick={() => {
-              // Future notification handling logic goes here
-            }}
-          >
-            🔔
-          </button>
+          <div className="notification-container" ref={notifRef}>
+            <button 
+              type="button" 
+              className="notification-btn" 
+              title="Notifications"
+              aria-label="Notifications"
+              onClick={toggleNotif}
+            >
+              🔔
+            </button>
 
-          <Link to="/add-product" className={`btn-sell-pro ${isActive('/add-product') ? 'active' : ''}`}>
+            {notifMounted && (
+              <div className={`notification-dropdown ${notifOpen ? 'open' : 'closing'}`}>
+                {user ? (
+                  <div>You have no new notifications.</div>
+                ) : (
+                  <div>Please login to see your notifications</div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <Link to="/add-product" className={`btn-sell-pro ${isActive('/add-product') ? 'active' : ''}`} onClick={(e) => handleProtectedNav(e, '/add-product')}>
             💰 Sell Items
           </Link>
 
@@ -538,7 +682,7 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
                 className="user-badge"
                 onClick={toggleDropdown}
                 title="Account Menu"
-                aria-label={`Account menu for ${user.name || user.username || 'User'}`}
+                aria-label={`Account menu for ${userFullName}`}
                 aria-haspopup="menu"
                 aria-expanded={dropdownOpen}
               >
@@ -547,7 +691,7 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
                   alt=""
                   className="nav-avatar"
                 />
-                <span className="user-name">{user.name || user.username || 'User'}</span>
+                <span className="user-name">{userFullName}</span>
                 <span className={`profile-arrow ${dropdownOpen ? 'is-open' : ''}`} aria-hidden="true">
                   ▾
                 </span>
@@ -561,28 +705,81 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
                 >
                   <div className="dropdown-header">
                     <span className="dropdown-user-title">Signed in as</span>
-                    <div className="dropdown-user-name">{user.name || user.username || 'User'}</div>
+                    <div className="dropdown-user-name">{userFullName}</div>
                   </div>
 
                   <button
                     type="button"
                     role="menuitem"
+                    onClick={() => handleNavClick('/account-info')}
+                    className="dropdown-item"
+                  >
+                    <span aria-hidden="true">📄</span>
+                    <span>Account information</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => handleNavClick('/change-profile-pic')}
+                    className="dropdown-item"
+                  >
+                    <span aria-hidden="true">🖼️</span>
+                    <span>Change profile picture</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      if (setUser) setUser(prev => ({ ...prev, avatar: '' }));
+                      closeDropdown();
+                    }}
+                    className="dropdown-item"
+                  >
+                    <span aria-hidden="true">👤</span>
+                    <span>Remove profile picture</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => handleNavClick('/forgot-password')}
+                    className="dropdown-item"
+                  >
+                    <span aria-hidden="true">🔑</span>
+                    <span>Forgot password?</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    role="menuitem"
                     onClick={handleLogout}
-                    className="dropdown-item logout"
+                    className="dropdown-item"
                   >
                     <span aria-hidden="true">🚪</span>
                     <span>Logout</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => handleNavClick('/delete-account')}
+                    className="dropdown-item danger-action"
+                  >
+                    <span aria-hidden="true">🗑️</span>
+                    <span>Delete account</span>
                   </button>
                 </div>
               )}
             </div>
           ) : (
             <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-              <Link to="/login" className="btn-login">
-                Login
+              <Link to="/login" className={`auth-btn ${isActive('/login') ? 'active' : ''}`}>
+                🔑 Login
               </Link>
-              <Link to="/register" className="btn-action">
-                Register
+              <Link to="/register" className={`auth-btn ${isActive('/register') ? 'active' : ''}`}>
+                ✨ Register
               </Link>
             </div>
           )}
