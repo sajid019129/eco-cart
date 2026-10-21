@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import CheckoutModal from './CheckoutModal';
 import InvoiceModal from './InvoiceModal';
@@ -60,6 +60,7 @@ const getProductThumbnail = (product) => {
 };
 
 function Cart({ user, cart = [], setCart, setProducts, showToast, onViewDetails }) {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [animatingId, setAnimatingId] = useState(null);
 
@@ -473,6 +474,14 @@ function Cart({ user, cart = [], setCart, setProducts, showToast, onViewDetails 
           order={completedOrder}
           onClose={() => setCompletedOrder(null)}
           onViewInvoice={() => setShowInvoice(true)}
+          onBackToHome={() => {
+            setCompletedOrder(null);
+            navigate('/');
+          }}
+          onViewTrack={(orderNum) => {
+            setCompletedOrder(null);
+            navigate(`/track-order?orderId=${orderNum}`);
+          }}
         />
       )}
 

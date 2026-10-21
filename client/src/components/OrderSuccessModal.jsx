@@ -1,10 +1,32 @@
 import React, { useState } from 'react';
 import InvoiceModal from './InvoiceModal';
 
-const OrderSuccessModal = ({ order, onClose, onViewTrack }) => {
+const OrderSuccessModal = ({ order, onClose, onViewTrack, onBackToHome }) => {
   const [showInvoice, setShowInvoice] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
 
   if (!order) return null;
+
+  const handleClose = () => {
+    setIsClosing(true);
+    setTimeout(() => {
+      if (onBackToHome) {
+        onBackToHome();
+      } else {
+        onClose();
+      }
+    }, 250);
+  };
+
+  const handleInvoiceClick = () => {
+    setShowInvoice(true);
+  };
+
+  const handleTrackClick = () => {
+    if (onViewTrack) {
+      onViewTrack(order.orderNumber);
+    }
+  };
 
   return (
     <>
@@ -15,174 +37,259 @@ const OrderSuccessModal = ({ order, onClose, onViewTrack }) => {
           left: 0;
           right: 0;
           bottom: 0;
-          background: rgba(0, 0, 0, 0.75);
-          backdrop-filter: blur(5px);
+          background: rgba(0, 0, 0, 0.65);
+          backdrop-filter: blur(4px);
           display: flex;
           justify-content: center;
           align-items: center;
           z-index: 2500;
-          animation: fadeIn 0.3s ease-out;
+          animation: ${isClosing ? 'fadeOut 0.25s ease-out forwards' : 'fadeIn 0.25s ease-out'};
         }
 
         .success-card {
           background: #ffffff;
-          width: 92%;
+          width: 90%;
           max-width: 480px;
-          border-radius: 14px;
-          padding: 32px 24px;
-          box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+          border-radius: 12px;
+          padding: 20px 22px;
+          box-shadow: 0 10px 30px rgba(0,0,0,0.25);
           font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-          text-align: center;
           position: relative;
+          border: 1px solid #e5e7eb;
+          animation: ${isClosing ? 'slideOut 0.25s ease-out forwards' : 'slideIn 0.25s ease-out'};
+          box-sizing: border-box;
+          text-align: center;
         }
 
-        .success-icon {
-          width: 64px;
-          height: 64px;
-          background: #d8f3dc;
+        .success-icon-badge {
+          width: 48px;
+          height: 48px;
+          background: #e8f5e9;
           color: #2d6a4f;
-          font-size: 2.2rem;
+          font-size: 1.6rem;
           border-radius: 50%;
           display: flex;
           align-items: center;
           justify-content: center;
-          margin: 0 auto 16px auto;
+          margin: 0 auto 8px auto;
           border: 2px solid #52b788;
+          box-shadow: 0 4px 12px rgba(82, 183, 136, 0.2);
         }
 
         .success-title {
-          font-size: 1.5rem;
-          font-weight: 900;
+          font-size: 1.35rem;
+          font-weight: 800;
           color: #1b4332;
-          margin-bottom: 6px;
+          margin: 0 0 2px 0;
         }
 
-        .order-number-box {
+        .success-subtitle {
+          color: #4b5563;
+          font-size: 0.85rem;
+          margin-bottom: 12px;
+          line-height: 1.3;
+        }
+
+        .order-number-card {
           background: #f8f9fa;
           border: 1.5px dashed #52b788;
-          padding: 12px;
+          padding: 8px 12px;
           border-radius: 8px;
-          margin: 16px 0;
+          margin-bottom: 12px;
+          box-shadow: 0 2px 6px rgba(0,0,0,0.02);
         }
 
         .order-num-label {
-          font-size: 0.8rem;
-          color: #6c757d;
+          font-size: 0.72rem;
+          color: #6b7280;
           font-weight: 700;
           text-transform: uppercase;
+          letter-spacing: 0.5px;
+          margin-bottom: 2px;
         }
 
         .order-num-value {
-          font-size: 1.25rem;
-          font-weight: 900;
+          font-size: 1.15rem;
+          font-weight: 800;
           color: #1b4332;
-          letter-spacing: 0.5px;
+          letter-spacing: 0.8px;
         }
 
-        .summary-box {
-          text-align: left;
-          background: #fdfdfd;
-          border: 1px solid #e9ecef;
-          padding: 12px 16px;
+        .details-box {
+          background: #ffffff;
+          border: 1px solid #e5e7eb;
           border-radius: 8px;
-          font-size: 0.9rem;
-          color: #2d6a4f;
-          margin-bottom: 20px;
+          padding: 8px 12px;
+          margin-bottom: 14px;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+          text-align: left;
         }
 
-        .action-buttons {
+        .details-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 4px 0;
+          font-size: 0.88rem;
+          color: #4b5563;
+        }
+
+        .details-row:not(:last-child) {
+          border-bottom: 1px dashed #f0f0f0;
+        }
+
+        .details-row span {
+          font-weight: 600;
+          font-size: 0.88rem;
+        }
+
+        .details-row strong {
+          color: #1b4332;
+          font-weight: 700;
+          font-size: 0.88rem;
+        }
+
+        .status-tag {
+          color: #2d6a4f;
+          background: #e8f5e9;
+          padding: 2px 6px;
+          border-radius: 6px;
+          font-weight: 700;
+          font-size: 0.85rem;
+          border: 1px solid #b7e4c7;
+        }
+
+        .action-button-stack {
           display: flex;
           flex-direction: column;
-          gap: 10px;
+          gap: 8px;
         }
 
-        .btn-action-primary {
-          background-color: #52b788;
-          color: #081c15;
-          padding: 12px;
-          border-radius: 8px;
-          font-weight: 800;
-          font-size: 0.98rem;
-          border: none;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-
-        .btn-action-primary:hover {
-          background-color: #74c69d;
-          box-shadow: 0 4px 12px rgba(82, 183, 136, 0.4);
-          transform: translateY(-1px);
-        }
-
-        .btn-action-secondary {
-          background-color: #1b4332;
-          color: #ffffff;
-          padding: 12px;
+        .btn-view-invoice {
+          width: 100%;
+          background: transparent;
+          color: #1b4332;
+          border: 1.5px solid #1b4332;
+          padding: 10px 16px;
           border-radius: 8px;
           font-weight: 700;
-          font-size: 0.98rem;
-          border: none;
+          font-size: 0.92rem;
           cursor: pointer;
-          transition: all 0.2s;
+          transition: all 0.2s ease;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
         }
 
-        .btn-action-secondary:hover {
+        .btn-view-invoice:hover {
           background-color: #2d6a4f;
+          color: #ffffff;
+          border-color: #2d6a4f;
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(45, 106, 79, 0.25);
         }
 
-        .btn-close-text {
-          background: none;
-          border: none;
-          color: #6c757d;
-          font-weight: 600;
-          margin-top: 12px;
-          cursor: pointer;
-          font-size: 0.9rem;
-        }
-
-        .btn-close-text:hover {
+        .btn-track-order {
+          width: 100%;
+          background: transparent;
           color: #1b4332;
+          border: 1.5px solid #1b4332;
+          padding: 10px 16px;
+          border-radius: 8px;
+          font-weight: 700;
+          font-size: 0.92rem;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+        }
+
+        .btn-track-order:hover {
+          background-color: #2d6a4f;
+          color: #ffffff;
+          border-color: #2d6a4f;
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(45, 106, 79, 0.25);
+        }
+
+        .btn-back-home {
+          background: transparent;
+          border: none;
+          color: #6b7280;
+          font-weight: 700;
+          font-size: 0.95rem;
+          margin-top: 10px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          display: inline-block;
+        }
+
+        .btn-back-home:hover {
+          color: #d32f2f;
+          transform: scale(1.03);
+        }
+
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes fadeOut {
+          from { opacity: 1; }
+          to { opacity: 0; }
+        }
+        @keyframes slideIn {
+          from { opacity: 0; transform: translateY(-20px) scale(0.96); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @keyframes slideOut {
+          from { opacity: 1; transform: translateY(0) scale(1); }
+          to { opacity: 0; transform: translateY(20px) scale(0.96); }
         }
       `}</style>
 
-      <div className="success-overlay">
-        <div className="success-card">
-          <div className="success-icon">✓</div>
-          <h2 className="success-title">Order Placed Successfully!</h2>
-          <p style={{ color: '#495057', fontSize: '0.92rem' }}>
-            Thank you for shopping sustainably with Eco-Cart. Your order has been registered.
-          </p>
+      <div className="success-overlay" onClick={handleClose}>
+        <div className="success-card" onClick={(e) => e.stopPropagation()}>
+          <div className="success-icon-badge">✓</div>
+          
+          <h3 className="success-title">Order Placed Successfully!</h3>
+          <div className="success-subtitle">
+            Your order has been placed successfully.<br />
+            Thank you for shopping sustainably with Eco-Cart!
+          </div>
 
-          <div className="order-number-box">
-            <div className="order-num-label">Your Unique Order Number</div>
+          <div className="order-number-card">
+            <div className="order-num-label">Your Order Number</div>
             <div className="order-num-value">{order.orderNumber}</div>
           </div>
 
-          <div className="summary-box">
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+          <div className="details-box">
+            <div className="details-row">
               <span>Total Amount:</span>
-              <strong>৳ {order.totalAmount}</strong>
+              <strong>৳ {Number(order.totalAmount || 0).toFixed(2)}</strong>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+            <div className="details-row">
               <span>Payment Method:</span>
-              <strong>{order.paymentDetails?.provider || order.paymentMethod}</strong>
+              <strong>{order.paymentDetails?.provider || order.paymentMethod || 'Cash on Delivery'}</strong>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <div className="details-row">
               <span>Status:</span>
-              <strong style={{ color: '#2d6a4f' }}>{order.orderStatus}</strong>
+              <span className="status-tag">{order.orderStatus || 'Order Placed'}</span>
             </div>
           </div>
 
-          <div className="action-buttons">
-            <button type="button" className="btn-action-primary" onClick={() => setShowInvoice(true)}>
-              📄 View & Print Invoice / Cash Memo
+          <div className="action-button-stack">
+            <button type="button" className="btn-view-invoice" onClick={handleInvoiceClick}>
+              📄 View Invoice
             </button>
-            <button type="button" className="btn-action-secondary" onClick={() => onViewTrack(order.orderNumber)}>
+            <button type="button" className="btn-track-order" onClick={handleTrackClick}>
               🚚 Track This Order
             </button>
           </div>
 
-          <button type="button" className="btn-close-text" onClick={onClose}>
+          <button type="button" className="btn-back-home" onClick={handleClose}>
             Back to Home
           </button>
         </div>

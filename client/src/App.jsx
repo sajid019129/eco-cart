@@ -1930,6 +1930,14 @@ function App() {
           order={completedOrder}
           onClose={() => setCompletedOrder(null)}
           onViewInvoice={() => setShowInvoice(true)}
+          onBackToHome={() => {
+            setCompletedOrder(null);
+            navigate('/');
+          }}
+          onViewTrack={(orderNum) => {
+            setCompletedOrder(null);
+            navigate(`/track-order?orderId=${orderNum}`);
+          }}
         />
       )}
 
