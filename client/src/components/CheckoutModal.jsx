@@ -123,20 +123,28 @@ const CheckoutModal = ({ user, cart = [], onClose, onSuccess }) => {
       return;
     }
 
-    if (['bKash', 'Nagad', 'Upay'].includes(paymentMethod) && !accountNumber.trim()) {
-      setError(`Please provide your ${paymentMethod} account number.`);
-      return;
+    if (['bKash', 'Nagad', 'Upay'].includes(paymentMethod)) {
+      const cleanNum = accountNumber.trim();
+      const bdPhoneRegex = /^01[0-9]{9}$/;
+      if (!bdPhoneRegex.test(cleanNum)) {
+        setError(`Please enter a valid 11-digit mobile number starting with 01 for ${paymentMethod} (e.g. 019xxxxxxxx)`);
+        return;
+      }
     }
 
-    if (paymentMethod === 'Mastercard' && !cardNumber.trim()) {
-      setError('Please provide your Mastercard number.');
-      return;
+    if (paymentMethod === 'MasterCard') {
+      const cleanCard = cardNumber.replace(/\s+/g, '');
+      const cardRegex = /^[0-9]{16}$/;
+      if (!cardRegex.test(cleanCard)) {
+        setError('Please enter a valid 16-digit MasterCard number (e.g. xxxx xxxx xxxx xxxx)');
+        return;
+      }
     }
 
     setError('');
 
     // Digital Payment: Show OTP Verification step first
-    if (['bKash', 'Nagad', 'Upay', 'Mastercard'].includes(paymentMethod)) {
+    if (['bKash', 'Nagad', 'Upay', 'MasterCard'].includes(paymentMethod)) {
       setShowOtpScreen(true);
     } else {
       // Cash on Delivery: Process Order directly
@@ -172,11 +180,11 @@ const CheckoutModal = ({ user, cart = [], onClose, onSuccess }) => {
         body: JSON.stringify({
           buyerId: activeUser._id || activeUser.id,
           items: orderItems,
-          paymentMethod: ['bKash', 'Nagad', 'Upay', 'Mastercard'].includes(paymentMethod) ? 'Digital' : 'COD',
+          paymentMethod: ['bKash', 'Nagad', 'Upay', 'MasterCard'].includes(paymentMethod) ? 'Digital' : 'COD',
           paymentDetails: {
             provider: paymentMethod,
-            accountNumber: ['bKash', 'Nagad', 'Upay'].includes(paymentMethod) ? accountNumber : (paymentMethod === 'Mastercard' ? cardNumber : ''),
-            trxId: ['bKash', 'Nagad', 'Upay'].includes(paymentMethod) ? 'ONLINE-OTP-PAID' : (paymentMethod === 'Mastercard' ? 'CARD-SECURE-PAY' : 'COD')
+            accountNumber: ['bKash', 'Nagad', 'Upay'].includes(paymentMethod) ? accountNumber : (paymentMethod === 'MasterCard' ? cardNumber : ''),
+            trxId: ['bKash', 'Nagad', 'Upay'].includes(paymentMethod) ? 'ONLINE-OTP-PAID' : (paymentMethod === 'MasterCard' ? 'CARD-SECURE-PAY' : 'COD')
           },
           shippingAddress: { phone: phoneVal, location: shippingLocation }
         })
@@ -462,7 +470,6 @@ const CheckoutModal = ({ user, cart = [], onClose, onSuccess }) => {
           box-shadow: 0 4px 12px rgba(27, 67, 50, 0.08);
         }
 
-        /* HIGH-CONTRAST SELECTED PAYMENT CARD HIGHLIGHT */
         .pay-card.selected {
           border: 2px solid #1b4332;
           background: #eaf4ef;
@@ -609,7 +616,7 @@ const CheckoutModal = ({ user, cart = [], onClose, onSuccess }) => {
           </div>
           <div className="modal-subtitle">
             {showOtpScreen 
-              ? `Verification code sent to ${accountNumber || cardNumber}`
+              ? `Verification code sent for ${paymentMethod}`
               : 'Review your items and complete your order securely'}
           </div>
 
@@ -624,8 +631,17 @@ const CheckoutModal = ({ user, cart = [], onClose, onSuccess }) => {
                   Enter Verification Code
                 </h4>
                 <p style={{ color: '#4b5563', fontSize: '1rem', marginBottom: '22px', lineHeight: '1.5' }}>
-                  A 5-digit OTP verification code has been sent to your <strong>{paymentMethod}</strong> number: <br />
-                  <strong style={{ color: '#1b4332', fontSize: '1.15rem', letterSpacing: '0.5px' }}>{accountNumber || cardNumber}</strong>
+                  {paymentMethod === 'MasterCard' ? (
+                    <>
+                      A 5-digit OTP verification code has been sent to your registered phone number: <br />
+                      <strong style={{ color: '#1b4332', fontSize: '1.15rem', letterSpacing: '0.5px' }}>{phoneVal}</strong>
+                    </>
+                  ) : (
+                    <>
+                      A 5-digit OTP verification code has been sent to your <strong>{paymentMethod}</strong> number: <br />
+                      <strong style={{ color: '#1b4332', fontSize: '1.15rem', letterSpacing: '0.5px' }}>{accountNumber}</strong>
+                    </>
+                  )}
                 </p>
 
                 <div className="form-group" style={{ width: '100%', maxWidth: '380px', margin: '0 auto' }}>
@@ -774,11 +790,11 @@ const CheckoutModal = ({ user, cart = [], onClose, onSuccess }) => {
                       <span>Upay</span>
                     </div>
                     <div
-                      className={`pay-card ${paymentMethod === 'Mastercard' ? 'selected' : ''}`}
-                      onClick={() => setPaymentMethod('Mastercard')}
+                      className={`pay-card ${paymentMethod === 'MasterCard' ? 'selected' : ''}`}
+                      onClick={() => setPaymentMethod('MasterCard')}
                     >
-                      <img src="/MasterCard.png" alt="Mastercard" className="pay-logo" />
-                      <span>Mastercard</span>
+                      <img src="/MasterCard.png" alt="MasterCard" className="pay-logo" />
+                      <span>MasterCard</span>
                     </div>
                     <div
                       className={`pay-card full-width ${paymentMethod === 'Cash on Delivery' ? 'selected' : ''}`}
@@ -797,7 +813,8 @@ const CheckoutModal = ({ user, cart = [], onClose, onSuccess }) => {
                       <input
                         type="text"
                         className="form-input"
-                        placeholder="e.g. 019xxxxxxxx"
+                        placeholder="019xxxxxxxx"
+                        maxLength={11}
                         value={accountNumber}
                         onChange={(e) => setAccountNumber(e.target.value)}
                         required
@@ -806,14 +823,15 @@ const CheckoutModal = ({ user, cart = [], onClose, onSuccess }) => {
                   </div>
                 )}
 
-                {paymentMethod === 'Mastercard' && (
+                {paymentMethod === 'MasterCard' && (
                   <div className="form-section-box">
                     <div className="form-group" style={{ marginBottom: 0 }}>
-                      <label className="form-label">Your Mastercard number <span style={{ color: '#d32f2f' }}>*</span></label>
+                      <label className="form-label">Your MasterCard number <span style={{ color: '#d32f2f' }}>*</span></label>
                       <input
                         type="text"
                         className="form-input"
                         placeholder="e.g. xxxx xxxx xxxx xxxx"
+                        maxLength={19}
                         value={cardNumber}
                         onChange={(e) => setCardNumber(e.target.value)}
                         required

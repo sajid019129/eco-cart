@@ -106,7 +106,7 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
         .right-actions-group {
           display: flex;
           align-items: center;
-          gap: 24px;
+          gap: 16px;
           margin-left: auto;
         }
 
@@ -168,24 +168,15 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
           box-shadow: 0 2px 6px rgba(230, 57, 70, 0.4);
         }
 
-        @keyframes proSellerIntenseGlow {
+        @keyframes sellZoomPulseFast {
           0% {
             transform: scale(1);
-            background-color: #2d6a4f;
-            box-shadow: 0 0 4px rgba(82, 183, 136, 0.4);
-            border-color: #52b788;
           }
           50% {
-            transform: scale(1.04);
-            background-color: #52b788;
-            box-shadow: 0 0 18px 6px rgba(255, 215, 0, 0.75), 0 0 28px 10px rgba(82, 183, 136, 0.8), inset 0 0 10px rgba(255, 255, 255, 0.4);
-            border-color: #ffd700;
+            transform: scale(1.08);
           }
           100% {
             transform: scale(1);
-            background-color: #2d6a4f;
-            box-shadow: 0 0 4px rgba(82, 183, 136, 0.4);
-            border-color: #52b788;
           }
         }
 
@@ -200,7 +191,7 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
           border: 2px solid #52b788;
           cursor: pointer;
           transition: all 0.2s ease;
-          animation: proSellerIntenseGlow 1.2s infinite ease-in-out;
+          animation: sellZoomPulseFast 0.45s infinite ease-in-out;
           display: inline-flex;
           align-items: center;
           gap: 6px;
@@ -208,9 +199,9 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
         }
 
         .btn-sell-pro:hover {
-          transform: translateY(-2px);
           background-color: #52b788;
-          border-color: #ffd700;
+          border-color: #74c69d;
+          box-shadow: 0 4px 14px rgba(82, 183, 136, 0.4);
         }
 
         .btn-sell-pro.active {
@@ -219,6 +210,30 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
           color: #52b788;
           border: 2px solid #52b788;
           box-shadow: 0 4px 12px rgba(82, 183, 136, 0.3);
+        }
+
+        /* Notification Bell Styling */
+        .notification-btn {
+          background-color: #2d6a4f;
+          color: #ffffff;
+          width: 44px;
+          height: 44px;
+          border-radius: 8px;
+          border: 2px solid #52b788;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 1.25rem;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          position: relative;
+        }
+
+        .notification-btn:hover {
+          background-color: #52b788;
+          border-color: #74c69d;
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(82, 183, 136, 0.4);
         }
 
         .btn-login {
@@ -464,11 +479,9 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
         }
 
         @media (prefers-reduced-motion: reduce) {
-          .user-badge, .nav-avatar, .profile-arrow, .dropdown-item {
+          .user-badge, .nav-avatar, .profile-arrow, .dropdown-item, .btn-sell-pro, .notification-btn {
             transition: none;
-          }
-          .dropdown-menu.open, .dropdown-menu.closing {
-            animation-duration: 0.01ms;
+            animation: none;
           }
         }
       `}</style>
@@ -502,6 +515,18 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
         </div>
 
         <div className="right-actions-group">
+          <button 
+            type="button" 
+            className="notification-btn" 
+            title="Notifications"
+            aria-label="Notifications"
+            onClick={() => {
+              // Future notification handling logic goes here
+            }}
+          >
+            🔔
+          </button>
+
           <Link to="/add-product" className={`btn-sell-pro ${isActive('/add-product') ? 'active' : ''}`}>
             💰 Sell Items
           </Link>
@@ -538,15 +563,6 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
                     <span className="dropdown-user-title">Signed in as</span>
                     <div className="dropdown-user-name">{user.name || user.username || 'User'}</div>
                   </div>
-
-                  {/* Add future options here using className="dropdown-item", for example:
-                  <Link to="/profile" role="menuitem" className="dropdown-item" onClick={closeDropdown}>
-                    👤 My Profile
-                  </Link>
-                  <Link to="/my-listings" role="menuitem" className="dropdown-item" onClick={closeDropdown}>
-                    📦 My Listings
-                  </Link>
-                  */}
 
                   <button
                     type="button"
