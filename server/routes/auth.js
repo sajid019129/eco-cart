@@ -17,7 +17,7 @@ const transporter = nodemailer.createTransport({
 
 router.post('/register', async (req, res) => {
   try {
-    const { name, email, password, phone, age, avatar } = req.body;
+    const { name, email, password, phone, age, avatar, isSeller, sellerAccounts } = req.body;
     const cleanEmail = email ? email.trim().toLowerCase() : '';
 
     if (!password || password.length < 6 || password.length > 12) {
@@ -40,6 +40,23 @@ router.post('/register', async (req, res) => {
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const otpExpires = new Date(Date.now() + 10 * 60 * 1000);
 
+    const formattedSellerAccounts = isSeller ? {
+      bKash: sellerAccounts?.bKash || '',
+      nagad: sellerAccounts?.nagad || '',
+      upay: sellerAccounts?.upay || '',
+      masterCard: sellerAccounts?.masterCard || '',
+      bank: {
+        bankName: sellerAccounts?.bank?.bankName || '',
+        accountNumber: sellerAccounts?.bank?.accountNumber || ''
+      }
+    } : {
+      bKash: '',
+      nagad: '',
+      upay: '',
+      masterCard: '',
+      bank: { bankName: '', accountNumber: '' }
+    };
+
     let targetUser = existingUser;
     if (targetUser) {
       targetUser.name = name;
@@ -47,6 +64,8 @@ router.post('/register', async (req, res) => {
       targetUser.phone = phone;
       targetUser.age = parsedAge;
       targetUser.avatar = avatar || '';
+      targetUser.isSeller = Boolean(isSeller);
+      targetUser.sellerAccounts = formattedSellerAccounts;
       targetUser.registerOtp = otp;
       targetUser.registerOtpExpires = otpExpires;
       targetUser.isVerified = false;
@@ -59,6 +78,8 @@ router.post('/register', async (req, res) => {
         phone,
         age: parsedAge,
         avatar: avatar || '',
+        isSeller: Boolean(isSeller),
+        sellerAccounts: formattedSellerAccounts,
         registerOtp: otp,
         registerOtpExpires: otpExpires,
         isVerified: false
@@ -120,11 +141,14 @@ router.post('/verify-register', async (req, res) => {
       token,
       user: {
         id: user._id,
+        _id: user._id,
         name: user.name,
         email: user.email,
         phone: user.phone,
         age: user.age,
-        avatar: user.avatar
+        avatar: user.avatar,
+        isSeller: user.isSeller,
+        sellerAccounts: user.sellerAccounts
       }
     });
   } catch (err) {
@@ -154,11 +178,14 @@ router.post('/login', async (req, res) => {
       token,
       user: {
         id: user._id,
+        _id: user._id,
         name: user.name,
         email: user.email,
         phone: user.phone,
         age: user.age,
-        avatar: user.avatar
+        avatar: user.avatar,
+        isSeller: user.isSeller,
+        sellerAccounts: user.sellerAccounts
       }
     });
   } catch (err) {

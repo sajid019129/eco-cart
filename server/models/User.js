@@ -26,6 +26,21 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  // Seller Account Fields
+  isSeller: {
+    type: Boolean,
+    default: false
+  },
+  sellerAccounts: {
+    bKash: { type: String, default: '' },
+    nagad: { type: String, default: '' },
+    upay: { type: String, default: '' },
+    masterCard: { type: String, default: '' },
+    bank: {
+      bankName: { type: String, default: '' },
+      accountNumber: { type: String, default: '' }
+    }
+  },
   registerOtp: {
     type: String,
     default: null

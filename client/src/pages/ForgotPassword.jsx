@@ -58,7 +58,7 @@ function ForgotPassword() {
     setMessage('');
 
     if (newPassword.length < 6) {
-      setError('Password must be at least 6 characters long.');
+      setError('Password must be between 6 and 12 characters long.');
       return;
     }
 
@@ -89,348 +89,387 @@ function ForgotPassword() {
   };
 
   return (
-    <div style={styles.pageContainer}>
-      <div style={styles.card}>
-        <h2 style={styles.title}>Reset Password</h2>
+    <>
+      <style>{`
+        .eco-post-container {
+          background-color: #f8f9fa;
+          min-height: calc(100vh - 70px);
+          padding: 40px 20px;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
 
-        {error && <div style={styles.errorAlert}>{error}</div>}
-        {message && <div style={styles.successAlert}>{message}</div>}
+        .eco-post-card {
+          background: #ffffff;
+          padding: 34px 38px;
+          border-radius: 14px;
+          box-shadow: 0 10px 30px rgba(27, 67, 50, 0.08);
+          border: 1px solid #e5e7eb;
+          max-width: 480px;
+          width: 100%;
+        }
 
-        {step === 1 && (
-          <form onSubmit={handleRequestOtp} style={styles.form}>
-            <p style={styles.instruction}>
-              Enter your registered email address to receive a 6-digit verification code.
-            </p>
-            <input
-              type="email"
-              placeholder="Email Address"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              style={styles.input}
-            />
-            <button 
-              type="submit" 
-              disabled={loading} 
-              style={styles.button}
-              onMouseEnter={(e) => {
-                if (!loading) {
-                  e.target.style.backgroundColor = '#1b4332';
-                  e.target.style.transform = 'translateY(-2px)';
-                  e.target.style.boxShadow = '0 6px 16px rgba(27, 67, 50, 0.3)';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!loading) {
-                  e.target.style.backgroundColor = '#2d6a4f';
-                  e.target.style.transform = 'translateY(0)';
-                  e.target.style.boxShadow = 'none';
-                }
-              }}
-            >
-              {loading ? 'Sending Code...' : 'Send Verification Code'}
-            </button>
-          </form>
-        )}
+        .eco-post-title {
+          margin: 0 0 6px 0;
+          color: #1b4332;
+          font-size: 1.85rem;
+          font-weight: 800;
+          letter-spacing: 0.5px;
+          text-align: center;
+        }
 
-        {step === 2 && (
-          <form onSubmit={handleVerifyOtp} style={styles.form}>
-            <p style={styles.instruction}>
-              Enter the 6-digit verification code sent to <strong>{email}</strong>.
-            </p>
-            <input
-              type="text"
-              placeholder="6-Digit Verification Code"
-              value={otp}
-              onChange={(e) => setOtp(e.target.value)}
-              maxLength={6}
-              required
-              style={{ ...styles.input, textAlign: 'center', letterSpacing: '4px', fontSize: '1.2rem' }}
-            />
-            <button 
-              type="submit" 
-              style={styles.button}
-              onMouseEnter={(e) => {
-                e.target.style.backgroundColor = '#1b4332';
-                e.target.style.transform = 'translateY(-2px)';
-                e.target.style.boxShadow = '0 6px 16px rgba(27, 67, 50, 0.3)';
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.backgroundColor = '#2d6a4f';
-                e.target.style.transform = 'translateY(0)';
-                e.target.style.boxShadow = 'none';
-              }}
-            >
-              Verify Code
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setStep(1);
-                setError('');
-                setMessage('');
-              }}
-              style={styles.secondaryButton}
-              onMouseEnter={(e) => {
-                e.target.style.backgroundColor = '#f1f1f1';
-                e.target.style.color = '#333';
-                e.target.style.borderColor = '#999';
-                e.target.style.transform = 'translateY(-1px)';
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.backgroundColor = 'transparent';
-                e.target.style.color = '#666';
-                e.target.style.borderColor = '#ccc';
-                e.target.style.transform = 'translateY(0)';
-              }}
-            >
-              Back to Email
-            </button>
-          </form>
-        )}
+        .eco-post-subtitle {
+          color: #4b5563;
+          font-size: 0.95rem;
+          margin-bottom: 24px;
+          font-weight: 400;
+          text-align: center;
+          line-height: 1.4;
+        }
 
-        {step === 3 && (
-          <form onSubmit={handleResetPassword} style={styles.form}>
-            <p style={styles.instruction}>Create a new password for your account.</p>
-            
-            <div style={styles.passwordContainer}>
-              <input
-                type={showNewPassword ? 'text' : 'password'}
-                placeholder="New Password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                required
-                style={styles.passwordInput}
-              />
+        .eco-error-banner {
+          background: #ffebee;
+          color: #c62828;
+          padding: 12px 16px;
+          border-radius: 8px;
+          margin-bottom: 20px;
+          font-size: 0.95rem;
+          font-weight: 700;
+          border: 1px solid #fca5a5;
+          text-align: center;
+        }
+
+        .eco-success-banner {
+          background: #e8f5e9;
+          color: #1b4332;
+          padding: 12px 16px;
+          border-radius: 8px;
+          margin-bottom: 20px;
+          font-size: 0.95rem;
+          font-weight: 700;
+          border: 1px solid #a3b899;
+          text-align: center;
+        }
+
+        .eco-field-box {
+          position: relative;
+          background: #f9fafb;
+          border: 2px solid #d1d5db;
+          border-radius: 10px;
+          padding: 12px 16px;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          margin-bottom: 16px;
+        }
+
+        .eco-field-box:hover {
+          border-color: #2d6a4f;
+          background: #ffffff;
+          transform: translateY(-2px);
+          box-shadow: 0 6px 16px rgba(45, 106, 79, 0.12);
+        }
+
+        .eco-field-box.has-value {
+          border-color: #1b4332;
+          background: #eaf4ef;
+          box-shadow: 0 6px 20px rgba(27, 67, 50, 0.15);
+        }
+
+        .eco-field-label {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 0.8rem;
+          font-weight: 700;
+          color: #1b4332;
+          margin-bottom: 6px;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+
+        .eco-required {
+          color: #d32f2f;
+          font-weight: 800;
+        }
+
+        .eco-input-field {
+          width: 100%;
+          border: none;
+          background: transparent;
+          font-size: 0.98rem;
+          color: #1f2937;
+          outline: none;
+          font-weight: 600;
+          padding: 0;
+          margin: 0;
+          font-family: inherit;
+        }
+
+        .eco-input-field::placeholder {
+          color: #9ca3af;
+          font-weight: 400;
+        }
+
+        .eco-submit-btn {
+          width: 100%;
+          background-color: #2d6a4f;
+          color: #ffffff;
+          border: none;
+          padding: 14px;
+          border-radius: 10px;
+          font-weight: 800;
+          font-size: 1.05rem;
+          cursor: pointer;
+          transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+          box-shadow: 0 4px 14px rgba(45, 106, 79, 0.2);
+          margin-top: 6px;
+        }
+
+        .eco-submit-btn:hover {
+          background-color: #1b4332;
+          transform: translateY(-2px);
+          box-shadow: 0 6px 20px rgba(27, 67, 50, 0.3);
+        }
+
+        .eco-submit-btn:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+          transform: none;
+        }
+
+        .eco-secondary-btn {
+          width: 100%;
+          background-color: transparent;
+          color: #2d6a4f;
+          border: 1.5px solid #2d6a4f;
+          padding: 12px;
+          border-radius: 10px;
+          font-weight: 700;
+          font-size: 0.95rem;
+          cursor: pointer;
+          margin-top: 10px;
+          transition: all 0.2s ease;
+        }
+
+        .eco-secondary-btn:hover {
+          background-color: #f1f8f5;
+          transform: translateY(-1px);
+        }
+      `}</style>
+
+      <div className="eco-post-container">
+        <div className="eco-post-card">
+          <h2 className="eco-post-title">Reset Password</h2>
+
+          {error && <div className="eco-error-banner">{error}</div>}
+          {message && <div className="eco-success-banner">{message}</div>}
+
+          {step === 1 && (
+            <form onSubmit={handleRequestOtp}>
+              <p className="eco-post-subtitle">
+                Enter your registered email address to receive a 6-digit verification code.
+              </p>
+              
+              <div className={`eco-field-box ${email ? 'has-value' : ''}`}>
+                <label className="eco-field-label">
+                  <span>✉️</span> Email Address <span className="eco-required">*</span>
+                </label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  className="eco-input-field"
+                />
+              </div>
+
+              <button type="submit" disabled={loading} className="eco-submit-btn">
+                {loading ? 'Sending Code...' : 'Send Verification Code'}
+              </button>
+            </form>
+          )}
+
+          {step === 2 && (
+            <form onSubmit={handleVerifyOtp}>
+              <p className="eco-post-subtitle">
+                Enter the 6-digit verification code sent to <strong style={{ color: '#1b4332' }}>{email}</strong>.
+              </p>
+
+              <div className={`eco-field-box ${otp ? 'has-value' : ''}`}>
+                <label className="eco-field-label">
+                  <span>🔐</span> Verification Code <span className="eco-required">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value)}
+                  maxLength={6}
+                  required
+                  className="eco-input-field"
+                  style={{ textAlign: 'center', letterSpacing: '5px', fontSize: '1.2rem', fontWeight: 'bold' }}
+                  placeholder="------"
+                  autoFocus
+                />
+              </div>
+
+              <button type="submit" className="eco-submit-btn">
+                Verify Code
+              </button>
+              
               <button
                 type="button"
-                onClick={() => setShowNewPassword(!showNewPassword)}
-                style={styles.shapeBtn}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#d8f3dc';
-                  e.currentTarget.style.borderColor = '#2d6a4f';
-                  e.currentTarget.style.transform = 'translateY(-50%) scale(1.05)';
+                onClick={() => {
+                  setStep(1);
+                  setError('');
+                  setMessage('');
                 }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = '#e8f5e9';
-                  e.currentTarget.style.borderColor = '#a3b899';
-                  e.currentTarget.style.transform = 'translateY(-50%) scale(1)';
-                }}
+                className="eco-secondary-btn"
               >
-                {showNewPassword ? 'Hide' : 'Show'}
+                Back to Email
               </button>
-            </div>
+            </form>
+          )}
 
-            <div style={styles.passwordContainer}>
-              <input
-                type={showConfirmPassword ? 'text' : 'password'}
-                placeholder="Confirm New Password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                required
-                style={styles.passwordInput}
-              />
-              <button
-                type="button"
-                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                style={styles.shapeBtn}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#d8f3dc';
-                  e.currentTarget.style.borderColor = '#2d6a4f';
-                  e.currentTarget.style.transform = 'translateY(-50%) scale(1.05)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = '#e8f5e9';
-                  e.currentTarget.style.borderColor = '#a3b899';
-                  e.currentTarget.style.transform = 'translateY(-50%) scale(1)';
-                }}
-              >
-                {showConfirmPassword ? 'Hide' : 'Show'}
+          {step === 3 && (
+            <form onSubmit={handleResetPassword}>
+              <p className="eco-post-subtitle">Create a new password for your account.</p>
+              
+              {/* New Password */}
+              <div className={`eco-field-box ${newPassword ? 'has-value' : ''}`}>
+                <label className="eco-field-label">
+                  <span>🔑</span> New Password (6-12 chars) <span className="eco-required">*</span>
+                </label>
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center', width: '100%' }}>
+                  <input
+                    type={showNewPassword ? 'text' : 'password'}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    required
+                    minLength={6}
+                    maxLength={12}
+                    className="eco-input-field"
+                    style={{ paddingRight: '80px' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                    style={{
+                      position: 'absolute',
+                      right: '0',
+                      backgroundColor: '#e8f5e9',
+                      color: '#2d6a4f',
+                      border: '1.5px solid #a3b899',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontSize: '0.85rem',
+                      fontWeight: '700',
+                      padding: '7px 14px',
+                      transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = '#d8f3dc';
+                      e.currentTarget.style.borderColor = '#2d6a4f';
+                      e.currentTarget.style.transform = 'scale(1.05)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = '#e8f5e9';
+                      e.currentTarget.style.borderColor = '#a3b899';
+                      e.currentTarget.style.transform = 'scale(1)';
+                    }}
+                  >
+                    {showNewPassword ? 'Hide' : 'Show'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Confirm Password */}
+              <div className={`eco-field-box ${confirmPassword ? 'has-value' : ''}`}>
+                <label className="eco-field-label">
+                  <span>🔑</span> Confirm New Password <span className="eco-required">*</span>
+                </label>
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center', width: '100%' }}>
+                  <input
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    required
+                    minLength={6}
+                    maxLength={12}
+                    className="eco-input-field"
+                    style={{ paddingRight: '80px' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    style={{
+                      position: 'absolute',
+                      right: '0',
+                      backgroundColor: '#e8f5e9',
+                      color: '#2d6a4f',
+                      border: '1.5px solid #a3b899',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontSize: '0.85rem',
+                      fontWeight: '700',
+                      padding: '7px 14px',
+                      transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = '#d8f3dc';
+                      e.currentTarget.style.borderColor = '#2d6a4f';
+                      e.currentTarget.style.transform = 'scale(1.05)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = '#e8f5e9';
+                      e.currentTarget.style.borderColor = '#a3b899';
+                      e.currentTarget.style.transform = 'scale(1)';
+                    }}
+                  >
+                    {showConfirmPassword ? 'Hide' : 'Show'}
+                  </button>
+                </div>
+              </div>
+
+              <button type="submit" disabled={loading} className="eco-submit-btn">
+                {loading ? 'Updating Password...' : 'Reset Password'}
               </button>
-            </div>
+            </form>
+          )}
 
-            <button 
-              type="submit" 
-              disabled={loading} 
-              style={styles.button}
+          <p style={{ marginTop: '22px', textAlign: 'center', fontSize: '0.9rem', color: '#666' }}>
+            Remembered your password?{' '}
+            <Link 
+              to="/login" 
+              style={{
+                color: '#2d6a4f',
+                fontWeight: 'bold',
+                textDecoration: 'none',
+                display: 'inline-block',
+                transition: 'all 0.2s ease'
+              }}
               onMouseEnter={(e) => {
-                if (!loading) {
-                  e.target.style.backgroundColor = '#1b4332';
-                  e.target.style.transform = 'translateY(-2px)';
-                  e.target.style.boxShadow = '0 6px 16px rgba(27, 67, 50, 0.3)';
-                }
+                e.target.style.color = '#1b4332';
+                e.target.style.textDecoration = 'underline';
+                e.target.style.transform = 'scale(1.03)';
               }}
               onMouseLeave={(e) => {
-                if (!loading) {
-                  e.target.style.backgroundColor = '#2d6a4f';
-                  e.target.style.transform = 'translateY(0)';
-                  e.target.style.boxShadow = 'none';
-                }
+                e.target.style.color = '#2d6a4f';
+                e.target.style.textDecoration = 'none';
+                e.target.style.transform = 'scale(1)';
               }}
             >
-              {loading ? 'Updating Password...' : 'Reset Password'}
-            </button>
-          </form>
-        )}
-
-        <p style={styles.footerText}>
-          Remembered your password?{' '}
-          <Link 
-            to="/login" 
-            style={styles.link}
-            onMouseEnter={(e) => {
-              e.target.style.color = '#1b4332';
-              e.target.style.textDecoration = 'underline';
-              e.target.style.transform = 'scale(1.03)';
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.color = '#2d6a4f';
-              e.target.style.textDecoration = 'none';
-              e.target.style.transform = 'scale(1)';
-            }}
-          >
-            Login here
-          </Link>
-        </p>
+              Login here
+            </Link>
+          </p>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
-
-const styles = {
-  pageContainer: {
-    backgroundColor: '#f4f7f6',
-    minHeight: 'calc(100vh - 70px)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '20px',
-    fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
-  },
-  card: {
-    backgroundColor: '#ffffff',
-    padding: '40px 35px',
-    borderRadius: '12px',
-    boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-    width: '100%',
-    maxWidth: '420px',
-    boxSizing: 'border-box',
-  },
-  title: {
-    fontSize: '1.8rem',
-    fontWeight: '700',
-    color: '#2b2b2b',
-    textAlign: 'center',
-    marginBottom: '20px',
-  },
-  instruction: {
-    fontSize: '0.9rem',
-    color: '#555',
-    marginBottom: '15px',
-    textAlign: 'center',
-    lineHeight: '1.4',
-  },
-  form: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '15px',
-  },
-  input: {
-    width: '100%',
-    padding: '12px 15px',
-    borderRadius: '6px',
-    border: '1px solid #ccc',
-    fontSize: '0.95rem',
-    outline: 'none',
-    boxSizing: 'border-box',
-  },
-  passwordContainer: {
-    position: 'relative',
-    display: 'flex',
-    alignItems: 'center',
-    width: '100%',
-  },
-  passwordInput: {
-    width: '100%',
-    padding: '12px 65px 12px 15px',
-    borderRadius: '6px',
-    border: '1px solid #ccc',
-    fontSize: '0.95rem',
-    outline: 'none',
-    boxSizing: 'border-box',
-  },
-  shapeBtn: {
-    position: 'absolute',
-    right: '8px',
-    top: '50%',
-    transform: 'translateY(-50%)',
-    backgroundColor: '#e8f5e9',
-    color: '#2d6a4f',
-    border: '1px solid #a3b899',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    fontSize: '0.8rem',
-    fontWeight: 'bold',
-    padding: '5px 10px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    transition: 'all 0.2s ease',
-  },
-  button: {
-    backgroundColor: '#2d6a4f',
-    color: '#ffffff',
-    border: 'none',
-    padding: '12px',
-    borderRadius: '6px',
-    fontWeight: 'bold',
-    fontSize: '1rem',
-    cursor: 'pointer',
-    marginTop: '5px',
-    transition: 'all 0.2s ease',
-  },
-  secondaryButton: {
-    backgroundColor: 'transparent',
-    color: '#666',
-    border: '1px solid #ccc',
-    padding: '10px',
-    borderRadius: '6px',
-    fontWeight: '600',
-    fontSize: '0.9rem',
-    cursor: 'pointer',
-    transition: 'all 0.2s ease',
-  },
-  errorAlert: {
-    backgroundColor: '#ffedd5',
-    color: '#c2410c',
-    padding: '10px 12px',
-    borderRadius: '6px',
-    fontSize: '0.9rem',
-    marginBottom: '15px',
-    textAlign: 'center',
-  },
-  successAlert: {
-    backgroundColor: '#d8f3dc',
-    color: '#1b4332',
-    padding: '10px 12px',
-    borderRadius: '6px',
-    fontSize: '0.9rem',
-    marginBottom: '15px',
-    textAlign: 'center',
-  },
-  footerText: {
-    marginTop: '20px',
-    textAlign: 'center',
-    fontSize: '0.9rem',
-    color: '#666',
-  },
-  link: {
-    color: '#2d6a4f',
-    fontWeight: 'bold',
-    textDecoration: 'none',
-    display: 'inline-block',
-    transition: 'all 0.2s ease',
-  }
-};
 
 export default ForgotPassword;
