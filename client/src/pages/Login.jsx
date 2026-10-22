@@ -151,6 +151,12 @@ function Login({ setUser }) {
           font-family: inherit;
         }
 
+        /* Hide browser native password reveal icons */
+        input[type="password"]::-ms-reveal,
+        input[type="password"]::-ms-clear {
+          display: none;
+        }
+
         .eco-input-field::placeholder {
           color: #9ca3af;
           font-weight: 400;

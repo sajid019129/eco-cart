@@ -133,12 +133,16 @@ function Register({ setUser }) {
     setLoading(true);
     const avatarUrl = preview || DEFAULT_AVATAR;
 
+    // Format Date of Birth string (e.g. "22/10/2004")
+    const formattedDob = `${dobDay}/${dobMonth}/${dobYear}`;
+
     try {
       const res = await axios.post('http://localhost:5000/api/auth/register', {
         name: formData.name,
         email: formData.email,
         password: formData.password,
         phone: formData.phone,
+        dob: formattedDob,
         age: calculatedAge,
         avatar: avatarUrl,
         isSeller,
@@ -184,16 +188,8 @@ function Register({ setUser }) {
         otp: otp.trim()
       });
       
-      if (res.data.token) {
-        localStorage.setItem('token', res.data.token);
-      }
-      
-      const loggedInUser = res.data.user;
-      localStorage.setItem('user', JSON.stringify(loggedInUser));
-      
-      if (setUser) setUser(loggedInUser);
-
-      navigate('/');
+      setMessage('Registration successful! Redirecting to login...');
+      setTimeout(() => navigate('/login'), 2000);
     } catch (err) {
       console.error('Verification Error:', err.response || err.message);
       setError(
@@ -254,6 +250,7 @@ function Register({ setUser }) {
           font-size: 0.95rem;
           font-weight: 700;
           border: 1px solid #fca5a5;
+          text-align: center;
         }
 
         .eco-success-banner {
@@ -325,6 +322,11 @@ function Register({ setUser }) {
           font-family: inherit;
         }
 
+        input[type="password"]::-ms-reveal,
+        input[type="password"]::-ms-clear {
+          display: none;
+        }
+
         .eco-input-field::placeholder {
           color: #9ca3af;
           font-weight: 400;
@@ -385,7 +387,6 @@ function Register({ setUser }) {
           box-shadow: 0 6px 18px rgba(45, 106, 79, 0.15);
         }
 
-        /* Seller Section Transition Classes */
         .eco-seller-section {
           background: #f1f8f5;
           border: 1.5px solid #c8e6c9;
@@ -644,7 +645,7 @@ function Register({ setUser }) {
                 </label>
               </div>
 
-              {/* Dynamic Seller Financial & Payout Accounts with Smooth Transition */}
+              {/* Dynamic Seller Financial & Payout Accounts */}
               {isSeller && (
                 <div className="eco-seller-section">
                   <h3 style={{ fontSize: '1.1rem', fontWeight: '700', color: '#1b4332', margin: '0 0 6px 0' }}>
@@ -726,7 +727,7 @@ function Register({ setUser }) {
                     />
                   </div>
 
-                  {/* Bank Account Details Subheadings with Asterisk and Payout clarification */}
+                  {/* Bank Account Details */}
                   <div style={{ borderTop: '1px solid #d1e7dd', paddingTop: '14px', marginTop: '10px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
                       <img src="/Bank.png" alt="Bank" className="provider-logo-img" />
@@ -831,7 +832,21 @@ function Register({ setUser }) {
                   fontSize: '0.95rem',
                   cursor: 'pointer',
                   marginTop: '10px',
-                  transition: 'all 0.2s ease'
+                  transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#e8f5e9';
+                  e.currentTarget.style.borderColor = '#1b4332';
+                  e.currentTarget.style.color = '#1b4332';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 6px 16px rgba(45, 106, 79, 0.15)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                  e.currentTarget.style.borderColor = '#2d6a4f';
+                  e.currentTarget.style.color = '#2d6a4f';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = 'none';
                 }}
               >
                 Back to Registration Details

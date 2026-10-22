@@ -4,6 +4,8 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 const User = require('../models/User');
+const Product = require('../models/Product');
+const Cart = require('../models/Cart');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your_fallback_secret_key';
 
@@ -17,7 +19,7 @@ const transporter = nodemailer.createTransport({
 
 router.post('/register', async (req, res) => {
   try {
-    const { name, email, password, phone, age, avatar, isSeller, sellerAccounts } = req.body;
+    const { name, email, password, phone, age, avatar, isSeller, sellerAccounts, dob } = req.body;
     const cleanEmail = email ? email.trim().toLowerCase() : '';
 
     if (!password || password.length < 6 || password.length > 12) {
@@ -63,6 +65,7 @@ router.post('/register', async (req, res) => {
       targetUser.password = hashedPassword;
       targetUser.phone = phone;
       targetUser.age = parsedAge;
+      targetUser.dob = dob || '';
       targetUser.avatar = avatar || '';
       targetUser.isSeller = Boolean(isSeller);
       targetUser.sellerAccounts = formattedSellerAccounts;
@@ -77,6 +80,7 @@ router.post('/register', async (req, res) => {
         password: hashedPassword,
         phone,
         age: parsedAge,
+        dob: dob || '',
         avatar: avatar || '',
         isSeller: Boolean(isSeller),
         sellerAccounts: formattedSellerAccounts,
@@ -146,6 +150,7 @@ router.post('/verify-register', async (req, res) => {
         email: user.email,
         phone: user.phone,
         age: user.age,
+        dob: user.dob || '',
         avatar: user.avatar,
         isSeller: user.isSeller,
         sellerAccounts: user.sellerAccounts
@@ -183,6 +188,7 @@ router.post('/login', async (req, res) => {
         email: user.email,
         phone: user.phone,
         age: user.age,
+        dob: user.dob || '',
         avatar: user.avatar,
         isSeller: user.isSeller,
         sellerAccounts: user.sellerAccounts
@@ -190,6 +196,95 @@ router.post('/login', async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ message: 'Server error during login' });
+  }
+});
+
+router.put('/update-avatar', async (req, res) => {
+  try {
+    const { email, avatar } = req.body;
+    const cleanEmail = email ? email.trim().toLowerCase() : '';
+
+    if (!cleanEmail) {
+      return res.status(400).json({ message: 'Email address is required.' });
+    }
+
+    const updatedUser = await User.findOneAndUpdate(
+      { email: new RegExp(`^${cleanEmail}$`, 'i') },
+      { avatar: avatar || '' },
+      { new: true }
+    );
+
+    if (!updatedUser) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+
+    res.status(200).json({
+      message: 'Profile picture updated successfully!',
+      user: {
+        id: updatedUser._id,
+        _id: updatedUser._id,
+        name: updatedUser.name,
+        email: updatedUser.email,
+        phone: updatedUser.phone,
+        age: updatedUser.age,
+        dob: updatedUser.dob || '',
+        avatar: updatedUser.avatar,
+        isSeller: updatedUser.isSeller,
+        sellerAccounts: updatedUser.sellerAccounts
+      }
+    });
+  } catch (err) {
+    console.error('Update Avatar Error:', err);
+    res.status(500).json({ message: 'Server error while updating profile picture.' });
+  }
+});
+
+// Permanent account deletion endpoint with Buyer Cart Restock & Seller Product Stock-Out Handling
+router.delete('/delete-account', async (req, res) => {
+  try {
+    const { email } = req.body;
+    const cleanEmail = email ? email.trim().toLowerCase() : '';
+
+    if (!cleanEmail) {
+      return res.status(400).json({ message: 'Email address is required for deletion.' });
+    }
+
+    const user = await User.findOne({ email: new RegExp(`^${cleanEmail}$`, 'i') });
+    if (!user) {
+      return res.status(404).json({ message: 'User account not found.' });
+    }
+
+    const userId = user._id;
+
+    // 1. BUYER CART RESTOCK LOGIC: If items are in the user's cart, restore their quantities back to inventory products
+    const userCart = await Cart.findOne({ user: userId });
+    if (userCart && Array.isArray(userCart.items)) {
+      for (const cartItem of userCart.items) {
+        if (cartItem.product && cartItem.quantity) {
+          await Product.findByIdAndUpdate(cartItem.product, {
+            $inc: { stock: cartItem.quantity }
+          });
+        }
+      }
+      // Delete the user's cart document
+      await Cart.findOneAndDelete({ user: userId });
+    }
+
+    // 2. SELLER STOCK-OUT LOGIC: If the user is a seller, auto-stock out (set stock to 0 or fade out) their posted products
+    if (user.isSeller) {
+      await Product.updateMany(
+        { $or: [{ seller: userId }, { sellerEmail: cleanEmail }] },
+        { $set: { stock: 0 } }
+      );
+    }
+
+    // 3. Permanently delete the user record from MongoDB
+    await User.findByIdAndDelete(userId);
+
+    res.status(200).json({ message: 'Account deleted permanently and inventory synchronized.' });
+  } catch (err) {
+    console.error('Delete Account Error:', err);
+    res.status(500).json({ message: 'Server error while deleting account.' });
   }
 });
 
@@ -237,7 +332,31 @@ router.post('/forgot-password', async (req, res) => {
 
     res.json({ message: `Verification code sent to ${cleanEmail}` });
   } catch (err) {
+    console.error('Forgot Password Error:', err);
     res.status(500).json({ message: 'Failed to send email. Please check server email credentials.' });
+  }
+});
+
+// Strictly verify reset OTP endpoint
+router.post('/verify-reset-otp', async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    const cleanEmail = email ? email.trim().toLowerCase() : '';
+
+    const user = await User.findOne({
+      email: new RegExp(`^${cleanEmail}$`, 'i'),
+      resetOtp: otp,
+      resetOtpExpires: { $gt: Date.now() }
+    });
+
+    if (!user) {
+      return res.status(400).json({ message: 'Invalid or expired verification code.' });
+    }
+
+    res.status(200).json({ message: 'Code verified successfully.' });
+  } catch (err) {
+    console.error('Verify Reset OTP Error:', err);
+    res.status(500).json({ message: 'Server error during OTP verification.' });
   }
 });
 

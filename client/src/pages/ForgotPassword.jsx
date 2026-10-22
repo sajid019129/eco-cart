@@ -1,21 +1,49 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 
 function ForgotPassword() {
-  const [step, setStep] = useState(1);
-  const [email, setEmail] = useState('');
+  const loggedInUser = JSON.parse(localStorage.getItem('user') || 'null');
+  const loggedInEmail = loggedInUser?.email || '';
+
+  const [step, setStep] = useState(loggedInEmail ? 2 : 1);
+  const [email, setEmail] = useState(loggedInEmail);
   const [otp, setOtp] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
-  const [message, setMessage] = useState('');
+  const [message, setMessage] = useState(loggedInEmail ? `Sending verification code to ${loggedInEmail}...` : '');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  // STEP 1: Request 6-Digit OTP
+  // Ref guard to ensure OTP is sent strictly ONCE on mount for logged-in users
+  const otpSentRef = useRef(false);
+
+  useEffect(() => {
+    if (loggedInEmail && !otpSentRef.current) {
+      otpSentRef.current = true;
+      const autoSendOtp = async () => {
+        setLoading(true);
+        try {
+          const res = await axios.post('http://localhost:5000/api/auth/forgot-password', { email: loggedInEmail });
+          setMessage(res.data.message || `Verification code sent to ${loggedInEmail}`);
+        } catch (err) {
+          if (!err.response) {
+            setError('Unable to reach backend server. Ensure Express is running on port 5000.');
+          } else {
+            setError(err.response.data?.message || 'Failed to send reset code.');
+          }
+        } finally {
+          setLoading(false);
+        }
+      };
+      autoSendOtp();
+    }
+  }, [loggedInEmail]);
+
+  // STEP 1: Request 6-Digit OTP (for logged out users)
   const handleRequestOtp = async (e) => {
     e.preventDefault();
     setError('');
@@ -37,21 +65,37 @@ function ForgotPassword() {
     }
   };
 
-  // STEP 2: Proceed to Password Input
-  const handleVerifyOtp = (e) => {
+  // STEP 2: Strictly validate the 6-digit code with the backend before moving to password input
+  const handleVerifyOtp = async (e) => {
     e.preventDefault();
     setError('');
+    setMessage('');
 
     if (otp.trim().length !== 6) {
       setError('Please enter a valid 6-digit verification code.');
       return;
     }
 
-    setMessage('Code format accepted. Enter your new password below.');
-    setStep(3);
+    setLoading(true);
+    try {
+      await axios.post('http://localhost:5000/api/auth/verify-reset-otp', {
+        email,
+        otp: otp.trim()
+      });
+      setStep(3);
+      setMessage('');
+    } catch (err) {
+      if (!err.response) {
+        setError('Unable to reach backend server.');
+      } else {
+        setError(err.response.data?.message || 'Invalid or expired verification code.');
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // STEP 3: Reset Password
+  // STEP 3: Reset Password (Sends email, code, and new password together to backend)
   const handleResetPassword = async (e) => {
     e.preventDefault();
     setError('');
@@ -76,7 +120,7 @@ function ForgotPassword() {
         newPassword
       });
       setMessage(res.data.message || 'Password reset successfully!');
-      setTimeout(() => navigate('/login'), 2000);
+      setTimeout(() => navigate(loggedInEmail ? '/' : '/login'), 2000);
     } catch (err) {
       if (!err.response) {
         setError('Unable to reach backend server.');
@@ -210,6 +254,11 @@ function ForgotPassword() {
           font-family: inherit;
         }
 
+        input[type="password"]::-ms-reveal,
+        input[type="password"]::-ms-clear {
+          display: none;
+        }
+
         .eco-input-field::placeholder {
           color: #9ca3af;
           font-weight: 400;
@@ -289,7 +338,7 @@ function ForgotPassword() {
               </div>
 
               <button type="submit" disabled={loading} className="eco-submit-btn">
-                {loading ? 'Sending Code...' : 'Send Verification Code'}
+                {loading ? 'Sending Code' : 'Send Verification Code'}
               </button>
             </form>
           )}
@@ -297,12 +346,12 @@ function ForgotPassword() {
           {step === 2 && (
             <form onSubmit={handleVerifyOtp}>
               <p className="eco-post-subtitle">
-                Enter the 6-digit verification code sent to <strong style={{ color: '#1b4332' }}>{email}</strong>.
+                Enter the 6-digit verification code sent to <strong style={{ color: '#1b4332' }}>{email}</strong>
               </p>
 
               <div className={`eco-field-box ${otp ? 'has-value' : ''}`}>
                 <label className="eco-field-label">
-                  <span>🔐</span> Verification Code <span className="eco-required">*</span>
+                  <span>🔒</span> Verification Code <span className="eco-required">*</span>
                 </label>
                 <input
                   type="text"
@@ -317,32 +366,37 @@ function ForgotPassword() {
                 />
               </div>
 
-              <button type="submit" className="eco-submit-btn">
-                Verify Code
+              <button type="submit" disabled={loading} className="eco-submit-btn">
+                {loading ? 'Sending Code' : 'Verify Code'}
               </button>
               
-              <button
-                type="button"
-                onClick={() => {
-                  setStep(1);
-                  setError('');
-                  setMessage('');
-                }}
-                className="eco-secondary-btn"
-              >
-                Back to Email
-              </button>
+              {!loggedInEmail && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStep(1);
+                    setError('');
+                    setMessage('');
+                  }}
+                  className="eco-secondary-btn"
+                >
+                  Back to Email
+                </button>
+              )}
             </form>
           )}
 
           {step === 3 && (
             <form onSubmit={handleResetPassword}>
-              <p className="eco-post-subtitle">Create a new password for your account.</p>
+              <div className="eco-success-banner" style={{ textAlign: 'center' }}>
+                <div style={{ fontWeight: '800' }}>Code verified successfully!</div>
+                <div style={{ fontSize: '0.88rem', fontWeight: '600', marginTop: '4px' }}>Enter your new password below.</div>
+              </div>
               
               {/* New Password */}
               <div className={`eco-field-box ${newPassword ? 'has-value' : ''}`}>
                 <label className="eco-field-label">
-                  <span>🔑</span> New Password (6-12 chars) <span className="eco-required">*</span>
+                  <span>🔒</span> New Password (6-12 chars) <span className="eco-required">*</span>
                 </label>
                 <div style={{ position: 'relative', display: 'flex', alignItems: 'center', width: '100%' }}>
                   <input
@@ -390,7 +444,7 @@ function ForgotPassword() {
               {/* Confirm Password */}
               <div className={`eco-field-box ${confirmPassword ? 'has-value' : ''}`}>
                 <label className="eco-field-label">
-                  <span>🔑</span> Confirm New Password <span className="eco-required">*</span>
+                  <span>🔒</span> Confirm New Password <span className="eco-required">*</span>
                 </label>
                 <div style={{ position: 'relative', display: 'flex', alignItems: 'center', width: '100%' }}>
                   <input
@@ -442,29 +496,56 @@ function ForgotPassword() {
           )}
 
           <p style={{ marginTop: '22px', textAlign: 'center', fontSize: '0.9rem', color: '#666' }}>
-            Remembered your password?{' '}
-            <Link 
-              to="/login" 
-              style={{
-                color: '#2d6a4f',
-                fontWeight: 'bold',
-                textDecoration: 'none',
-                display: 'inline-block',
-                transition: 'all 0.2s ease'
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.color = '#1b4332';
-                e.target.style.textDecoration = 'underline';
-                e.target.style.transform = 'scale(1.03)';
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.color = '#2d6a4f';
-                e.target.style.textDecoration = 'none';
-                e.target.style.transform = 'scale(1)';
-              }}
-            >
-              Login here
-            </Link>
+            {loggedInEmail ? (
+              <Link 
+                to="/" 
+                style={{
+                  color: '#2d6a4f',
+                  fontWeight: 'bold',
+                  textDecoration: 'none',
+                  display: 'inline-block',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.color = '#1b4332';
+                  e.target.style.textDecoration = 'underline';
+                  e.target.style.transform = 'scale(1.03)';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.color = '#2d6a4f';
+                  e.target.style.textDecoration = 'none';
+                  e.target.style.transform = 'scale(1)';
+                }}
+              >
+                Return to Home?
+              </Link>
+            ) : (
+              <>
+                Remembered your password?{' '}
+                <Link 
+                  to="/login" 
+                  style={{
+                    color: '#2d6a4f',
+                    fontWeight: 'bold',
+                    textDecoration: 'none',
+                    display: 'inline-block',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.color = '#1b4332';
+                    e.target.style.textDecoration = 'underline';
+                    e.target.style.transform = 'scale(1.03)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.color = '#2d6a4f';
+                    e.target.style.textDecoration = 'none';
+                    e.target.style.transform = 'scale(1)';
+                  }}
+                >
+                  Login here
+                </Link>
+              </>
+            )}
           </p>
         </div>
       </div>

@@ -489,10 +489,10 @@ function Home({ user, cart, onAddToCart, onViewDetails, featuredProducts }) {
   const [selectedPriceRange, setSelectedPriceRange] = useState('All Prices');
 
   const handleFilterChange = ({ searchTerm: nextSearchTerm, location, category, priceRange } = {}) => {
-    setSearchTerm(nextSearchTerm || '');
-    setLocationQuery(location || '');
+    if (nextSearchTerm !== undefined) setSearchTerm(nextSearchTerm || '');
+    if (location !== undefined) setLocationQuery(location || '');
     if (category !== undefined) setSelectedCategory(category || 'All');
-    if (priceRange) setSelectedPriceRange(priceRange);
+    if (priceRange !== undefined) setSelectedPriceRange(priceRange || 'All Prices');
   };
 
   const handleCategorySelect = (cat) => setSelectedCategory(cat);
@@ -609,8 +609,14 @@ function Home({ user, cart, onAddToCart, onViewDetails, featuredProducts }) {
       <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 20px' }}>
         <ProductSearch
           selectedCategory={selectedCategory}
+          selectedPriceRange={selectedPriceRange}
+          searchTerm={searchTerm}
+          locationTerm={locationQuery}
           onCategoryChange={handleCategorySelect}
           onSearch={handleFilterChange}
+          onSearchTermChange={setSearchTerm}
+          onLocationChange={setLocationQuery}
+          onPriceRangeChange={setSelectedPriceRange}
         />
       </div>
 
@@ -704,7 +710,9 @@ function Home({ user, cart, onAddToCart, onViewDetails, featuredProducts }) {
             })
           ) : (
             <div style={styles.emptyState}>
-              <p style={styles.emptyStateText}>No products found matching your filter criteria on Home.</p>
+              <p style={{ fontSize: '1.2rem', color: '#555', marginBottom: '18px', fontWeight: '600' }}>
+                No product found matching your search
+              </p>
               <button
                 onClick={() => {
                   setSearchTerm('');
@@ -712,11 +720,31 @@ function Home({ user, cart, onAddToCart, onViewDetails, featuredProducts }) {
                   setSelectedCategory('All');
                   setSelectedPriceRange('All Prices');
                 }}
-                style={styles.emptyStateBtn}
-                onMouseEnter={(e) => e.target.style.backgroundColor = '#1b4332'}
-                onMouseLeave={(e) => e.target.style.backgroundColor = '#2d6a4f'}
+                style={{
+                  ...styles.emptyStateBtn,
+                  background: 'linear-gradient(135deg, #2d6a4f 0%, #1b4332 100%)',
+                  padding: '13px 30px',
+                  borderRadius: '10px',
+                  fontWeight: '800',
+                  fontSize: '1.05rem',
+                  cursor: 'pointer',
+                  border: 'none',
+                  boxShadow: '0 4px 14px rgba(27, 67, 50, 0.2)',
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  letterSpacing: '0.4px'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'linear-gradient(135deg, #52b788 0%, #2d6a4f 100%)';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 8px 20px rgba(45, 106, 79, 0.3)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'linear-gradient(135deg, #2d6a4f 0%, #1b4332 100%)';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 4px 14px rgba(27, 67, 50, 0.2)';
+                }}
               >
-                Reset Filters
+                🗑️ Clear Filters
               </button>
             </div>
           )}
@@ -779,20 +807,14 @@ function ProductsPage({ user, cart, onAddToCart, onBuyNow, viewProductDetails, s
     return matchesCat && matchesSearch && matchesLocation && matchesPrice;
   });
 
-  const handleFilterChange = ({ searchTerm, location, category, priceRange } = {}) => {
-    setSearchQuery(searchTerm);
-    setLocationQuery(location);
-    if (category !== undefined) {
-      setSelectedCategory(category ? category : 'All');
-    }
-    if (priceRange) {
-      setPriceRangeQuery(priceRange);
-    }
+  const handleFilterChange = ({ searchTerm: nextSearchTerm, location, category, priceRange } = {}) => {
+    if (nextSearchTerm !== undefined) setSearchQuery(nextSearchTerm || '');
+    if (location !== undefined) setLocationQuery(location || '');
+    if (category !== undefined) setSelectedCategory(category || 'All');
+    if (priceRange !== undefined) setPriceRangeQuery(priceRange || 'All Prices');
   };
 
-  const handleCategorySelect = (cat) => {
-    setSelectedCategory(cat);
-  };
+  const handleCategorySelect = (cat) => setSelectedCategory(cat);
 
   const handleAddToCart = async (product) => {
     if (!user) {
@@ -826,8 +848,14 @@ function ProductsPage({ user, cart, onAddToCart, onBuyNow, viewProductDetails, s
       <div style={prodStyles.mainContainer}>
         <ProductSearch
           selectedCategory={selectedCategory}
+          selectedPriceRange={priceRangeQuery}
+          searchTerm={searchQuery}
+          locationTerm={locationQuery}
           onCategoryChange={handleCategorySelect}
           onSearch={handleFilterChange}
+          onSearchTermChange={setSearchQuery}
+          onLocationChange={setLocationQuery}
+          onPriceRangeChange={setPriceRangeQuery}
         />
 
         <style>{`
@@ -921,20 +949,41 @@ function ProductsPage({ user, cart, onAddToCart, onBuyNow, viewProductDetails, s
             })
           ) : (
             <div style={prodStyles.emptyBox}>
-              <p style={{ fontSize: '1.2rem', color: '#555', marginBottom: '15px' }}>
-                No listings found matching your search.
+              <p style={{ fontSize: '1.2rem', color: '#555', marginBottom: '18px', fontWeight: '600' }}>
+                No product found matching your search
               </p>
               <button 
                 onClick={() => {
                   setSearchQuery('');
                   setLocationQuery('');
                   setSelectedCategory('All');
+                  setPriceRangeQuery('All Prices');
                 }} 
-                style={prodStyles.resetBtn}
-                onMouseEnter={(e) => e.target.style.backgroundColor = '#2d6a4f'}
-                onMouseLeave={(e) => e.target.style.backgroundColor = '#1b4332'}
+                style={{
+                  ...prodStyles.resetBtn,
+                  background: 'linear-gradient(135deg, #2d6a4f 0%, #1b4332 100%)',
+                  padding: '13px 30px',
+                  borderRadius: '10px',
+                  fontWeight: '800',
+                  fontSize: '1.05rem',
+                  cursor: 'pointer',
+                  border: 'none',
+                  boxShadow: '0 4px 14px rgba(27, 67, 50, 0.2)',
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  letterSpacing: '0.4px'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'linear-gradient(135deg, #52b788 0%, #2d6a4f 100%)';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 8px 20px rgba(45, 106, 79, 0.3)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'linear-gradient(135deg, #2d6a4f 0%, #1b4332 100%)';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 4px 14px rgba(27, 67, 50, 0.2)';
+                }}
               >
-                Clear Filters
+                🗑️ Clear Filters
               </button>
             </div>
           )}
@@ -1035,84 +1084,132 @@ function ProductsPage({ user, cart, onAddToCart, onBuyNow, viewProductDetails, s
           style={prodStyles.modalOverlay}
           onClick={deleteSuccessMessage ? undefined : closeDeleteModal}
         >
-          <div style={prodStyles.modal} onClick={(e) => e.stopPropagation()}>
-            {deleteSuccessMessage ? (
-              <div style={{ textAlign: 'center', padding: '20px 0' }}>
+          {deleteSuccessMessage ? (
+            <div className="success-overlay" style={{ position: 'fixed', inset: 0, zIndex: 9999 }}>
+              <div className="success-card">
                 <div style={{
                   width: '60px',
                   height: '60px',
+                  background: '#e8f5e9',
+                  border: '2px solid #52b788',
                   borderRadius: '50%',
-                  backgroundColor: '#d8f3dc',
-                  color: '#2d6a4f',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontSize: '2rem',
-                  margin: '0 auto 15px auto',
-                  boxShadow: '0 4px 12px rgba(45, 106, 79, 0.2)'
+                  fontSize: '1.8rem',
+                  color: '#2d6a4f',
+                  marginBottom: '16px',
+                  boxShadow: '0 4px 12px rgba(82, 183, 136, 0.25)'
                 }}>
                   ✓
                 </div>
-                <h3 style={{ margin: '0 0 10px 0', color: '#1b4332' }}>Deleted Successfully! 🗑️</h3>
-                <p style={{ margin: 0, color: '#4b5563', fontSize: '0.95rem' }}>
+                <h3 style={{ fontSize: '1.2rem', fontWeight: '800', color: '#1b4332', margin: '0 0 6px 0' }}>Deleted Successfully! 🗑️</h3>
+                <p style={{ fontSize: '0.92rem', color: '#4b5563', fontWeight: '600', margin: 0 }}>
                   {deleteSuccessMessage}
                 </p>
               </div>
-            ) : (
-              <>
-                <h3 style={{ margin: '0 0 10px 0', color: '#d32f2f' }}>Confirm Deletion 🗑️</h3>
-                <p style={{ margin: '0 0 20px 0', color: '#4b5563', fontSize: '0.95rem', lineHeight: '1.5' }}>
-                  Are you sure you want to delete <strong>"{deletingProduct.title}"</strong>? This action cannot be undone.
-                </p>
-                <div style={prodStyles.modalButtons}>
-                  <button
-                    type="button"
-                    onClick={confirmDeleteProduct}
-                    style={{
-                      flex: 1,
-                      backgroundColor: '#d32f2f',
-                      color: '#ffffff',
-                      border: 'none',
-                      padding: '10px',
-                      borderRadius: '6px',
-                      fontWeight: 'bold',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = '#b71c1c';
-                      e.currentTarget.style.transform = 'translateY(-2px)';
-                      e.currentTarget.style.boxShadow = '0 6px 16px rgba(211, 47, 47, 0.3)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = '#d32f2f';
-                      e.currentTarget.style.transform = 'translateY(0)';
-                      e.currentTarget.style.boxShadow = 'none';
-                    }}
-                  >
-                    Yes
-                  </button>
-                  <button
-                    type="button"
-                    onClick={closeDeleteModal}
-                    style={prodStyles.cancelBtn}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = '#424242';
-                      e.currentTarget.style.transform = 'translateY(-2px)';
-                      e.currentTarget.style.boxShadow = '0 6px 16px rgba(0,0,0,0.2)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = '#757575';
-                      e.currentTarget.style.transform = 'translateY(0)';
-                      e.currentTarget.style.boxShadow = 'none';
-                    }}
-                  >
-                    No
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
+            </div>
+          ) : (
+            <div style={{ ...prodStyles.modal, position: 'relative' }} onClick={(e) => e.stopPropagation()}>
+              {/* Top-right close icon matching Account Information modal */}
+              <button
+                type="button"
+                onClick={closeDeleteModal}
+                title="Close"
+                aria-label="Close"
+                style={{
+                  position: 'absolute',
+                  top: '16px',
+                  right: '16px',
+                  background: 'transparent',
+                  border: 'none',
+                  fontSize: '1.6rem',
+                  fontWeight: '700',
+                  color: '#6b7280',
+                  cursor: 'pointer',
+                  width: '32px',
+                  height: '32px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = '#dc2626';
+                  e.currentTarget.style.transform = 'scale(1.25)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = '#6b7280';
+                  e.currentTarget.style.transform = 'scale(1)';
+                }}
+              >
+                ×
+              </button>
+
+              <h3 style={{ margin: '0 0 10px 0', color: '#d32f2f' }}>Confirm Deletion 🗑️</h3>
+              <p style={{ margin: '0 0 20px 0', color: '#4b5563', fontSize: '0.95rem', lineHeight: '1.5', paddingRight: '20px' }}>
+                Are you sure you want to delete <strong>"{deletingProduct.title}"</strong>? This action cannot be undone.
+              </p>
+              <div style={prodStyles.modalButtons}>
+                {/* YES Button in Red Theme */}
+                <button
+                  type="button"
+                  onClick={confirmDeleteProduct}
+                  style={{
+                    flex: 1,
+                    backgroundColor: '#d32f2f',
+                    color: '#ffffff',
+                    border: 'none',
+                    padding: '10px',
+                    borderRadius: '8px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = '#b71c1c';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 6px 16px rgba(211, 47, 47, 0.3)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = '#d32f2f';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                >
+                  Yes
+                </button>
+                {/* NO Button in Green Theme */}
+                <button
+                  type="button"
+                  onClick={closeDeleteModal}
+                  style={{
+                    flex: 1,
+                    backgroundColor: '#2d6a4f',
+                    color: '#ffffff',
+                    border: 'none',
+                    padding: '10px',
+                    borderRadius: '8px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = '#1b4332';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 6px 16px rgba(45, 106, 79, 0.3)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = '#2d6a4f';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                >
+                  No
+                </button>
+              </div>
+            </div>
+          )}
         </div>,
         document.body
       )}

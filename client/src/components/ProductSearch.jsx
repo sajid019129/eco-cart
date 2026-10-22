@@ -77,19 +77,39 @@ const formatPriceDisplay = (range) => {
   return range;
 };
 
-const ProductSearch = ({ onSearch, selectedCategory = 'All', onCategoryChange }) => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [locationTerm, setLocationTerm] = useState('');
-  const [selectedPriceRange, setSelectedPriceRange] = useState('All Prices');
+const ProductSearch = ({ 
+  onSearch, 
+  selectedCategory = 'All', 
+  onCategoryChange,
+  searchTerm: externalSearchTerm = '',
+  locationTerm: externalLocationTerm = '',
+  selectedPriceRange: externalPriceRange = 'All Prices',
+  onSearchTermChange,
+  onLocationChange,
+  onPriceRangeChange
+}) => {
+  const [searchTerm, setSearchTerm] = useState(externalSearchTerm);
+  const [locationTerm, setLocationTerm] = useState(externalLocationTerm);
+  const [selectedPriceRange, setSelectedPriceRange] = useState(externalPriceRange);
   const [categories, setCategories] = useState(['All', 'Medicine', 'Food', 'Electronics', 'Stationery', 'Books', 'Clothing', 'Miscellaneous']);
 
-  // Custom Category Dropdown State
+  useEffect(() => {
+    setSearchTerm(externalSearchTerm || '');
+  }, [externalSearchTerm]);
+
+  useEffect(() => {
+    setLocationTerm(externalLocationTerm || '');
+  }, [externalLocationTerm]);
+
+  useEffect(() => {
+    setSelectedPriceRange(externalPriceRange || 'All Prices');
+  }, [externalPriceRange]);
+
   const [catDropdownOpen, setCatDropdownOpen] = useState(false);
   const [catDropdownMounted, setCatDropdownMounted] = useState(false);
   const catDropdownRef = useRef(null);
   const catCloseTimerRef = useRef(null);
 
-  // Custom Price Dropdown State
   const [priceDropdownOpen, setPriceDropdownOpen] = useState(false);
   const [priceDropdownMounted, setPriceDropdownMounted] = useState(false);
   const priceDropdownRef = useRef(null);
@@ -149,7 +169,6 @@ const ProductSearch = ({ onSearch, selectedCategory = 'All', onCategoryChange })
       .catch(() => {});
   }, []);
 
-  // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (catDropdownRef.current && !catDropdownRef.current.contains(event.target)) {
@@ -175,28 +194,61 @@ const ProductSearch = ({ onSearch, selectedCategory = 'All', onCategoryChange })
     };
   }, [catDropdownOpen, priceDropdownOpen]);
 
-  // Pass all filters back whenever any of them change
-  useEffect(() => {
+  const handleSelectCategory = (cat) => {
+    if (onCategoryChange) {
+      onCategoryChange(cat);
+    }
     if (onSearch) {
       onSearch({
         searchTerm,
         location: locationTerm,
-        category: selectedCategory === 'All' ? '' : selectedCategory,
+        category: cat === 'All' ? '' : cat,
         priceRange: selectedPriceRange
       });
-    }
-  }, [searchTerm, locationTerm, selectedCategory, selectedPriceRange, onSearch]);
-
-  const handleSelectCategory = (cat) => {
-    if (onCategoryChange) {
-      onCategoryChange(cat);
     }
     closeCatDropdown();
   };
 
   const handleSelectPrice = (range) => {
     setSelectedPriceRange(range);
+    if (onPriceRangeChange) onPriceRangeChange(range);
+    if (onSearch) {
+      onSearch({
+        searchTerm,
+        location: locationTerm,
+        category: selectedCategory === 'All' ? '' : selectedCategory,
+        priceRange: range
+      });
+    }
     closePriceDropdown();
+  };
+
+  const handleSearchChange = (e) => {
+    const val = e.target.value;
+    setSearchTerm(val);
+    if (onSearchTermChange) onSearchTermChange(val);
+    if (onSearch) {
+      onSearch({
+        searchTerm: val,
+        location: locationTerm,
+        category: selectedCategory === 'All' ? '' : selectedCategory,
+        priceRange: selectedPriceRange
+      });
+    }
+  };
+
+  const handleLocationChange = (e) => {
+    const val = e.target.value;
+    setLocationTerm(val);
+    if (onLocationChange) onLocationChange(val);
+    if (onSearch) {
+      onSearch({
+        searchTerm,
+        location: val,
+        category: selectedCategory === 'All' ? '' : selectedCategory,
+        priceRange: selectedPriceRange
+      });
+    }
   };
 
   return (
@@ -254,12 +306,12 @@ const ProductSearch = ({ onSearch, selectedCategory = 'All', onCategoryChange })
           display: flex;
           align-items: center;
           gap: 6px;
-          font-size: 0.8rem;
-          font-weight: 700;
+          font-size: 0.85rem;
+          font-weight: 800;
           color: #1b4332;
           margin-bottom: 4px;
           text-transform: uppercase;
-          letter-spacing: 0.5px;
+          letter-spacing: 0.6px;
           line-height: 1.2;
         }
 
@@ -274,10 +326,10 @@ const ProductSearch = ({ onSearch, selectedCategory = 'All', onCategoryChange })
           width: 100%;
           border: none;
           background: transparent;
-          font-size: 0.95rem;
+          font-size: 1.02rem;
           color: #1f2937;
           outline: none;
-          font-weight: 600;
+          font-weight: 700;
           padding: 0;
           margin: 0;
         }
@@ -288,7 +340,7 @@ const ProductSearch = ({ onSearch, selectedCategory = 'All', onCategoryChange })
         }
 
         .filter-icon {
-          font-size: 1.15rem;
+          font-size: 1.25rem;
           color: #2d6a4f;
         }
 
@@ -297,7 +349,7 @@ const ProductSearch = ({ onSearch, selectedCategory = 'All', onCategoryChange })
           border: none;
           cursor: pointer;
           color: #9ca3af;
-          font-size: 1.25rem;
+          font-size: 1.35rem;
           font-weight: bold;
           padding: 0 4px;
           line-height: 1;
@@ -321,9 +373,9 @@ const ProductSearch = ({ onSearch, selectedCategory = 'All', onCategoryChange })
           align-items: center;
           justify-content: space-between;
           width: 100%;
-          font-size: 0.95rem;
+          font-size: 1.02rem;
           color: #1f2937;
-          font-weight: 600;
+          font-weight: 700;
           background: transparent;
           border: none;
           outline: none;
@@ -336,8 +388,8 @@ const ProductSearch = ({ onSearch, selectedCategory = 'All', onCategoryChange })
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          width: 24px;
-          height: 24px;
+          width: 26px;
+          height: 26px;
           border-radius: 50%;
           color: #2d6a4f;
           background: rgba(45, 106, 79, 0.08);
@@ -388,18 +440,18 @@ const ProductSearch = ({ onSearch, selectedCategory = 'All', onCategoryChange })
         .custom-dropdown-item {
           display: flex;
           align-items: center;
-          gap: 10px;
+          gap: 12px;
           width: 100%;
           box-sizing: border-box;
-          padding: 10px 14px;
+          padding: 11px 16px;
           margin: 2px 0;
           background: transparent;
           border: 1px solid transparent;
           border-radius: 8px;
           font-family: inherit;
-          font-size: 0.93rem;
-          font-weight: 650;
-          color: #34463b;
+          font-size: 0.98rem;
+          font-weight: 700;
+          color: #27382d;
           cursor: pointer;
           transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         }
@@ -408,7 +460,7 @@ const ProductSearch = ({ onSearch, selectedCategory = 'All', onCategoryChange })
           background: #edf7f0;
           border-color: #b7e4c7;
           color: #1b4332;
-          padding-left: 18px;
+          padding-left: 20px;
           transform: translateY(-1px);
           box-shadow: 0 3px 8px rgba(27, 67, 50, 0.08);
         }
@@ -432,7 +484,7 @@ const ProductSearch = ({ onSearch, selectedCategory = 'All', onCategoryChange })
       `}</style>
 
       <div className="search-filter-container">
-        {/* BOX 01: Filter by Price Box (First) */}
+        {/* PRICE BOX */}
         <div 
           className={`filter-box custom-dropdown-container ${selectedPriceRange !== 'All Prices' ? 'active-box active-pulse' : ''}`}
           ref={priceDropdownRef}
@@ -473,7 +525,7 @@ const ProductSearch = ({ onSearch, selectedCategory = 'All', onCategoryChange })
           )}
         </div>
 
-        {/* BOX 02: Filter by Category Box (Second) */}
+        {/* CATEGORY BOX */}
         <div 
           className={`filter-box custom-dropdown-container ${selectedCategory !== 'All' ? 'active-box active-pulse' : ''}`}
           ref={catDropdownRef}
@@ -512,7 +564,7 @@ const ProductSearch = ({ onSearch, selectedCategory = 'All', onCategoryChange })
           )}
         </div>
 
-        {/* BOX 03: Search Products Box (Third) */}
+        {/* SEARCH BOX */}
         <div className={`filter-box ${searchTerm ? 'active-box active-pulse' : ''}`}>
           <span className="filter-label">
             <span className="filter-icon">🔍</span> SEARCH PRODUCTS
@@ -523,13 +575,24 @@ const ProductSearch = ({ onSearch, selectedCategory = 'All', onCategoryChange })
               className="filter-input"
               placeholder="Search by names or titles"
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={handleSearchChange}
             />
             {searchTerm && (
               <button 
                 type="button" 
                 className="clear-btn"
-                onClick={() => setSearchTerm('')} 
+                onClick={() => {
+                  setSearchTerm('');
+                  if (onSearchTermChange) onSearchTermChange('');
+                  if (onSearch) {
+                    onSearch({
+                      searchTerm: '',
+                      location: locationTerm,
+                      category: selectedCategory === 'All' ? '' : selectedCategory,
+                      priceRange: selectedPriceRange
+                    });
+                  }
+                }} 
                 title="Clear search"
               >
                 &times;
@@ -538,7 +601,7 @@ const ProductSearch = ({ onSearch, selectedCategory = 'All', onCategoryChange })
           </div>
         </div>
 
-        {/* BOX 04: Search by Location Box (Fourth) */}
+        {/* LOCATION BOX */}
         <div className={`filter-box ${locationTerm ? 'active-box active-pulse' : ''}`}>
           <span className="filter-label">
             <span className="filter-icon">📍</span> SEARCH BY LOCATION
@@ -549,13 +612,24 @@ const ProductSearch = ({ onSearch, selectedCategory = 'All', onCategoryChange })
               className="filter-input"
               placeholder="e.g. Uttara or Dhaka"
               value={locationTerm}
-              onChange={(e) => setLocationTerm(e.target.value)}
+              onChange={handleLocationChange}
             />
             {locationTerm && (
               <button 
                 type="button" 
                 className="clear-btn"
-                onClick={() => setLocationTerm('')} 
+                onClick={() => {
+                  setLocationTerm('');
+                  if (onLocationChange) onLocationChange('');
+                  if (onSearch) {
+                    onSearch({
+                      searchTerm,
+                      location: '',
+                      category: selectedCategory === 'All' ? '' : selectedCategory,
+                      priceRange: selectedPriceRange
+                    });
+                  }
+                }} 
                 title="Clear location"
               >
                 &times;
