@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import axios from 'axios';
 
 const formatMediaSrc = (img) => {
   if (!img) return null;
@@ -49,8 +50,9 @@ const getFirstImageThumbnail = (product) => {
   return list[0] || null;
 };
 
-const CheckoutModal = ({ user, cart = [], onClose, onSuccess }) => {
+const CheckoutModal = ({ user, cart = [], isBuyNow = false, onClose, onSuccess }) => {
   const [isClosing, setIsClosing] = useState(false);
+  const [cartItems, setCartItems] = useState(cart);
   const [quantities, setQuantities] = useState(() => {
     const initial = {};
     cart.forEach((item, idx) => {
@@ -84,16 +86,43 @@ const CheckoutModal = ({ user, cart = [], onClose, onSuccess }) => {
     }, 250);
   };
 
-  const handleQtyChange = (id, delta) => {
-    setQuantities(prev => {
-      const current = prev[id] || 1;
-      const updated = Math.max(1, current + delta);
-      return { ...prev, [id]: updated };
-    });
+  const handleQtyChange = async (item, delta) => {
+    const prod = item.product || item;
+    const id = prod._id || prod.id;
+    const currentQty = quantities[id] || item.quantity || 1;
+    const newQty = currentQty + delta;
+
+    if (newQty < 1) return;
+
+    // For Cart-based checkouts, update backend cart and stock immediately on +/- click
+    if (!isBuyNow) {
+      try {
+        const activeUserId = activeUser._id || activeUser.id || activeUser.userId;
+        const res = await axios.post('http://localhost:5000/api/cart/add', {
+          userId: activeUserId,
+          productId: id,
+          quantity: delta // positive or negative adjustment
+        });
+        
+        if (res.data && res.data.items) {
+          const formatted = res.data.items.filter(i => i.product !== null).map(i => ({
+            ...i.product,
+            quantity: i.quantity,
+            product: i.product
+          }));
+          setCartItems(formatted);
+        }
+      } catch (err) {
+        setError(err.response?.data?.error || 'Failed to update item quantity.');
+        return;
+      }
+    }
+
+    setQuantities(prev => ({ ...prev, [id]: newQty }));
   };
 
   const calculateSubtotal = () => {
-    return cart.reduce((acc, item) => {
+    return cartItems.reduce((acc, item) => {
       const prod = item.product || item;
       const id = prod._id || prod.id;
       const qty = quantities[id] || item.quantity || 1;
@@ -103,7 +132,7 @@ const CheckoutModal = ({ user, cart = [], onClose, onSuccess }) => {
   };
 
   const subtotal = calculateSubtotal();
-  const shippingFee = cart.length > 0 ? 70 : 0;
+  const shippingFee = cartItems.length > 0 ? 70 : 0;
   const totalAmount = subtotal + shippingFee;
 
   const handleInitialSubmit = (e) => {
@@ -143,11 +172,9 @@ const CheckoutModal = ({ user, cart = [], onClose, onSuccess }) => {
 
     setError('');
 
-    // Digital Payment: Show OTP Verification step first
     if (['bKash', 'Nagad', 'Upay', 'MasterCard'].includes(paymentMethod)) {
       setShowOtpScreen(true);
     } else {
-      // Cash on Delivery: Process Order directly
       processFinalOrder();
     }
   };
@@ -167,7 +194,7 @@ const CheckoutModal = ({ user, cart = [], onClose, onSuccess }) => {
     setError('');
 
     try {
-      const orderItems = cart.map(item => {
+      const orderItems = cartItems.map(item => {
         const prod = item.product || item;
         const id = prod._id || prod.id;
         const qty = quantities[id] || item.quantity || 1;
@@ -186,7 +213,8 @@ const CheckoutModal = ({ user, cart = [], onClose, onSuccess }) => {
             accountNumber: ['bKash', 'Nagad', 'Upay'].includes(paymentMethod) ? accountNumber : (paymentMethod === 'MasterCard' ? cardNumber : ''),
             trxId: ['bKash', 'Nagad', 'Upay'].includes(paymentMethod) ? 'ONLINE-OTP-PAID' : (paymentMethod === 'MasterCard' ? 'CARD-SECURE-PAY' : 'COD')
           },
-          shippingAddress: { phone: phoneVal, location: shippingLocation }
+          shippingAddress: { phone: phoneVal, location: shippingLocation },
+          isBuyNow: Boolean(isBuyNow)
         })
       });
 
@@ -679,7 +707,7 @@ const CheckoutModal = ({ user, cart = [], onClose, onSuccess }) => {
             <>
               <div className="prod-summary-container">
                 <div className="prod-summary-list">
-                  {cart.map((item, idx) => {
+                  {cartItems.map((item, idx) => {
                     const prod = item.product || item;
                     const id = prod._id || prod.id || idx;
                     const qty = quantities[id] || item.quantity || 1;
@@ -696,7 +724,7 @@ const CheckoutModal = ({ user, cart = [], onClose, onSuccess }) => {
                             <button 
                               type="button"
                               className="qty-btn" 
-                              onClick={() => handleQtyChange(id, -1)}
+                              onClick={() => handleQtyChange(item, -1)}
                             >
                               -
                             </button>
@@ -704,7 +732,7 @@ const CheckoutModal = ({ user, cart = [], onClose, onSuccess }) => {
                             <button 
                               type="button"
                               className="qty-btn" 
-                              onClick={() => handleQtyChange(id, 1)}
+                              onClick={() => handleQtyChange(item, 1)}
                             >
                               +
                             </button>

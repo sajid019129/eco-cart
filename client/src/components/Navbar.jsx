@@ -13,6 +13,8 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
   
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifMounted, setNotifMounted] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   const [avatarAlertOpen, setAvatarAlertOpen] = useState(false);
   const [avatarAlertMounted, setAvatarAlertMounted] = useState(false);
@@ -49,6 +51,27 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
   const trackAlertTimerRef = useRef(null);
   const successModalTimerRef = useRef(null);
 
+  const userId = user?._id || user?.id;
+  const isDeliveryTeam = user?.email === 'sajid019129@gmail.com' || user?.role === 'delivery-team';
+
+  // Fetch notifications whenever user logs in or changes
+  useEffect(() => {
+    if (userId) {
+      axios.get(`http://localhost:5000/api/notifications/${userId}`)
+        .then(res => {
+          if (Array.isArray(res.data)) {
+            setNotifications(res.data);
+            const unread = res.data.filter(n => !n.isRead).length;
+            setUnreadCount(unread);
+          }
+        })
+        .catch(err => console.error('Failed to fetch notifications:', err));
+    } else {
+      setNotifications([]);
+      setUnreadCount(0);
+    }
+  }, [userId]);
+
   const closeAllDropdowns = () => {
     if (dropdownOpen) closeDropdown();
     if (notifOpen) closeNotif();
@@ -81,13 +104,23 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
     }
   };
 
-  const openNotif = () => {
+  const openNotif = async () => {
     if (notifCloseTimerRef.current) clearTimeout(notifCloseTimerRef.current);
     if (autoHideTimerRef.current) clearTimeout(autoHideTimerRef.current);
     closeAllDropdowns();
 
     setNotifMounted(true);
     setNotifOpen(true);
+
+    if (userId && unreadCount > 0) {
+      try {
+        await axios.put(`http://localhost:5000/api/notifications/read/${userId}`);
+        setUnreadCount(0);
+        setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+      } catch (err) {
+        console.error('Failed to mark notifications as read:', err);
+      }
+    }
 
     if (!user) {
       autoHideTimerRef.current = setTimeout(() => {
@@ -198,7 +231,6 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
     }, 180);
   };
 
-  // Trigger custom center success modal with smooth transition and extended stay time (3 seconds)
   const showSuccessPopup = (msg, callback) => {
     if (successModalTimerRef.current) clearTimeout(successModalTimerRef.current);
     setSuccessModal({ show: true, closing: false, message: msg });
@@ -273,7 +305,6 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
       else triggerSellerAlert();
       return;
     }
-    // If user is logged in but NOT a seller, prevent navigation and show alert popup
     if (!user.isSeller) {
       e.preventDefault();
       if (sellerAlertOpen) closeSellerAlert();
@@ -293,22 +324,50 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
     if (!file || !user) return;
 
     const reader = new FileReader();
-    reader.onloadend = async () => {
-      const base64Avatar = reader.result;
-      try {
-        const res = await axios.put('http://localhost:5000/api/auth/update-avatar', {
-          email: user.email,
-          avatar: base64Avatar
-        });
-        
-        const updatedUserObj = res.data.user;
-        setUser(updatedUserObj);
-        localStorage.setItem('user', JSON.stringify(updatedUserObj));
-        showSuccessPopup('Profile picture updated successfully!');
-      } catch (err) {
-        console.error('Failed to update picture:', err);
-        alert(err.response?.data?.message || 'Failed to update profile picture.');
-      }
+    reader.onload = (uploadEvent) => {
+      const img = new Image();
+      img.onload = async () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 300;
+        const MAX_HEIGHT = 300;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.8);
+
+        try {
+          const res = await axios.put('http://localhost:5000/api/auth/update-avatar', {
+            email: user.email,
+            avatar: compressedBase64
+          });
+          
+          const updatedUserObj = res.data.user;
+          setUser(updatedUserObj);
+          localStorage.setItem('user', JSON.stringify(updatedUserObj));
+          showSuccessPopup('Profile picture updated successfully!');
+        } catch (err) {
+          console.error('Failed to update picture:', err);
+          alert(err.response?.data?.message || 'Server error while updating profile picture.');
+        }
+      };
+      img.src = uploadEvent.target.result;
     };
     reader.readAsDataURL(file);
     e.target.value = '';
@@ -360,6 +419,12 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
   const userFullName = user?.name || user?.username || 'User';
   const hasCustomAvatar = user?.avatar && user.avatar.trim() !== '' && user.avatar !== DEFAULT_AVATAR;
   const isSellerUser = Boolean(user?.isSeller);
+
+  const formattedBellBadge = unreadCount > 99 ? '99+' : unreadCount;
+
+  // Delivery team avatar setup
+  const deliveryTeamAvatar = "/Eco-Cart Delivery Team.jpg";
+  const displayAvatar = isDeliveryTeam ? deliveryTeamAvatar : (user?.avatar || DEFAULT_AVATAR);
 
   return (
     <>
@@ -481,39 +546,52 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
           box-shadow: 0 2px 6px rgba(230, 57, 70, 0.4);
         }
 
-        @keyframes sellZoomPulseFast {
-          0% { transform: scale(1); }
-          50% { transform: scale(1.06); }
-          100% { transform: scale(1); }
+        .bell-badge-abs {
+          position: absolute;
+          top: -4px;
+          right: -4px;
+          background-color: #e63946;
+          color: #ffffff;
+          font-size: 0.68rem;
+          font-weight: bold;
+          border-radius: 50%;
+          padding: 2px 5px;
+          min-width: 18px;
+          height: 18px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          animation: badgePop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+          box-shadow: 0 2px 6px rgba(230, 57, 70, 0.4);
         }
 
         .btn-sell-pro {
           background-color: #2d6a4f;
           color: #ffffff;
-          padding: 7px 16px;
+          padding: 7px 14px;
           border-radius: 8px;
           text-decoration: none;
-          font-weight: 800;
+          font-weight: 600;
           font-size: 0.93rem;
           border: 2px solid #52b788;
           cursor: pointer;
-          transition: all 0.2s ease;
-          animation: sellZoomPulseFast 0.45s infinite ease-in-out;
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
           display: inline-flex;
           align-items: center;
           gap: 6px;
           white-space: nowrap;
+          box-shadow: 0 2px 5px rgba(0,0,0,0.05);
         }
 
         .btn-sell-pro:hover {
           background-color: #52b788;
           border-color: #74c69d;
           color: #081c15;
-          box-shadow: 0 4px 14px rgba(82, 183, 136, 0.4);
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(82, 183, 136, 0.3);
         }
 
         .btn-sell-pro.active {
-          animation: none;
           background-color: #52b788;
           color: #081c15;
           border: 2px solid #74c69d;
@@ -523,7 +601,7 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
 
         .btn-sell-pro.faded-non-seller {
           background-color: #3b5247;
-          color: #b0c4b8;
+          color: #ffffff;
           border: 2px solid #6b8e7b;
           opacity: 0.75;
         }
@@ -554,6 +632,7 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
           cursor: pointer;
           transition: all 0.2s ease;
           flex-shrink: 0;
+          position: relative;
         }
 
         .notification-btn:hover {
@@ -564,12 +643,13 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
           box-shadow: 0 4px 12px rgba(82, 183, 136, 0.4);
         }
 
-        .notification-dropdown {
+        .nav-alert-bubble {
           position: absolute;
-          right: -10px;
+          right: 0;
           top: calc(100% + 14px);
+          width: auto;
           white-space: nowrap;
-          padding: 12px 18px;
+          padding: 10px 16px;
           background: #ffffff;
           border-radius: 13px;
           box-shadow: 0 14px 36px rgba(0, 0, 0, 0.23), 0 3px 8px rgba(0, 0, 0, 0.08);
@@ -579,14 +659,14 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
           color: #1b4332;
           font-size: 0.92rem;
           font-weight: 750;
-          text-align: center;
+          text-align: left;
         }
 
-        .notification-dropdown::before {
+        .nav-alert-bubble::before {
           content: '';
           position: absolute;
           top: -7px;
-          right: 22px;
+          right: 18px;
           width: 12px;
           height: 12px;
           background: #ffffff;
@@ -596,16 +676,52 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
           border-radius: 2px;
         }
 
-        /* Variant for left-aligned dropdowns (Cart & Track Order) so the arrow points to the left side */
-        .notification-dropdown.left-aligned {
-          left: 0;
-          right: auto;
-          transform-origin: top left;
+        .nav-alert-bubble.open {
+          animation: dropdownEnter 0.2s cubic-bezier(0.2, 0.8, 0.2, 1) both;
         }
 
-        .notification-dropdown.left-aligned::before {
-          right: auto;
-          left: 22px;
+        .nav-alert-bubble.closing {
+          animation: dropdownExit 0.18s ease-in both;
+          pointer-events: none;
+        }
+
+        .notification-dropdown {
+          position: absolute;
+          right: 0;
+          top: calc(100% + 14px);
+          width: 320px;
+          background: #ffffff;
+          border-radius: 13px;
+          box-shadow: 0 14px 36px rgba(0, 0, 0, 0.23), 0 3px 8px rgba(0, 0, 0, 0.08);
+          border: 1px solid #e5e7eb;
+          z-index: 1001;
+          transform-origin: top right;
+          color: #1b4332;
+          font-size: 0.92rem;
+          font-weight: 750;
+          text-align: left;
+          overflow: visible;
+          padding: 6px;
+        }
+
+        .notification-dropdown::before {
+          content: '';
+          position: absolute;
+          top: -7px;
+          right: 18px;
+          width: 12px;
+          height: 12px;
+          background: #ffffff;
+          border-top: 1px solid #e5e7eb;
+          border-left: 1px solid #e5e7eb;
+          transform: rotate(45deg);
+          border-radius: 2px;
+        }
+
+        .notification-body-scroll {
+          max-height: 360px;
+          overflow-y: auto;
+          padding: 8px 10px;
         }
 
         .notification-dropdown.open {
@@ -615,6 +731,29 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
         .notification-dropdown.closing {
           animation: dropdownExit 0.18s ease-in both;
           pointer-events: none;
+        }
+
+        .notif-item {
+          padding: 10px;
+          margin-bottom: 8px;
+          background: #f8f9fa;
+          border: 1px solid #e5e7eb;
+          border-radius: 8px;
+        }
+
+        .notif-title {
+          font-weight: 750;
+          font-size: 0.9rem;
+          color: #1b4332;
+          margin-bottom: 3px;
+          display: flex;
+          justify-content: space-between;
+        }
+
+        .notif-msg {
+          font-size: 0.85rem;
+          color: #4b5563;
+          font-weight: normal;
         }
 
         @keyframes dropdownEnter {
@@ -1011,56 +1150,65 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
 
       <nav className="navbar-container">
         <div className="nav-left-group">
-          <Link to="/" className="nav-logo">
-            Eco-Cart 🛍️
-          </Link>
-
-          <div className="nav-links">
-            <Link to="/" className={`nav-link ${isActive('/') ? 'active' : ''}`}>
-              🏠 Home
+          {/* Logo click behavior: disabled for delivery team */}
+          {isDeliveryTeam ? (
+            <span className="nav-logo" style={{ cursor: 'default' }}>
+              Eco-Cart 🛍️
+            </span>
+          ) : (
+            <Link to="/" className="nav-logo">
+              Eco-Cart 🛍️
             </Link>
+          )}
 
-            <Link to="/products" className={`nav-link ${isActive('/products') ? 'active' : ''}`}>
-              📦 Buy Products
-            </Link>
+          {!isDeliveryTeam && (
+            <div className="nav-links">
+              <Link to="/" className={`nav-link ${isActive('/') ? 'active' : ''}`}>
+                🏠 Home
+              </Link>
 
-            <div className="notification-container" ref={cartAlertRef} style={{ display: 'inline-block' }}>
-              <Link 
-                to="/cart" 
-                className={`nav-link ${isActive('/cart') ? 'active' : ''}`} 
-                onClick={handleCartClick}
-              >
-                🛒 Cart
-                {cartCount > 0 && user && (
-                  <span key={cartCount} className="cart-badge">
-                    {cartCount}
-                  </span>
+              <Link to="/products" className={`nav-link ${isActive('/products') ? 'active' : ''}`}>
+                📦 Buy Products
+              </Link>
+
+              <div className="notification-container" ref={cartAlertRef} style={{ display: 'inline-block' }}>
+                <Link 
+                  to="/cart" 
+                  className={`nav-link ${isActive('/cart') ? 'active' : ''}`} 
+                  onClick={handleCartClick}
+                >
+                  🛒 Cart
+                  {cartCount > 0 && user && (
+                    <span key={cartCount} className="cart-badge">
+                      {cartCount}
+                    </span>
+                  )}
+                </Link>
+
+                {cartAlertMounted && (
+                  <div className={`nav-alert-bubble ${cartAlertOpen ? 'open' : 'closing'}`}>
+                    <div>Please login to add products in your cart</div>
+                  </div>
                 )}
-              </Link>
+              </div>
 
-              {cartAlertMounted && (
-                <div className={`notification-dropdown left-aligned ${cartAlertOpen ? 'open' : 'closing'}`}>
-                  <div>Please login to add products in your cart</div>
-                </div>
-              )}
+              <div className="notification-container" ref={trackAlertRef} style={{ display: 'inline-block' }}>
+                <Link 
+                  to="/track-order" 
+                  className={`nav-link ${isActive('/track-order') ? 'active' : ''}`} 
+                  onClick={handleTrackClick}
+                >
+                  🚚 Track Order
+                </Link>
+
+                {trackAlertMounted && (
+                  <div className={`nav-alert-bubble ${trackAlertOpen ? 'open' : 'closing'}`}>
+                    <div>Please login to track your orders</div>
+                  </div>
+                )}
+              </div>
             </div>
-
-            <div className="notification-container" ref={trackAlertRef} style={{ display: 'inline-block' }}>
-              <Link 
-                to="/track-order" 
-                className={`nav-link ${isActive('/track-order') ? 'active' : ''}`} 
-                onClick={handleTrackClick}
-              >
-                🚚 Track Order
-              </Link>
-
-              {trackAlertMounted && (
-                <div className={`notification-dropdown left-aligned ${trackAlertOpen ? 'open' : 'closing'}`}>
-                  <div>Please login to track your orders</div>
-                </div>
-              )}
-            </div>
-          </div>
+          )}
         </div>
 
         <div className="right-actions-group">
@@ -1073,12 +1221,36 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
               onClick={toggleNotif}
             >
               🔔
+              {unreadCount > 0 && user && (
+                <span key={unreadCount} className="bell-badge-abs">
+                  {formattedBellBadge}
+                </span>
+              )}
             </button>
 
             {notifMounted && (
-              <div className={`notification-dropdown ${notifOpen ? 'open' : 'closing'}`}>
+              <div className={user && notifications.length > 0 ? `notification-dropdown ${notifOpen ? 'open' : 'closing'}` : `nav-alert-bubble ${notifOpen ? 'open' : 'closing'}`}>
                 {user ? (
-                  <div>You have no new notifications</div>
+                  notifications.length > 0 ? (
+                    <div className="notification-body-scroll">
+                      <div style={{ fontWeight: '800', marginBottom: '8px', borderBottom: '1px solid #e5e7eb', paddingBottom: '6px', color: '#1b4332' }}>
+                        Notifications ({notifications.length})
+                      </div>
+                      {notifications.map((n, idx) => (
+                        <div key={n._id || idx} className="notif-item">
+                          <div className="notif-title">
+                            <span>{n.title}</span>
+                            <span style={{ fontSize: '0.7rem', color: '#6b7280', fontWeight: 'normal' }}>
+                              {new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                          <div className="notif-msg">{n.message}</div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div>You have no new notifications</div>
+                  )
                 ) : (
                   <div>Please login to see your notifications</div>
                 )}
@@ -1086,25 +1258,27 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
             )}
           </div>
 
-          <div className="notification-container" ref={sellerAlertRef}>
-            <Link 
-              to="/add-product" 
-              className={`btn-sell-pro ${isActive('/add-product') ? 'active' : ''} ${user && !isSellerUser ? 'faded-non-seller' : ''}`} 
-              onClick={handleSellClick}
-            >
-              💰 Sell Items
-            </Link>
+          {!isDeliveryTeam && (
+            <div className="notification-container" ref={sellerAlertRef}>
+              <Link 
+                to="/add-product" 
+                className={`btn-sell-pro ${isActive('/add-product') ? 'active' : ''} ${user && !isSellerUser ? 'faded-non-seller' : ''}`} 
+                onClick={handleSellClick}
+              >
+                💰 Sell Items
+              </Link>
 
-            {sellerAlertMounted && (
-              <div className={`notification-dropdown ${sellerAlertOpen ? 'open' : 'closing'}`} style={{ right: '0px', top: 'calc(100% + 14px)' }}>
-                <div>
-                  {!user 
-                    ? 'Please login to sell your products' 
-                    : 'You are not eligible for selling products'}
+              {sellerAlertMounted && (
+                <div className={`nav-alert-bubble ${sellerAlertOpen ? 'open' : 'closing'}`}>
+                  <div>
+                    {!user 
+                      ? 'Please login to sell your products' 
+                      : 'You are not eligible for selling products'}
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
 
           {user ? (
             <div className="profile-container" ref={dropdownRef}>
@@ -1118,7 +1292,7 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
                 aria-expanded={dropdownOpen}
               >
                 <img
-                  src={user.avatar || DEFAULT_AVATAR}
+                  src={displayAvatar}
                   alt=""
                   className="nav-avatar"
                 />
@@ -1129,7 +1303,7 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
               </button>
 
               {avatarAlertMounted && (
-                <div className={`notification-dropdown ${avatarAlertOpen ? 'open' : 'closing'}`} style={{ right: '10px', top: 'calc(100% + 14px)' }}>
+                <div className={`nav-alert-bubble ${avatarAlertOpen ? 'open' : 'closing'}`}>
                   <div>You have not added any profile picture</div>
                 </div>
               )}
@@ -1145,91 +1319,95 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
                     <div className="dropdown-user-name">{userFullName}</div>
                   </div>
 
-                  <button
-                    type="button"
-                    role="menuitem"
-                    onClick={() => {
-                      closeDropdown();
-                      setShowAccountModal(true);
-                    }}
-                    className="dropdown-item"
-                  >
-                    <span aria-hidden="true">📄</span>
-                    <span>Account information</span>
-                  </button>
-
-                  {hasCustomAvatar ? (
+                  {!isDeliveryTeam && (
                     <>
-                      <button
-                        type="button"
-                        role="menuitem"
-                        onClick={handleChangePictureClick}
-                        className="dropdown-item"
-                      >
-                        <span aria-hidden="true">🖼️</span>
-                        <span>Change profile picture</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        role="menuitem"
-                        onClick={async () => {
-                          closeDropdown();
-                          try {
-                            const res = await axios.put('http://localhost:5000/api/auth/update-avatar', {
-                              email: user.email,
-                              avatar: ''
-                            });
-                            setUser(res.data.user);
-                            localStorage.setItem('user', JSON.stringify(res.data.user));
-                            showSuccessPopup('Profile picture removed successfully!');
-                          } catch (err) {
-                            console.error(err);
-                            alert('Failed to remove profile picture.');
-                          }
-                        }}
-                        className="dropdown-item"
-                      >
-                        <span aria-hidden="true">👤</span>
-                        <span>Remove profile picture</span>
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <button
-                        type="button"
-                        role="menuitem"
-                        onClick={handleChangePictureClick}
-                        className="dropdown-item"
-                      >
-                        <span aria-hidden="true">🖼️</span>
-                        <span>Add profile picture</span>
-                      </button>
-
                       <button
                         type="button"
                         role="menuitem"
                         onClick={() => {
                           closeDropdown();
-                          triggerAvatarAlert();
+                          setShowAccountModal(true);
                         }}
                         className="dropdown-item"
                       >
-                        <span aria-hidden="true">👤</span>
-                        <span>Remove profile picture</span>
+                        <span aria-hidden="true">📄</span>
+                        <span>Account information</span>
+                      </button>
+
+                      {hasCustomAvatar ? (
+                        <>
+                          <button
+                            type="button"
+                            role="menuitem"
+                            onClick={handleChangePictureClick}
+                            className="dropdown-item"
+                          >
+                            <span aria-hidden="true">🖼️</span>
+                            <span>Change profile picture</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            role="menuitem"
+                            onClick={async () => {
+                              closeDropdown();
+                              try {
+                                const res = await axios.put('http://localhost:5000/api/auth/update-avatar', {
+                                  email: user.email,
+                                  avatar: ''
+                                });
+                                setUser(res.data.user);
+                                localStorage.setItem('user', JSON.stringify(res.data.user));
+                                showSuccessPopup('Profile picture removed successfully!');
+                              } catch (err) {
+                                console.error(err);
+                                alert('Failed to remove profile picture.');
+                              }
+                            }}
+                            className="dropdown-item"
+                          >
+                            <span aria-hidden="true">👤</span>
+                            <span>Remove profile picture</span>
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            role="menuitem"
+                            onClick={handleChangePictureClick}
+                            className="dropdown-item"
+                          >
+                            <span aria-hidden="true">🖼️</span>
+                            <span>Add profile picture</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            role="menuitem"
+                            onClick={() => {
+                              closeDropdown();
+                              triggerAvatarAlert();
+                            }}
+                            className="dropdown-item"
+                          >
+                            <span aria-hidden="true">👤</span>
+                            <span>Remove profile picture</span>
+                          </button>
+                        </>
+                      )}
+
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => handleNavClick('/forgot-password')}
+                        className="dropdown-item"
+                      >
+                        <span aria-hidden="true">🔑</span>
+                        <span>Forgot password?</span>
                       </button>
                     </>
                   )}
-
-                  <button
-                    type="button"
-                    role="menuitem"
-                    onClick={() => handleNavClick('/forgot-password')}
-                    className="dropdown-item"
-                  >
-                    <span aria-hidden="true">🔑</span>
-                    <span>Forgot password?</span>
-                  </button>
 
                   <button
                     type="button"
@@ -1241,18 +1419,20 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
                     <span>Logout</span>
                   </button>
 
-                  <button
-                    type="button"
-                    role="menuitem"
-                    onClick={() => {
-                      closeDropdown();
-                      setConfirmDeleteModal(true);
-                    }}
-                    className="dropdown-item danger-action"
-                  >
-                    <span aria-hidden="true">🗑️</span>
-                    <span>Delete account</span>
-                  </button>
+                  {!isDeliveryTeam && (
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        closeDropdown();
+                        setConfirmDeleteModal(true);
+                      }}
+                      className="dropdown-item danger-action"
+                    >
+                      <span aria-hidden="true">🗑️</span>
+                      <span>Delete account</span>
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -1269,7 +1449,6 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
         </div>
       </nav>
 
-      {/* Product-Style Confirmation Deletion Modal matching App.jsx */}
       {confirmDeleteModal && (
         <div className="success-overlay">
           <div className="confirm-card">
@@ -1301,14 +1480,17 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
         </div>
       )}
 
-      {/* Centered Animated Success Modal with Checkmark */}
       {successModal.show && (
         <div className="success-overlay">
           <div className="success-card">
             <div className="success-tick-circle">
               ✓
             </div>
-            <h3 className="success-title">Deleted Successfully! 🗑️</h3>
+            <h3 className="success-title">
+              {successModal.message.toLowerCase().includes('deleted') 
+                ? 'Deleted Successfully! 🗑️' 
+                : 'Success! ✨'}
+            </h3>
             <p className="success-message">{successModal.message}</p>
           </div>
         </div>

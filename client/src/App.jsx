@@ -6,6 +6,7 @@ import Navbar from './components/Navbar';
 import AddProduct from './components/AddProduct';
 import Cart from './components/Cart';
 import Login from './pages/Login';
+import DeliveryLogin from './pages/DeliveryLogin';
 import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
 import TrackOrder from './pages/TrackOrder';
@@ -370,7 +371,7 @@ function ProductCard({ product, displayStock, isOwner, isSoldOut, currentPrice, 
       onMouseEnter={(e) => {
         e.currentTarget.style.transform = 'translateY(-6px) scale(1.02)';
         e.currentTarget.style.boxShadow = '0 12px 28px rgba(45, 106, 79, 0.18)';
-        e.currentTarget.style.borderColor = '#52b788';
+        e.currentTarget.style.borderColor = '#1b4332';
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.transform = 'translateY(0) scale(1)';
@@ -482,7 +483,8 @@ function ProductCard({ product, displayStock, isOwner, isSoldOut, currentPrice, 
   );
 }
 
-function Home({ user, cart, onAddToCart, onViewDetails, featuredProducts }) {
+function Home({ user, setUser, cart, onAddToCart, onViewDetails, featuredProducts }) {
+  const navigate = useNavigate();
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [searchTerm, setSearchTerm] = useState('');
   const [locationQuery, setLocationQuery] = useState('');
@@ -524,82 +526,260 @@ function Home({ user, cart, onAddToCart, onViewDetails, featuredProducts }) {
         <div style={styles.heroContent}>
           <h1 style={styles.heroTitle}>Eco-Cart 🛍️</h1>
           <p style={styles.heroSubtitle}>From Surplus To Sustainable</p>
-          
+
           {user ? (
-            <div style={styles.ctaBox}>
-              <div style={styles.userBadgeHeader}>
-                <img 
-                  src={user.avatar || DEFAULT_AVATAR} 
-                  alt="User Profile" 
-                  style={styles.heroAvatar} 
-                />
-                <p style={styles.userGreeting}>
-                  Welcome back, <strong>{user.name || user.username || 'User'}</strong>!
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+              {/* Wider Professional White Card Container for Logged-In User */}
+              <div style={{
+                backgroundColor: '#ffffff',
+                border: '1px solid #e5e7eb',
+                borderRadius: '16px',
+                padding: '28px 36px',
+                width: '100%',
+                maxWidth: '640px',
+                boxShadow: '0 12px 32px rgba(0, 0, 0, 0.2)',
+                boxSizing: 'border-box',
+                textAlign: 'center'
+              }}>
+                {/* Profile Picture & Slightly Larger Bold Italic Welcome Greeting */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '12px',
+                  marginBottom: '22px'
+                }}>
+                  <img
+                    src={user.avatar || DEFAULT_AVATAR}
+                    alt="User Profile"
+                    style={{
+                      width: '48px',
+                      height: '48px',
+                      borderRadius: '50%',
+                      objectFit: 'cover',
+                      border: '2px solid #1b4332',
+                      boxShadow: '0 4px 10px rgba(0,0,0,0.1)'
+                    }}
+                  />
+                  <p style={{
+                    fontSize: '1.28rem',
+                    fontStyle: 'italic',
+                    fontWeight: 'bold',
+                    color: '#374151',
+                    margin: 0,
+                    letterSpacing: '0.2px',
+                    fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif"
+                  }}>
+                    Welcome back, <span style={{ color: '#1b4332' }}>{user.name || user.username || 'User'}</span>!
+                  </p>
+                </div>
+
+                {/* Larger & Spacier Twin Action Buttons */}
+                <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                  <Link
+                    to="/products"
+                    style={{
+                      flex: 1,
+                      minWidth: '230px',
+                      backgroundColor: '#1b4332',
+                      color: '#ffffff',
+                      border: '1.5px solid #1b4332',
+                      padding: '16px 24px',
+                      borderRadius: '10px',
+                      fontWeight: '800',
+                      fontSize: '1.08rem',
+                      textDecoration: 'none',
+                      fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+                      transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                      display: 'inline-block',
+                      boxShadow: '0 4px 14px rgba(0, 0, 0, 0.1)'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = '#2d6a4f';
+                      e.currentTarget.style.borderColor = '#2d6a4f';
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow = '0 6px 20px rgba(0, 0, 0, 0.2)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = '#1b4332';
+                      e.currentTarget.style.borderColor = '#1b4332';
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = '0 4px 14px rgba(0, 0, 0, 0.1)';
+                    }}
+                  >
+                    Explore Products 🛒
+                  </Link>
+
+                  <Link
+                    to="/add-product"
+                    style={{
+                      flex: 1,
+                      minWidth: '230px',
+                      backgroundColor: '#1b4332',
+                      color: '#ffffff',
+                      border: '1.5px solid #1b4332',
+                      padding: '16px 24px',
+                      borderRadius: '10px',
+                      fontWeight: '800',
+                      fontSize: '1.08rem',
+                      textDecoration: 'none',
+                      fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+                      transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                      display: 'inline-block',
+                      boxShadow: '0 4px 14px rgba(0, 0, 0, 0.1)'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = '#2d6a4f';
+                      e.currentTarget.style.borderColor = '#2d6a4f';
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow = '0 6px 20px rgba(0, 0, 0, 0.2)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = '#1b4332';
+                      e.currentTarget.style.borderColor = '#1b4332';
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = '0 4px 14px rgba(0, 0, 0, 0.1)';
+                    }}
+                  >
+                    Post a Product for Sale 📦
+                  </Link>
+                </div>
+              </div>
+            </div>          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+              <div style={{
+                backgroundColor: '#ffffff',
+                border: '1px solid #e5e7eb',
+                borderRadius: '16px',
+                padding: '26px 32px',
+                width: '100%',
+                maxWidth: '560px',
+                boxShadow: '0 12px 32px rgba(0, 0, 0, 0.2)',
+                boxSizing: 'border-box',
+                textAlign: 'center'
+              }}>
+                <p style={{
+                  fontSize: '1.08rem',
+                  fontStyle: 'italic',
+                  fontWeight: '600',
+                  color: '#374151',
+                  margin: '0 0 20px 0',
+                  letterSpacing: '0.2px',
+                  fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif"
+                }}>
+                  Join our marketplace to purchase or sell sustainable goods!
                 </p>
+
+                <div style={{ display: 'flex', gap: '14px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                  <Link
+                    to="/login"
+                    style={{
+                      flex: 1, minWidth: '180px', backgroundColor: '#1b4332',
+                      color: '#ffffff', border: '1.5px solid #1b4332',
+                      padding: '13px 20px', borderRadius: '10px', fontWeight: '800',
+                      fontSize: '0.98rem', textDecoration: 'none',
+                      fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+                      transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                      display: 'inline-block', boxShadow: '0 4px 14px rgba(0, 0, 0, 0.1)'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = '#2d6a4f';
+                      e.currentTarget.style.borderColor = '#74c69d';
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow = '0 6px 20px rgba(0, 0, 0, 0.3)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = '#1b4332';
+                      e.currentTarget.style.borderColor = '#1b4332';
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = '0 4px 14px rgba(0, 0, 0, 0.2)';
+                    }}
+                  >
+                    Login to Your Account
+                  </Link>
+
+                  <Link
+                    to="/register"
+                    style={{
+                      flex: 1, minWidth: '180px', backgroundColor: '#1b4332',
+                      color: '#ffffff', border: '1.5px solid #1b4332',
+                      padding: '13px 20px', borderRadius: '10px', fontWeight: '800',
+                      fontSize: '0.98rem', textDecoration: 'none',
+                      fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+                      transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                      display: 'inline-block', boxShadow: '0 4px 14px rgba(0, 0, 0, 0.1)'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = '#2d6a4f';
+                      e.currentTarget.style.borderColor = '#74c69d';
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow = '0 6px 20px rgba(0, 0, 0, 0.3)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = '#1b4332';
+                      e.currentTarget.style.borderColor = '#52b788';
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = '0 4px 14px rgba(0, 0, 0, 0.2)';
+                    }}
+                  >
+                    Create New Account
+                  </Link>
+                </div>
               </div>
-              <div style={styles.btnGroup}>
-                <Link 
-                  to="/products" 
-                  style={styles.primaryBtn}
+
+              {/* Shorter Delivery Team Portal Button with Infinite Truck Animation */}
+              <div style={{ width: '100%', maxWidth: '420px', marginTop: '14px' }}>
+                <style>{`
+                  @keyframes travelFastLoop {
+                    0% { transform: translateX(0); }
+                    50% { transform: translateX(6px); }
+                    100% { transform: translateX(0); }
+                  }
+                  .delivery-truck-fast-anim {
+                    display: inline-block;
+                    font-size: 1.25rem;
+                    margin: 0 6px;
+                    animation: travelFastLoop 0.75s ease-in-out infinite;
+                  }
+                `}</style>
+                <button
+                  type="button"
+                  onClick={() => navigate('/delivery-login')}
+                  style={{
+                    width: '100%',
+                    backgroundColor: 'rgba(27, 67, 50, 0.75)',
+                    color: '#ffffff',
+                    border: '1.5px solid #52b788',
+                    padding: '13px 18px',
+                    borderRadius: '12px',
+                    fontWeight: '800',
+                    fontSize: '1.05rem',
+                    fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+                    cursor: 'pointer',
+                    transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '10px',
+                    boxShadow: '0 6px 20px rgba(0, 0, 0, 0.25)'
+                  }}
                   onMouseEnter={(e) => {
-                    e.target.style.backgroundColor = '#52b788';
-                    e.target.style.color = '#1b4332';
+                    e.currentTarget.style.backgroundColor = '#1b4332';
+                    e.currentTarget.style.borderColor = '#74c69d';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 8px 24px rgba(82, 183, 136, 0.4)';
                   }}
                   onMouseLeave={(e) => {
-                    e.target.style.backgroundColor = 'transparent';
-                    e.target.style.color = '#ffffff';
+                    e.currentTarget.style.backgroundColor = 'rgba(27, 67, 50, 0.75)';
+                    e.currentTarget.style.borderColor = '#52b788';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 6px 20px rgba(0, 0, 0, 0.25)';
                   }}
                 >
-                  Explore Products 🛒
-                </Link>
-                <Link 
-                  to="/add-product" 
-                  style={styles.secondaryBtn}
-                  onMouseEnter={(e) => {
-                    e.target.style.backgroundColor = '#52b788';
-                    e.target.style.color = '#1b4332';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.target.style.backgroundColor = 'transparent';
-                    e.target.style.color = '#ffffff';
-                  }}
-                >
-                  Post a Product for Sale 📦
-                </Link>
-              </div>
-            </div>
-          ) : (
-            <div style={styles.ctaBox}>
-              <p style={styles.authPrompt}>Join our marketplace to purchase or sell sustainable goods!</p>
-              <div style={styles.btnGroup}>
-                <Link 
-                  to="/login" 
-                  style={styles.primaryBtn}
-                  onMouseEnter={(e) => {
-                    e.target.style.backgroundColor = '#52b788';
-                    e.target.style.color = '#1b4332';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.target.style.backgroundColor = 'transparent';
-                    e.target.style.color = '#ffffff';
-                  }}
-                >
-                  Login to Your Account
-                </Link>
-                <Link 
-                  to="/register" 
-                  style={styles.secondaryBtn}
-                  onMouseEnter={(e) => {
-                    e.target.style.backgroundColor = '#52b788';
-                    e.target.style.color = '#1b4332';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.target.style.backgroundColor = 'transparent';
-                    e.target.style.color = '#ffffff';
-                  }}
-                >
-                  Create New Account
-                </Link>
+                  <span className="delivery-truck-fast-anim">🚚</span>
+                  <span>Login as Eco-Cart Delivery Team</span>
+                  <span className="delivery-truck-fast-anim">🚚</span>
+                </button>
               </div>
             </div>
           )}
@@ -624,15 +804,33 @@ function Home({ user, cart, onAddToCart, onViewDetails, featuredProducts }) {
         <div style={styles.sectionHeader}>
           <h2 style={{ margin: 0, color: '#1b4332' }}>{selectedCategory === 'All' ? 'Trending Resell & Declutter Goods' : `${selectedCategory} Goods`}</h2>
           <Link 
-            to="/products" 
-            style={styles.viewAll}
+            to="/products"
+            style={{
+              backgroundColor: '#1b4332',
+              color: '#ffffff',
+              border: 'none',
+              padding: '10px 18px',
+              borderRadius: '12px',
+              fontWeight: '800',
+              fontSize: '0.95rem',
+              textDecoration: 'none',
+              fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+              cursor: 'pointer',
+              boxShadow: '0 4px 14px rgba(27, 67, 50, 0.25)',
+              transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
             onMouseEnter={(e) => {
-              e.target.style.color = '#52b788';
-              e.target.style.transform = 'translateX(4px)';
+              e.currentTarget.style.backgroundColor = '#2d6a4f';
+              e.currentTarget.style.transform = 'translateY(-2px)';
+              e.currentTarget.style.boxShadow = '0 6px 20px rgba(45, 106, 79, 0.35)';
             }}
             onMouseLeave={(e) => {
-              e.target.style.color = '#2d6a4f';
-              e.target.style.transform = 'translateX(0)';
+              e.currentTarget.style.backgroundColor = '#1b4332';
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 4px 14px rgba(27, 67, 50, 0.25)';
             }}
           >
             View All Products →
@@ -841,7 +1039,18 @@ function ProductsPage({ user, cart, onAddToCart, onBuyNow, viewProductDetails, s
       <section style={prodStyles.headerBanner}>
         <div style={prodStyles.bannerContent}>
           <h2 style={prodStyles.bannerTitle}>Explore Eco-Cart Marketplace 🛍️</h2>
-          <p style={prodStyles.bannerSubtitle}>Browse sustainable and decluttered items directly from sellers</p>
+          <p style={{
+            fontSize: '1.08rem',
+            fontStyle: 'italic',
+            fontWeight: 'bold',
+            color: '#e8f5e9',
+            margin: '0 0 20px 0',
+            letterSpacing: '0.2px',
+            fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+            textAlign: 'center'
+          }}>
+            Browse sustainable and decluttered items directly from sellers
+          </p>
         </div>
       </section>
 
@@ -1601,6 +1810,16 @@ function App() {
     setCompletedOrder(orderData);
     setIsCheckoutOpen(false);
     setCheckoutDirectItem(null);
+
+    // Refresh products state to show accurate live stock counts
+    try {
+      const res = await axios.get('http://localhost:5000/api/products');
+      if (Array.isArray(res.data)) {
+        setProducts(res.data);
+      }
+    } catch (err) {
+      console.error('Failed to sync product inventory stock:', err);
+    }
   };
 
   const validCartCount = cart.reduce((acc, item) => {
@@ -1619,7 +1838,7 @@ function App() {
         onAnimationEnd={handleAnimationEnd}
       >
         <Routes location={displayLocation}>
-          <Route path="/" element={<Home user={user} cart={cart} onAddToCart={handleAddToCart} onViewDetails={openGlobalDetailsModal} featuredProducts={products.slice(0, 6)} />} />
+          <Route path="/" element={<Home user={user} setUser={handleSetUser} cart={cart} onAddToCart={handleAddToCart} onViewDetails={openGlobalDetailsModal} featuredProducts={products.slice(0, 6)} />} />
           <Route path="/products" element={
             <ProductsPage 
               user={user} 
@@ -1687,6 +1906,7 @@ function App() {
             </ProtectedRoute>
           } />
           <Route path="/login" element={<Login setUser={handleSetUser} />} />
+          <Route path="/delivery-login" element={<DeliveryLogin setUser={handleSetUser} />} />
           <Route path="/register" element={<Register />} />
           <Route path="/track-order" element={<TrackOrder />} />
           <Route path="/logistics-dashboard" element={<LogisticsDashboard user={user} />} />
@@ -1757,7 +1977,7 @@ function App() {
                     }}
                     style={prodStyles.fullScreenArrowLeft}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = 'rgba(27, 67, 50, 0.85)';
+                      e.currentTarget.style.backgroundColor = 'rgba(27, 67, 50, 0.75)';
                       e.currentTarget.style.transform = 'translateY(-50%) scale(1.15)';
                       e.currentTarget.style.borderColor = '#ffffff';
                     }}
@@ -1801,7 +2021,7 @@ function App() {
                     }}
                     style={prodStyles.fullScreenArrowRight}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = 'rgba(27, 67, 50, 0.85)';
+                      e.currentTarget.style.backgroundColor = 'rgba(27, 67, 50, 0.75)';
                       e.currentTarget.style.transform = 'translateY(-50%) scale(1.15)';
                       e.currentTarget.style.borderColor = '#ffffff';
                     }}
@@ -2074,6 +2294,7 @@ function App() {
         <CheckoutModal
           user={user}
           cart={checkoutDirectItem ? [checkoutDirectItem] : cart}
+          isBuyNow={Boolean(checkoutDirectItem)}
           onClose={() => {
             setIsCheckoutOpen(false);
             setCheckoutDirectItem(null);
@@ -2094,7 +2315,11 @@ function App() {
           order={completedOrder}
           onClose={() => setCompletedOrder(null)}
           onViewInvoice={() => setShowInvoice(true)}
-          onBackToHome={() => {
+          onBackToHome={async () => {
+            try {
+              const res = await axios.get('http://localhost:5000/api/products');
+              if (Array.isArray(res.data)) setProducts(res.data);
+            } catch (err) {}
             setCompletedOrder(null);
             navigate('/');
           }}
@@ -2171,7 +2396,7 @@ const styles = {
   hero: {
     background: 'linear-gradient(135deg, #2d6a4f 0%, #1b4332 100%)',
     color: '#ffffff',
-    padding: '25px 20px 20px 20px',
+    padding: '12px 20px 20px 20px',
     textAlign: 'center',
   },
   heroContent: {

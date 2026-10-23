@@ -222,7 +222,7 @@ function Cart({ user, cart = [], setCart, setProducts, showToast, onViewDetails 
     setIsCheckoutOpen(false);
     if (setCart) setCart([]);
     localStorage.removeItem(`cart_${userId}`);
-    await refreshProducts();
+    await refreshProducts(); // Refreshes global product inventory numbers instantly
   };
 
   const calculateSubtotal = () => {

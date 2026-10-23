@@ -271,7 +271,7 @@ const OrderSuccessModal = ({ order, onClose, onViewTrack, onBackToHome }) => {
               <strong>৳ {Number(order.totalAmount || 0).toFixed(2)}</strong>
             </div>
             <div className="details-row">
-              <span>Payment Method:</span>
+              <span>Payment Method:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
               <strong>{order.paymentDetails?.provider || order.paymentMethod || 'Cash on Delivery'}</strong>
             </div>
             <div className="details-row">

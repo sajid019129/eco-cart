@@ -32,7 +32,7 @@ const OrderSchema = new mongoose.Schema({
   subtotal: { type: Number, required: true },
   shippingFee: { type: Number, default: 70 },
   totalAmount: { type: Number, required: true },
-  paymentMethod: { type: String, enum: ['Digital', 'COD'], required: true },
+  paymentMethod: { type: String, enum: ['Digital', 'COD', 'bKash', 'Nagad', 'Upay', 'MasterCard', 'Cash on Delivery'], required: true },
   paymentDetails: {
     provider: { type: String, default: '' },
     accountNumber: { type: String, default: '' },
@@ -47,10 +47,24 @@ const OrderSchema = new mongoose.Schema({
       'Handed to Logistics',
       'Arrived at Facility',
       'Out for Delivery',
-      'Delivered'
+      'Delivered',
+      'Cancelled'
     ],
     default: 'Order Placed'
-  }
+  },
+  // Logistics checklist state machine (freezable once checked, mutual exclusion for success/failure)
+  logisticsSteps: {
+    collectedFromSeller: { type: Boolean, default: false },
+    shipped: { type: Boolean, default: false },
+    reachedWarehouse: { type: Boolean, default: false },
+    reachedHub: { type: Boolean, default: false },
+    outForDelivery: { type: Boolean, default: false },
+    delivered: { type: Boolean, default: false },
+    failed: { type: Boolean, default: false },
+    failureReason: { type: String, default: '' }
+  },
+  completedMilestones: { type: [String], default: [] },
+  isCancelled: { type: Boolean, default: false }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Order', OrderSchema);

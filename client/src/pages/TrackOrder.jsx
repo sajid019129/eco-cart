@@ -1,14 +1,13 @@
 import React, { useState } from 'react';
 import InvoiceModal from '../components/InvoiceModal';
 
-const TRACKING_STEPS = [
-  'Order Placed',
-  'Seller Started Packing',
-  'Product Packed',
-  'Handed to Logistics',
-  'Arrived at Facility',
-  'Out for Delivery',
-  'Delivered'
+const TRACKING_BOXES = [
+  { key: 'collectedFromSeller', label: 'Product collected from seller' },
+  { key: 'shipped', label: 'Product shipped' },
+  { key: 'reachedWarehouse', label: 'Product reached Eco-Cart warehouse' },
+  { key: 'reachedHub', label: "Product sent to your area's nearby Eco-Cart delivery hub" },
+  { key: 'outForDelivery', label: 'Product out for delivery' },
+  { key: 'delivered', label: 'Product delivered successfully' }
 ];
 
 const TrackOrder = () => {
@@ -42,16 +41,32 @@ const TrackOrder = () => {
     }
   };
 
-  const getCurrentStepIndex = (status) => {
-    const idx = TRACKING_STEPS.indexOf(status);
-    return idx !== -1 ? idx : 0;
+  const isStepCompleted = (orderObj, stepKey) => {
+    if (!orderObj) return false;
+    if (orderObj.logisticsSteps && orderObj.logisticsSteps[stepKey]) {
+      return true;
+    }
+    // Fallback checks on milestones or status strings
+    const milestones = orderObj.completedMilestones || [];
+    if (stepKey === 'delivered' && (orderObj.orderStatus === 'Delivered' || milestones.some(m => m.toLowerCase().includes('delivered')))) {
+      return true;
+    }
+    if (stepKey === 'shipped' && (orderObj.orderStatus === 'Shipped' || milestones.some(m => m.toLowerCase().includes('shipped')))) {
+      return true;
+    }
+    if (stepKey === 'outForDelivery' && (orderObj.orderStatus === 'Out for Delivery' || milestones.some(m => m.toLowerCase().includes('out for delivery')))) {
+      return true;
+    }
+    return milestones.some(m => m.toLowerCase().includes(stepKey.toLowerCase()));
   };
+
+  const isCancelledOrFailed = order?.logisticsSteps?.failed || order?.orderStatus === 'Cancelled' || order?.isCancelled;
 
   return (
     <>
       <style>{`
         .track-page {
-          max-width: 800px;
+          max-width: 820px;
           margin: 40px auto;
           padding: 0 20px;
           font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -59,17 +74,19 @@ const TrackOrder = () => {
 
         .track-card {
           background: #ffffff;
-          border-radius: 12px;
-          padding: 32px;
-          box-shadow: 0 6px 20px rgba(0,0,0,0.08);
-          border: 1px solid #e9ecef;
+          border-radius: 14px;
+          padding: 34px 38px;
+          box-shadow: 0 10px 30px rgba(27, 67, 50, 0.08);
+          border: 1px solid #e5e7eb;
+          animation: fadeInCard 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
         }
 
         .track-title {
-          font-size: 1.8rem;
+          font-size: 1.85rem;
           font-weight: 800;
           color: #1b4332;
-          margin-bottom: 8px;
+          margin: 0 0 6px 0;
+          letter-spacing: 0.5px;
         }
 
         .track-subtitle {
@@ -81,114 +98,134 @@ const TrackOrder = () => {
 
         .search-box {
           display: flex;
-          gap: 10px;
+          gap: 12px;
           margin-bottom: 24px;
         }
 
         .track-input {
           flex: 1;
-          padding: 12px 16px;
-          border: 1.5px solid #ced4da;
-          border-radius: 6px;
-          font-size: 0.95rem;
+          padding: 13px 18px;
+          border: 2px solid #d1d5db;
+          border-radius: 10px;
+          font-size: 0.98rem;
           outline: none;
-          transition: border-color 0.2s, box-shadow 0.2s;
+          font-weight: 600;
+          color: #1f2937;
+          background: #f9fafb;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          box-shadow: 0 2px 5px rgba(0,0,0,0.02);
         }
 
         .track-input:focus {
-          border-color: #52b788;
-          box-shadow: 0 0 0 3px rgba(82, 183, 136, 0.25);
+          border-color: #2d6a4f;
+          background: #ffffff;
+          box-shadow: 0 6px 16px rgba(45, 106, 79, 0.12);
         }
 
         .btn-track {
           background-color: #2d6a4f;
           color: #ffffff;
-          padding: 12px 24px;
-          border-radius: 6px;
-          font-weight: 700;
-          font-size: 0.95rem;
+          padding: 13px 26px;
+          border-radius: 10px;
+          font-weight: 800;
+          font-size: 0.98rem;
           border: none;
           cursor: pointer;
-          transition: all 0.2s ease;
+          transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+          box-shadow: 0 4px 14px rgba(45, 106, 79, 0.2);
+          white-space: nowrap;
         }
 
         .btn-track:hover {
           background-color: #1b4332;
           transform: translateY(-2px);
-          box-shadow: 0 4px 12px rgba(45, 106, 79, 0.3);
+          box-shadow: 0 6px 20px rgba(27, 67, 50, 0.3);
         }
 
         .error-alert {
-          background: #ffe3e3;
-          color: #d62828;
-          padding: 12px;
+          background: #ffebee;
+          color: #c62828;
+          padding: 12px 16px;
           border-radius: 8px;
           text-align: center;
-          font-weight: 600;
+          font-weight: 700;
           margin-bottom: 20px;
+          border: 1px solid #fca5a5;
         }
 
         .order-result-box {
           background: #f8f9fa;
-          border-radius: 10px;
-          padding: 24px;
-          border: 1px solid #dee2e6;
+          border-radius: 12px;
+          padding: 26px;
+          border: 1px solid #e5e7eb;
           margin-top: 20px;
+          box-shadow: 0 4px 16px rgba(0,0,0,0.03);
+          animation: slideDownBox 0.3s ease-out forwards;
         }
 
-        .timeline {
-          margin-top: 24px;
+        .boxes-grid {
+          margin-top: 20px;
           display: flex;
           flex-direction: column;
-          gap: 16px;
-          position: relative;
+          gap: 12px;
         }
 
-        .timeline-step {
+        .tracking-status-box {
           display: flex;
           align-items: center;
           gap: 16px;
-          position: relative;
+          padding: 14px 18px;
+          border-radius: 10px;
+          background: #ffffff;
+          border: 2px solid #e5e7eb;
+          transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+          box-shadow: 0 2px 6px rgba(0,0,0,0.02);
         }
 
-        .step-icon {
+        .tracking-status-box:hover {
+          transform: translateY(-2px) scale(1.01);
+          box-shadow: 0 6px 18px rgba(45, 106, 79, 0.1);
+          border-color: #52b788;
+        }
+
+        .tracking-status-box.completed {
+          background: #e8f5e9;
+          border-color: #2e7d32;
+          box-shadow: 0 4px 14px rgba(46, 125, 50, 0.12);
+        }
+
+        .box-icon-indicator {
           width: 32px;
           height: 32px;
           border-radius: 50%;
-          background: #e9ecef;
-          color: #6c757d;
+          background: #f1f3f5;
+          color: #9ca3af;
           display: flex;
           align-items: center;
           justify-content: center;
-          font-weight: bold;
-          font-size: 0.9rem;
-          z-index: 2;
-          transition: all 0.3s;
-        }
-
-        .timeline-step.completed .step-icon {
-          background: #52b788;
-          color: #ffffff;
-          box-shadow: 0 0 10px rgba(82, 183, 136, 0.5);
-        }
-
-        .timeline-step.active .step-icon {
-          background: #1b4332;
-          color: #ffffff;
-          transform: scale(1.1);
-          box-shadow: 0 0 12px rgba(27, 67, 50, 0.6);
-        }
-
-        .step-label {
-          font-weight: 600;
-          color: #6c757d;
+          font-weight: 800;
           font-size: 0.95rem;
+          flex-shrink: 0;
+          border: 1px solid #d1d5db;
+          transition: all 0.2s ease;
         }
 
-        .timeline-step.completed .step-label,
-        .timeline-step.active .step-label {
+        .tracking-status-box.completed .box-icon-indicator {
+          background: #2e7d32;
+          color: #ffffff;
+          border-color: #2e7d32;
+          box-shadow: 0 2px 8px rgba(46, 125, 50, 0.3);
+        }
+
+        .box-label-text {
+          font-weight: 650;
+          color: #4b5563;
+          font-size: 0.96rem;
+        }
+
+        .tracking-status-box.completed .box-label-text {
           color: #1b4332;
-          font-weight: 700;
+          font-weight: 800;
         }
 
         .invoice-btn-wrap {
@@ -199,18 +236,30 @@ const TrackOrder = () => {
         .btn-invoice {
           background: #1b4332;
           color: white;
-          padding: 10px 20px;
-          border-radius: 6px;
-          font-weight: 700;
+          padding: 12px 24px;
+          border-radius: 10px;
+          font-weight: 800;
+          font-size: 0.95rem;
           border: none;
           cursor: pointer;
-          transition: all 0.2s ease;
+          transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+          box-shadow: 0 4px 14px rgba(27, 67, 50, 0.2);
         }
 
         .btn-invoice:hover {
           background: #2d6a4f;
           transform: translateY(-2px);
-          box-shadow: 0 4px 10px rgba(27, 67, 50, 0.3);
+          box-shadow: 0 6px 20px rgba(45, 106, 79, 0.3);
+        }
+
+        @keyframes fadeInCard {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes slideDownBox {
+          from { opacity: 0; transform: translateY(-10px); }
+          to { opacity: 1; transform: translateY(0); }
         }
       `}</style>
 
@@ -237,37 +286,48 @@ const TrackOrder = () => {
 
           {order && (
             <div className="order-result-box">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
                 <div>
-                  <h3 style={{ margin: 0, color: '#1b4332' }}>Order: {order.orderNumber}</h3>
-                  <div style={{ fontSize: '0.85rem', color: '#6c757d', marginTop: '2px' }}>
+                  <h3 style={{ margin: 0, color: '#1b4332', fontSize: '1.25rem', fontWeight: '800' }}>Order: #{order.orderNumber}</h3>
+                  <div style={{ fontSize: '0.85rem', color: '#6b7280', marginTop: '3px', fontWeight: '600' }}>
                     Placed on: {new Date(order.createdAt).toLocaleString()}
                   </div>
                 </div>
-                <div style={{ textAlign: 'right' }}>
-                  <span style={{ background: '#e8f5e9', color: '#2d6a4f', padding: '6px 12px', borderRadius: '6px', fontWeight: 'bold', fontSize: '0.9rem', border: '1px solid #52b788' }}>
-                    {order.orderStatus}
+                <div>
+                  <span style={{ 
+                    backgroundColor: isCancelledOrFailed ? '#ffebee' : '#e8f5e9', 
+                    color: isCancelledOrFailed ? '#c62828' : '#2d6a4f', 
+                    padding: '6px 14px', 
+                    borderRadius: '20px', 
+                    fontWeight: '800', 
+                    fontSize: '0.9rem', 
+                    border: `1.5px solid ${isCancelledOrFailed ? '#fca5a5' : '#52b788'}`,
+                    display: 'inline-block',
+                    boxShadow: '0 2px 6px rgba(0,0,0,0.03)'
+                  }}>
+                    {isCancelledOrFailed ? '✕ Cancelled / Failed' : (order.orderStatus || 'Order Placed')}
                   </span>
                 </div>
               </div>
 
-              <div style={{ fontSize: '0.92rem', color: '#2d6a4f', marginBottom: '16px' }}>
+              <div style={{ fontSize: '0.95rem', color: '#1b4332', marginBottom: '18px', fontWeight: '700', background: '#eaf4ef', padding: '10px 14px', borderRadius: '8px', border: '1px solid #b7e4c7' }}>
                 <strong>Total Amount:</strong> ৳ {order.totalAmount} ({order.paymentMethod})
               </div>
 
-              <div style={{ fontWeight: 'bold', color: '#1b4332', marginBottom: '12px' }}>Fulfillment Progress:</div>
-              <div className="timeline">
-                {TRACKING_STEPS.map((step, index) => {
-                  const currentIndex = getCurrentStepIndex(order.orderStatus);
-                  const isCompleted = index < currentIndex;
-                  const isActive = index === currentIndex;
+              <div style={{ fontWeight: '800', color: '#1b4332', marginBottom: '12px', fontSize: '1.05rem' }}>
+                Fulfillment Progress Status Boxes:
+              </div>
+
+              <div className="boxes-grid">
+                {TRACKING_BOXES.map((stepObj, index) => {
+                  const isCompleted = isStepCompleted(order, stepObj.key) && !isCancelledOrFailed;
 
                   return (
-                    <div key={index} className={`timeline-step ${isCompleted ? 'completed' : ''} ${isActive ? 'active' : ''}`}>
-                      <div className="step-icon">
-                        {isCompleted ? '✓' : index + 1}
+                    <div key={index} className={`tracking-status-box ${isCompleted ? 'completed' : ''}`}>
+                      <div className="box-icon-indicator">
+                        {isCompleted ? '✓' : '•'}
                       </div>
-                      <div className="step-label">{step}</div>
+                      <div className="box-label-text">{stepObj.label}</div>
                     </div>
                   );
                 })}
