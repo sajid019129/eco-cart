@@ -222,7 +222,7 @@ function Cart({ user, cart = [], setCart, setProducts, showToast, onViewDetails 
     setIsCheckoutOpen(false);
     if (setCart) setCart([]);
     localStorage.removeItem(`cart_${userId}`);
-    await refreshProducts(); // Refreshes global product inventory numbers instantly
+    await refreshProducts();
   };
 
   const calculateSubtotal = () => {
@@ -438,22 +438,36 @@ function Cart({ user, cart = [], setCart, setProducts, showToast, onViewDetails 
           </div>
         ) : (
           <div style={styles.emptyCart}>
-            <p style={{ fontSize: '1.2rem', color: '#555', marginBottom: '20px' }}>Your cart is empty</p>
+            <p style={{ fontSize: '1.2rem', color: '#555', marginBottom: '18px', fontWeight: '600' }}>
+              Your cart is empty
+            </p>
             <Link
               to="/products"
-              style={styles.browseBtn}
+              style={{
+                ...styles.browseBtn,
+                background: 'linear-gradient(135deg, #2d6a4f 0%, #1b4332 100%)',
+                padding: '13px 30px',
+                borderRadius: '10px',
+                fontWeight: '800',
+                fontSize: '1.05rem',
+                textDecoration: 'none',
+                boxShadow: '0 4px 14px rgba(27, 67, 50, 0.2)',
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                letterSpacing: '0.4px',
+                display: 'inline-block'
+              }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#1b4332';
+                e.currentTarget.style.background = 'linear-gradient(135deg, #52b788 0%, #2d6a4f 100%)';
                 e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 6px 16px rgba(27, 67, 50, 0.3)';
+                e.currentTarget.style.boxShadow = '0 8px 20px rgba(45, 106, 79, 0.3)';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = '#2d6a4f';
+                e.currentTarget.style.background = 'linear-gradient(135deg, #2d6a4f 0%, #1b4332 100%)';
                 e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = 'none';
+                e.currentTarget.style.boxShadow = '0 4px 14px rgba(27, 67, 50, 0.2)';
               }}
             >
-              Browse Marketplace 🛍️
+              📊 Browse Marketplace
             </Link>
           </div>
         )}
@@ -692,11 +706,10 @@ const styles = {
   },
   emptyCart: {
     backgroundColor: '#ffffff',
-    padding: '60px',
+    padding: '60px 20px',
     textAlign: 'center',
-    borderRadius: '12px',
-    boxShadow: '0 4px 14px rgba(0,0,0,0.06)',
-    border: '1px solid #e5e7eb'
+    borderRadius: '10px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
   },
   browseBtn: {
     backgroundColor: '#2d6a4f',

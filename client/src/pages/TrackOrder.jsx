@@ -46,7 +46,6 @@ const TrackOrder = () => {
     if (orderObj.logisticsSteps && orderObj.logisticsSteps[stepKey]) {
       return true;
     }
-    // Fallback checks on milestones or status strings
     const milestones = orderObj.completedMilestones || [];
     if (stepKey === 'delivered' && (orderObj.orderStatus === 'Delivered' || milestones.some(m => m.toLowerCase().includes('delivered')))) {
       return true;
@@ -98,48 +97,77 @@ const TrackOrder = () => {
 
         .search-box {
           display: flex;
-          gap: 12px;
+          align-items: center;
+          gap: 14px;
           margin-bottom: 24px;
         }
 
-        .track-input {
+        /* Standardized Eco Field Box Matching AddProduct */
+        .eco-field-box {
           flex: 1;
-          padding: 13px 18px;
+          position: relative;
+          background: #f9fafb;
           border: 2px solid #d1d5db;
           border-radius: 10px;
-          font-size: 0.98rem;
-          outline: none;
-          font-weight: 600;
-          color: #1f2937;
-          background: #f9fafb;
+          padding: 12px 16px;
           transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
           box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
         }
 
-        .track-input:focus {
+        .eco-field-box:hover {
           border-color: #2d6a4f;
           background: #ffffff;
+          transform: translateY(-2px);
           box-shadow: 0 6px 16px rgba(45, 106, 79, 0.12);
         }
 
+        .eco-field-box.has-value {
+          border-color: #1b4332;
+          background: #eaf4ef;
+          box-shadow: 0 6px 20px rgba(27, 67, 50, 0.15);
+        }
+
+        .track-input {
+          width: 100%;
+          border: none;
+          background: transparent;
+          font-size: 0.98rem;
+          color: #1f2937;
+          outline: none;
+          font-weight: 600;
+          padding: 0;
+          margin: 0;
+          font-family: inherit;
+        }
+
+        .track-input::placeholder {
+          color: #9ca3af;
+          font-weight: 400;
+        }
+
         .btn-track {
-          background-color: #2d6a4f;
+          background: linear-gradient(135deg, #2d6a4f 0%, #1b4332 100%);
           color: #ffffff;
-          padding: 13px 26px;
+          padding: 14px 28px;
           border-radius: 10px;
           font-weight: 800;
-          font-size: 0.98rem;
+          font-size: 1.05rem;
           border: none;
           cursor: pointer;
-          transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-          box-shadow: 0 4px 14px rgba(45, 106, 79, 0.2);
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          box-shadow: 0 4px 14px rgba(27, 67, 50, 0.2);
+          letter-spacing: 0.4px;
           white-space: nowrap;
+          height: fit-content;
         }
 
         .btn-track:hover {
-          background-color: #1b4332;
+          background: linear-gradient(135deg, #52b788 0%, #2d6a4f 100%);
           transform: translateY(-2px);
-          box-shadow: 0 6px 20px rgba(27, 67, 50, 0.3);
+          box-shadow: 0 8px 20px rgba(45, 106, 79, 0.3);
         }
 
         .error-alert {
@@ -269,16 +297,18 @@ const TrackOrder = () => {
           <p className="track-subtitle">Enter your Eco-Cart Order Number to view real-time shipping status and cash memo</p>
 
           <form onSubmit={handleTrackSearch} className="search-box">
-            <input
-              type="text"
-              className="track-input"
-              placeholder="e.g. ECO-123456-7890"
-              value={orderNumberInput}
-              onChange={(e) => setOrderNumberInput(e.target.value)}
-              required
-            />
+            <div className={`eco-field-box ${orderNumberInput ? 'has-value' : ''}`}>
+              <input
+                type="text"
+                className="track-input"
+                placeholder="e.g. ECO-012345-6789"
+                value={orderNumberInput}
+                onChange={(e) => setOrderNumberInput(e.target.value)}
+                required
+              />
+            </div>
             <button type="submit" className="btn-track" disabled={loading}>
-              {loading ? 'Searching...' : 'Track 🔍'}
+              {loading ? 'Searching...' : '🚚 Track'}
             </button>
           </form>
 
