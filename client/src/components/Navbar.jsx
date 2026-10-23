@@ -251,7 +251,7 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
     localStorage.removeItem('user');
     setUser(null);
     if (setCart) setCart([]);
-    navigate('/login');
+    navigate('/');
   };
 
   const handleExecuteDeleteAccount = async () => {
@@ -1413,7 +1413,7 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
                     type="button"
                     role="menuitem"
                     onClick={handleLogout}
-                    className="dropdown-item"
+                    className={`dropdown-item ${isDeliveryTeam ? 'danger-action' : ''}`}
                   >
                     <span aria-hidden="true">🚪</span>
                     <span>Logout</span>

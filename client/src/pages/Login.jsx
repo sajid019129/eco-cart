@@ -63,6 +63,27 @@ function Login({ setUser }) {
           border: 1px solid #e5e7eb;
           max-width: 480px;
           width: 100%;
+          text-align: center;
+        }
+
+        .avatar-container {
+          width: 80px;
+          height: 80px;
+          border-radius: 50%;
+          background-color: #e8f5e9;
+          margin: 0 auto 16px auto;
+          overflow: hidden;
+          border: 3px solid #2d6a4f;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 4px 12px rgba(45, 106, 79, 0.2);
+        }
+
+        .avatar-img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
         }
 
         .eco-post-title {
@@ -75,11 +96,12 @@ function Login({ setUser }) {
         }
 
         .eco-post-subtitle {
+          font-size: 1.05rem;
           color: #4b5563;
-          font-size: 0.95rem;
-          margin-bottom: 24px;
-          font-weight: 400;
+          font-weight: 700;
+          margin: 0 0 24px 0;
           text-align: center;
+          line-height: 1.5;
         }
 
         .eco-error-banner {
@@ -106,6 +128,7 @@ function Login({ setUser }) {
           flex-direction: column;
           justify-content: center;
           margin-bottom: 16px;
+          text-align: left;
         }
 
         .eco-field-box:hover {
@@ -192,8 +215,22 @@ function Login({ setUser }) {
 
       <div className="eco-post-container">
         <div className="eco-post-card">
+          <div className="avatar-container">
+            <img 
+              src="/Eco-Cart Profile Picture.jpg" 
+              alt="Eco-Cart Logo" 
+              className="avatar-img"
+              onError={(e) => {
+                e.target.style.display = 'none';
+              }}
+            />
+          </div>
+
           <h2 className="eco-post-title">Login to Eco-Cart</h2>
-          <p className="eco-post-subtitle">Welcome back! Please enter your credentials</p>
+          <p className="eco-post-subtitle">
+            Welcome back!<br />
+            Please enter your credentials
+          </p>
           
           {error && <div className="eco-error-banner">{error}</div>}
 

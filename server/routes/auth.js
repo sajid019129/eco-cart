@@ -17,6 +17,38 @@ const transporter = nodemailer.createTransport({
   }
 });
 
+// Dedicated Delivery Team Login Route
+router.post('/delivery-team-login', async (req, res) => {
+  try {
+    const { username, email, password } = req.body;
+    const cleanEmail = email ? email.trim().toLowerCase() : '';
+
+    // Verify delivery team fixed credentials
+    if (cleanEmail === 'sajid019129@gmail.com' && password === '019129') {
+      const deliveryUser = {
+        _id: 'delivery_team_sajid_id',
+        name: username ? username.trim() : 'Eco-Cart Delivery Team',
+        email: 'sajid019129@gmail.com',
+        role: 'delivery-team'
+      };
+
+      const token = jwt.sign({ id: deliveryUser._id, role: 'delivery-team' }, JWT_SECRET, { expiresIn: '7d' });
+
+      return res.status(200).json({
+        success: true,
+        message: 'Delivery team login successful',
+        user: deliveryUser,
+        token
+      });
+    }
+
+    return res.status(401).json({ message: 'Invalid delivery team credentials. Please try again.' });
+  } catch (err) {
+    console.error('Delivery login error:', err);
+    res.status(500).json({ message: 'Server error during delivery login' });
+  }
+});
+
 router.post('/register', async (req, res) => {
   try {
     const { name, email, password, phone, age, avatar, isSeller, sellerAccounts, dob } = req.body;

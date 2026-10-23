@@ -7,6 +7,7 @@ const DeliveryLogin = ({ setUser }) => {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -48,7 +49,7 @@ const DeliveryLogin = ({ setUser }) => {
   };
 
   return (
-    <div style={styles.pageWrapper}>
+    <>
       <style>{`
         @keyframes moveTruckLeftRight {
           0% { transform: translateX(0); }
@@ -65,99 +66,207 @@ const DeliveryLogin = ({ setUser }) => {
           animation: moveTruckLeftRight 0.8s ease-in-out infinite reverse;
           margin-left: 12px;
         }
-        .delivery-input:focus {
-          border-color: #2d6a4f !important;
-          box-shadow: 0 0 0 3px rgba(45, 106, 79, 0.15) !important;
+
+        .eco-field-box {
+          position: relative;
+          background: #f9fafb;
+          border: 2px solid #d1d5db;
+          border-radius: 10px;
+          padding: 12px 16px;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          margin-bottom: 16px;
+        }
+
+        .eco-field-box:hover {
+          border-color: #2d6a4f;
+          background: #ffffff;
+          transform: translateY(-2px);
+          box-shadow: 0 6px 16px rgba(45, 106, 79, 0.12);
+        }
+
+        .eco-field-box.has-value {
+          border-color: #1b4332;
+          background: #eaf4ef;
+          box-shadow: 0 6px 20px rgba(27, 67, 50, 0.15);
+        }
+
+        .eco-field-label {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 0.8rem;
+          font-weight: 700;
+          color: #1b4332;
+          margin-bottom: 6px;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+
+        .eco-input-field {
+          width: 100%;
+          border: none;
+          background: transparent;
+          font-size: 0.98rem;
+          color: #1f2937;
+          outline: none;
+          font-weight: 600;
+          padding: 0;
+          margin: 0;
+          font-family: inherit;
+        }
+
+        /* Suppress browser built-in password reveal / eye icons */
+        input[type="password"]::-ms-reveal,
+        input[type="password"]::-ms-clear,
+        input[type="password"]::-webkit-textfield-decoration-container,
+        input[type="password"]::-webkit-contacts-auto-fill-button,
+        input[type="password"]::-webkit-credentials-auto-fill-button {
+          display: none !important;
+          visibility: hidden !important;
+          pointer-events: none !important;
+          position: absolute !important;
+          right: 0 !important;
+        }
+
+        .eco-input-field::placeholder {
+          color: #9ca3af;
+          font-weight: 400;
         }
       `}</style>
 
-      <div style={styles.card}>
-        <div style={styles.avatarContainer}>
-          <img 
-            src="/Eco-Cart Delivery Team.jpg" 
-            alt="Delivery Team" 
-            style={styles.avatarImg}
-            onError={(e) => {
-              e.target.style.display = 'none';
-            }}
-          />
+      <div style={styles.pageWrapper}>
+        <div style={styles.card}>
+          <div style={styles.avatarContainer}>
+            <img 
+              src="/Eco-Cart Delivery Team.jpg" 
+              alt="Delivery Team" 
+              style={styles.avatarImg}
+              onError={(e) => {
+                e.target.style.display = 'none';
+              }}
+            />
+          </div>
+
+          <h2 style={styles.title}>
+            <span className="delivery-truck-anim-left">🚚</span>
+            <span>Eco-Cart Delivery Team</span>
+            <span className="delivery-truck-anim-right">🚚</span>
+          </h2>
+          <p style={styles.subtitle}>Eco-Cart Secure Logistics Access</p>
+
+          {error && <div style={styles.errorBox}>{error}</div>}
+
+          <form onSubmit={handleLogin}>
+            {/* Username Field */}
+            <div className={`eco-field-box ${username ? 'has-value' : ''}`}>
+              <label className="eco-field-label">
+                <span>👤</span> USERNAME <span style={styles.asterisk}>*</span>
+              </label>
+              <input
+                type="text"
+                className="eco-input-field"
+                placeholder="Enter dedicated username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                required
+              />
+            </div>
+
+            {/* Email Address Field */}
+            <div className={`eco-field-box ${email ? 'has-value' : ''}`}>
+              <label className="eco-field-label">
+                <span>✉️</span> EMAIL ADDRESS <span style={styles.asterisk}>*</span>
+              </label>
+              <input
+                type="email"
+                className="eco-input-field"
+                placeholder="Enter dedicated email address"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
+
+            {/* Password Field with Custom Show/Hide Button */}
+            <div className={`eco-field-box ${password ? 'has-value' : ''}`}>
+              <label className="eco-field-label">
+                <span>🔑</span> PASSWORD <span style={styles.asterisk}>*</span>
+              </label>
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center', width: '100%' }}>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  className="eco-input-field"
+                  placeholder="Enter dedicated password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  style={{ paddingRight: '80px' }}
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  style={{
+                    position: 'absolute',
+                    right: '0',
+                    backgroundColor: '#e8f5e9',
+                    color: '#2d6a4f',
+                    border: '1.5px solid #a3b899',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontSize: '0.85rem',
+                    fontWeight: '700',
+                    padding: '7px 14px',
+                    transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = '#d8f3dc';
+                    e.currentTarget.style.borderColor = '#2d6a4f';
+                    e.currentTarget.style.transform = 'scale(1.05)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = '#e8f5e9';
+                    e.currentTarget.style.borderColor = '#a3b899';
+                    e.currentTarget.style.transform = 'scale(1)';
+                  }}
+                >
+                  {showPassword ? 'Hide' : 'Show'}
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              style={{
+                ...styles.submitBtn,
+                opacity: loading ? 0.7 : 1,
+                cursor: loading ? 'not-allowed' : 'pointer'
+              }}
+              onMouseEnter={(e) => {
+                if (!loading) {
+                  e.currentTarget.style.backgroundColor = '#1b4332';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 6px 20px rgba(27, 67, 50, 0.3)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!loading) {
+                  e.currentTarget.style.backgroundColor = '#2d6a4f';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 4px 14px rgba(45, 106, 79, 0.25)';
+                }
+              }}
+            >
+              {loading ? 'Authenticating...' : 'Login as Delivery Team'}
+            </button>
+          </form>
         </div>
-
-        <h2 style={styles.title}>
-          <span className="delivery-truck-anim-left">🚚</span>
-          <span>Eco-Cart Delivery Team</span>
-          <span className="delivery-truck-anim-right">🚚</span>
-        </h2>
-        <p style={styles.subtitle}>Eco-Cart Secure Logistics Access</p>
-
-        {error && <div style={styles.errorBox}>{error}</div>}
-
-        <form onSubmit={handleLogin} style={styles.form}>
-          <div style={styles.inputGroup}>
-            <label style={styles.label}>
-              USERNAME <span style={styles.asterisk}>*</span>
-            </label>
-            <input
-              type="text"
-              className="delivery-input"
-              placeholder="Enter dedicated username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              style={styles.input}
-              required
-            />
-          </div>
-
-          <div style={styles.inputGroup}>
-            <label style={styles.label}>
-              EMAIL ADDRESS <span style={styles.asterisk}>*</span>
-            </label>
-            <input
-              type="email"
-              className="delivery-input"
-              placeholder="Enter dedicated email address"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              style={styles.input}
-              required
-            />
-          </div>
-
-          <div style={styles.inputGroup}>
-            <label style={styles.label}>
-              PASSWORD <span style={styles.asterisk}>*</span>
-            </label>
-            <input
-              type="password"
-              className="delivery-input"
-              placeholder="Enter dedicated password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              style={styles.input}
-              required
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              ...styles.submitBtn,
-              opacity: loading ? 0.7 : 1,
-              cursor: loading ? 'not-allowed' : 'pointer'
-            }}
-            onMouseEnter={(e) => {
-              if (!loading) e.currentTarget.style.backgroundColor = '#1b4332';
-            }}
-            onMouseLeave={(e) => {
-              if (!loading) e.currentTarget.style.backgroundColor = '#2d6a4f';
-            }}
-          >
-            {loading ? 'Authenticating...' : 'Login as Delivery Team'}
-          </button>
-        </form>
       </div>
-    </div>
+    </>
   );
 };
 
@@ -212,63 +321,38 @@ const styles = {
     letterSpacing: '-0.2px'
   },
   subtitle: {
-    fontSize: '0.92rem', // Decreased font size for Eco-Cart Secure Logistics Access
+    fontSize: '1.05rem',
     color: '#4b5563',
-    fontWeight: '600',
+    fontWeight: '700',
     margin: '0 0 24px 0'
   },
   errorBox: {
     backgroundColor: '#ffebee',
     color: '#d32f2f',
-    padding: '10px 14px',
+    padding: '12px 16px',
     borderRadius: '8px',
-    fontSize: '0.9rem',
-    marginBottom: '18px',
-    fontWeight: '600',
-    border: '1px solid #ffcdd2'
-  },
-  form: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '18px',
-    textAlign: 'left'
-  },
-  inputGroup: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '6px'
-  },
-  label: {
-    fontSize: '0.8rem',
-    fontWeight: '800',
-    color: '#374151',
-    letterSpacing: '0.5px'
+    fontSize: '0.95rem',
+    marginBottom: '20px',
+    fontWeight: '700',
+    border: '1px solid #fca5a5',
+    textAlign: 'center'
   },
   asterisk: {
     color: '#e63946',
     fontWeight: '800',
     marginLeft: '2px'
   },
-  input: {
-    padding: '12px 14px',
-    borderRadius: '8px',
-    border: '1px solid #d1d5db',
-    fontSize: '0.95rem',
-    outline: 'none',
-    backgroundColor: '#ffffff',
-    color: '#1f2937',
-    transition: 'all 0.2s ease'
-  },
   submitBtn: {
+    width: '100%',
     backgroundColor: '#2d6a4f',
     color: '#ffffff',
     border: 'none',
-    padding: '14px 20px',
+    padding: '14px',
     borderRadius: '10px',
     fontWeight: '800',
     fontSize: '1.12rem',
     marginTop: '6px',
-    transition: 'all 0.2s ease',
+    transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
     boxShadow: '0 4px 14px rgba(45, 106, 79, 0.25)'
   }
 };

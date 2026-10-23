@@ -91,9 +91,9 @@ const TrackOrder = () => {
 
         .track-subtitle {
           color: #4b5563;
-          font-size: 0.95rem;
+          font-size: 1.05rem;
           margin-bottom: 24px;
-          font-weight: 400;
+          font-weight: 700;
         }
 
         .search-box {

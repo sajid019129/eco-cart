@@ -18,7 +18,6 @@ function ForgotPassword() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  // Ref guard to ensure OTP is sent strictly ONCE on mount for logged-in users
   const otpSentRef = useRef(false);
 
   useEffect(() => {
@@ -43,7 +42,6 @@ function ForgotPassword() {
     }
   }, [loggedInEmail]);
 
-  // STEP 1: Request 6-Digit OTP (for logged out users)
   const handleRequestOtp = async (e) => {
     e.preventDefault();
     setError('');
@@ -65,7 +63,6 @@ function ForgotPassword() {
     }
   };
 
-  // STEP 2: Strictly validate the 6-digit code with the backend before moving to password input
   const handleVerifyOtp = async (e) => {
     e.preventDefault();
     setError('');
@@ -95,7 +92,6 @@ function ForgotPassword() {
     }
   };
 
-  // STEP 3: Reset Password (Sends email, code, and new password together to backend)
   const handleResetPassword = async (e) => {
     e.preventDefault();
     setError('');
@@ -153,6 +149,27 @@ function ForgotPassword() {
           border: 1px solid #e5e7eb;
           max-width: 480px;
           width: 100%;
+          text-align: center;
+        }
+
+        .avatar-container {
+          width: 80px;
+          height: 80px;
+          border-radius: 50%;
+          background-color: #e8f5e9;
+          margin: 0 auto 16px auto;
+          overflow: hidden;
+          border: 3px solid #2d6a4f;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 4px 12px rgba(45, 106, 79, 0.2);
+        }
+
+        .avatar-img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
         }
 
         .eco-post-title {
@@ -165,10 +182,10 @@ function ForgotPassword() {
         }
 
         .eco-post-subtitle {
+          font-size: 1.05rem;
           color: #4b5563;
-          font-size: 0.95rem;
-          margin-bottom: 24px;
-          font-weight: 400;
+          font-weight: 700;
+          margin: 0 0 24px 0;
           text-align: center;
           line-height: 1.4;
         }
@@ -209,6 +226,7 @@ function ForgotPassword() {
           flex-direction: column;
           justify-content: center;
           margin-bottom: 16px;
+          text-align: left;
         }
 
         .eco-field-box:hover {
@@ -313,6 +331,17 @@ function ForgotPassword() {
 
       <div className="eco-post-container">
         <div className="eco-post-card">
+          <div className="avatar-container">
+            <img 
+              src="/Eco-Cart Profile Picture.jpg" 
+              alt="Eco-Cart Logo" 
+              className="avatar-img"
+              onError={(e) => {
+                e.target.style.display = 'none';
+              }}
+            />
+          </div>
+
           <h2 className="eco-post-title">Reset Password</h2>
 
           {error && <div className="eco-error-banner">{error}</div>}
@@ -321,7 +350,7 @@ function ForgotPassword() {
           {step === 1 && (
             <form onSubmit={handleRequestOtp}>
               <p className="eco-post-subtitle">
-                Enter your registered email address to receive a 6-digit verification code.
+                Enter your registered email address
               </p>
               
               <div className={`eco-field-box ${email ? 'has-value' : ''}`}>
@@ -338,7 +367,7 @@ function ForgotPassword() {
               </div>
 
               <button type="submit" disabled={loading} className="eco-submit-btn">
-                {loading ? 'Sending Code' : 'Send Verification Code'}
+                {loading ? 'Sending Code...' : 'Send Verification Code'}
               </button>
             </form>
           )}
@@ -351,7 +380,7 @@ function ForgotPassword() {
 
               <div className={`eco-field-box ${otp ? 'has-value' : ''}`}>
                 <label className="eco-field-label">
-                  <span>🔒</span> Verification Code <span className="eco-required">*</span>
+                  <span>🔐</span> Verification Code <span className="eco-required">*</span>
                 </label>
                 <input
                   type="text"
@@ -367,7 +396,7 @@ function ForgotPassword() {
               </div>
 
               <button type="submit" disabled={loading} className="eco-submit-btn">
-                {loading ? 'Sending Code' : 'Verify Code'}
+                {loading ? 'Verifying Code...' : 'Verify Code'}
               </button>
               
               {!loggedInEmail && (
@@ -396,7 +425,7 @@ function ForgotPassword() {
               {/* New Password */}
               <div className={`eco-field-box ${newPassword ? 'has-value' : ''}`}>
                 <label className="eco-field-label">
-                  <span>🔒</span> New Password (6-12 chars) <span className="eco-required">*</span>
+                  <span>🔐</span> New Password (6-12 chars) <span className="eco-required">*</span>
                 </label>
                 <div style={{ position: 'relative', display: 'flex', alignItems: 'center', width: '100%' }}>
                   <input
@@ -444,7 +473,7 @@ function ForgotPassword() {
               {/* Confirm Password */}
               <div className={`eco-field-box ${confirmPassword ? 'has-value' : ''}`}>
                 <label className="eco-field-label">
-                  <span>🔒</span> Confirm New Password <span className="eco-required">*</span>
+                  <span>🔐</span> Confirm New Password <span className="eco-required">*</span>
                 </label>
                 <div style={{ position: 'relative', display: 'flex', alignItems: 'center', width: '100%' }}>
                   <input

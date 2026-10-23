@@ -132,8 +132,6 @@ function Register({ setUser }) {
 
     setLoading(true);
     const avatarUrl = preview || DEFAULT_AVATAR;
-
-    // Format Date of Birth string (e.g. "22/10/2004")
     const formattedDob = `${dobDay}/${dobMonth}/${dobYear}`;
 
     try {
@@ -183,7 +181,7 @@ function Register({ setUser }) {
     setLoading(true);
 
     try {
-      const res = await axios.post('http://localhost:5000/api/auth/verify-register', {
+      await axios.post('http://localhost:5000/api/auth/verify-register', {
         email: formData.email,
         otp: otp.trim()
       });
@@ -222,6 +220,27 @@ function Register({ setUser }) {
           border: 1px solid #e5e7eb;
           max-width: 620px;
           width: 100%;
+          text-align: center;
+        }
+
+        .avatar-container {
+          width: 80px;
+          height: 80px;
+          border-radius: 50%;
+          background-color: #e8f5e9;
+          margin: 0 auto 16px auto;
+          overflow: hidden;
+          border: 3px solid #2d6a4f;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 4px 12px rgba(45, 106, 79, 0.2);
+        }
+
+        .avatar-img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
         }
 
         .eco-post-title {
@@ -234,10 +253,10 @@ function Register({ setUser }) {
         }
 
         .eco-post-subtitle {
+          font-size: 1.05rem;
           color: #4b5563;
-          font-size: 0.95rem;
-          margin-bottom: 24px;
-          font-weight: 400;
+          font-weight: 700;
+          margin: 0 0 24px 0;
           text-align: center;
         }
 
@@ -277,6 +296,7 @@ function Register({ setUser }) {
           flex-direction: column;
           justify-content: center;
           margin-bottom: 16px;
+          text-align: left;
         }
 
         .eco-field-box:hover {
@@ -379,6 +399,7 @@ function Register({ setUser }) {
           align-items: center;
           transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
           cursor: pointer;
+          text-align: left;
         }
 
         .eco-seller-toggle-box:hover {
@@ -397,6 +418,7 @@ function Register({ setUser }) {
           box-shadow: 0 4px 12px rgba(45, 106, 79, 0.04);
           transform-origin: top;
           animation: sellerSectionEnter 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+          text-align: left;
         }
 
         @keyframes sellerSectionEnter {
@@ -457,8 +479,19 @@ function Register({ setUser }) {
 
       <div className="eco-post-container">
         <div className="eco-post-card">
+          <div className="avatar-container">
+            <img 
+              src="/Eco-Cart Profile Picture.jpg" 
+              alt="Eco-Cart Logo" 
+              className="avatar-img"
+              onError={(e) => {
+                e.target.style.display = 'none';
+              }}
+            />
+          </div>
+
           <h2 className="eco-post-title">Create your Eco-Cart Account</h2>
-          <p className="eco-post-subtitle">Join our community marketplace as a buyer or seller</p>
+          <p className="eco-post-subtitle">Join our community marketplace</p>
 
           {error && <div className="eco-error-banner">{error}</div>}
           {message && <div className="eco-success-banner">{message}</div>}

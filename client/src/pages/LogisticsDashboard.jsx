@@ -1,10 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
+import InspectTrackModal from '../components/InspectTrackModal';
 
 const LogisticsDashboard = () => {
   const [orders, setOrders] = useState([]);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  // State for Total Active Orders alert bubble popup
+  const [activeOrdersAlertOpen, setActiveOrdersAlertOpen] = useState(false);
+  const [activeOrdersAlertMounted, setActiveOrdersAlertMounted] = useState(false);
+  const activeOrdersAlertTimerRef = useRef(null);
+  const activeOrdersBtnRef = useRef(null);
 
   const fetchOrders = async () => {
     try {
@@ -23,8 +30,49 @@ const LogisticsDashboard = () => {
     return () => clearInterval(interval);
   }, []);
 
+  const triggerActiveOrdersAlert = () => {
+    if (activeOrdersAlertTimerRef.current) clearTimeout(activeOrdersAlertTimerRef.current);
+
+    setActiveOrdersAlertMounted(true);
+    setActiveOrdersAlertOpen(true);
+
+    activeOrdersAlertTimerRef.current = setTimeout(() => {
+      closeActiveOrdersAlert();
+    }, 3500);
+  };
+
+  const closeActiveOrdersAlert = () => {
+    setActiveOrdersAlertOpen(false);
+    if (activeOrdersAlertTimerRef.current) clearTimeout(activeOrdersAlertTimerRef.current);
+    activeOrdersAlertTimerRef.current = setTimeout(() => {
+      setActiveOrdersAlertMounted(false);
+      activeOrdersAlertTimerRef.current = null;
+    }, 180);
+  };
+
+  const handleActiveOrdersClick = () => {
+    if (activeOrdersAlertOpen) {
+      closeActiveOrdersAlert();
+    } else {
+      triggerActiveOrdersAlert();
+    }
+  };
+
+  // Close popup on outside click
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (activeOrdersBtnRef.current && !activeOrdersBtnRef.current.contains(event.target)) {
+        if (activeOrdersAlertOpen) closeActiveOrdersAlert();
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      if (activeOrdersAlertTimerRef.current) clearTimeout(activeOrdersAlertTimerRef.current);
+    };
+  }, [activeOrdersAlertOpen]);
+
   const handleStepToggle = async (orderId, stepName, currentVal) => {
-    // Once checked, step is freezed up and cannot be un-checked
     if (currentVal) return;
 
     try {
@@ -47,21 +95,107 @@ const LogisticsDashboard = () => {
 
   const getPaymentLogo = (method, provider) => {
     const p = (provider || method || '').toLowerCase();
-    if (p.includes('bkash')) return '/bKash.png';
-    if (p.includes('nagad')) return '/Nagad.png';
-    if (p.includes('upay')) return '/Upay.png';
+    if (p.includes('bkash')) return '/bKash.jpg';
+    if (p.includes('nagad')) return '/Nagad.jpg';
+    if (p.includes('upay')) return '/Upay.jpg';
     if (p.includes('mastercard')) return '/MasterCard.png';
-    if (p.includes('cod') || p.includes('cash')) return '/Cash on Delivery.png';
+    if (p.includes('cod') || p.includes('cash')) return '/Cash on Delivery.jpg';
     return '/Bank.png';
   };
 
   return (
     <div style={{
-      backgroundColor: '#f4f7f5',
+      backgroundColor: '#f8f9fa',
       minHeight: '100vh',
       padding: '30px 20px',
-      fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif"
+      fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+      position: 'relative'
     }}>
+      <style>{`
+        @keyframes preciseGapFadeTravelEvenFaster {
+          0% {
+            left: 440px;
+            opacity: 0;
+            transform: translateY(-50%) scaleX(-1);
+          }
+          10% {
+            opacity: 1;
+            transform: translateY(-50%) scaleX(-1);
+          }
+          90% {
+            opacity: 1;
+            transform: translateY(-50%) scaleX(-1);
+          }
+          100% {
+            left: calc(100% - 370px);
+            opacity: 0;
+            transform: translateY(-50%) scaleX(-1);
+          }
+        }
+
+        .precise-banner-truck-even-faster {
+          position: absolute;
+          top: 50%;
+          animation: preciseGapFadeTravelEvenFaster 2.5s linear infinite;
+          will-change: left, opacity;
+          font-size: 2.2rem;
+          pointer-events: none;
+          z-index: 1;
+        }
+
+        @keyframes dropdownEnter {
+          from { opacity: 0; transform: translateY(-8px) scale(0.96); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        @keyframes dropdownExit {
+          from { opacity: 1; transform: translateY(0) scale(1); }
+          to { opacity: 0; transform: translateY(-7px) scale(0.97); }
+        }
+
+        .nav-alert-bubble {
+          position: absolute;
+          right: 0;
+          top: calc(100% + 12px);
+          width: auto;
+          white-space: nowrap;
+          padding: 10px 16px;
+          background: #ffffff;
+          border-radius: 13px;
+          box-shadow: 0 14px 36px rgba(0, 0, 0, 0.23), 0 3px 8px rgba(0, 0, 0, 0.08);
+          border: 1px solid #e5e7eb;
+          z-index: 10;
+          transform-origin: top right;
+          color: #1b4332;
+          font-size: 0.92rem;
+          font-weight: 750;
+          text-align: left;
+        }
+
+        .nav-alert-bubble::before {
+          content: '';
+          position: absolute;
+          top: -7px;
+          right: 25px;
+          width: 12px;
+          height: 12px;
+          background: #ffffff;
+          border-top: 1px solid #e5e7eb;
+          border-left: 1px solid #e5e7eb;
+          transform: rotate(45deg);
+          border-radius: 2px;
+        }
+
+        .nav-alert-bubble.open {
+          animation: dropdownEnter 0.2s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+        }
+
+        .nav-alert-bubble.closing {
+          animation: dropdownExit 0.18s ease-in both;
+          pointer-events: none;
+        }
+      `}</style>
+
       <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
         {/* Header Banner */}
         <div style={{
@@ -75,31 +209,68 @@ const LogisticsDashboard = () => {
           justifyContent: 'space-between',
           alignItems: 'center',
           flexWrap: 'wrap',
-          gap: '15px'
+          gap: '20px',
+          position: 'relative'
         }}>
-          <div>
+          {/* Left aligned text group */}
+          <div style={{ zIndex: 2 }}>
             <h1 style={{ margin: 0, fontSize: '1.8rem', fontWeight: '800' }}>
-              🚚 Logistics & Delivery Portal
+              Enterprise Logistics & Fulfillment Portal
             </h1>
-            <p style={{ margin: '6px 0 0 0', color: '#b7e4c7', fontSize: '0.98rem' }}>
-              Eco-Cart Delivery Management System
+            <p style={{ margin: '6px 0 0 0', color: '#b7e4c7', fontSize: '1.05rem', fontWeight: '700', fontStyle: 'italic' }}>
+              Eco-Cart Supply Chain Management & Consignment Control
             </p>
           </div>
-          <div style={{
-            backgroundColor: 'rgba(255,255,255,0.15)',
-            padding: '8px 18px',
-            borderRadius: '20px',
-            fontWeight: 'bold',
-            fontSize: '0.95rem'
-          }}>
-            Total Active Orders: {orders.length}
+
+          {/* Traveling truck emoji with even faster speed */}
+          <span className="precise-banner-truck-even-faster">🚚</span>
+          
+          {/* Always Highlighted Total Active Orders Button Container */}
+          <div ref={activeOrdersBtnRef} style={{ zIndex: 2, flexShrink: 0, position: 'relative' }}>
+            <div 
+              onClick={handleActiveOrdersClick}
+              style={{
+                backgroundColor: 'rgba(82, 183, 136, 0.35)',
+                border: '2px solid #52b788',
+                padding: '12px 24px',
+                borderRadius: '24px',
+                fontWeight: '800',
+                fontSize: '1.1rem',
+                color: '#ffffff',
+                boxShadow: '0 0 16px rgba(82, 183, 136, 0.45)',
+                cursor: 'pointer',
+                transition: 'all 0.25s ease',
+                letterSpacing: '0.3px',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'rgba(82, 183, 136, 0.55)';
+                e.currentTarget.style.borderColor = '#74c69d';
+                e.currentTarget.style.boxShadow = '0 0 22px rgba(82, 183, 136, 0.7)';
+                e.currentTarget.style.transform = 'translateY(-2px)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'rgba(82, 183, 136, 0.35)';
+                e.currentTarget.style.borderColor = '#52b788';
+                e.currentTarget.style.boxShadow = '0 0 16px rgba(82, 183, 136, 0.45)';
+                e.currentTarget.style.transform = 'translateY(0)';
+              }}
+            >
+              Active Consignments: {orders.length}
+            </div>
+
+            {/* Perfectly Aligned Popup Bubble under the Button */}
+            {activeOrdersAlertMounted && (
+              <div className={`nav-alert-bubble ${activeOrdersAlertOpen ? 'open' : 'closing'}`}>
+                <div>All active fulfillment consignments displayed below</div>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Order Cards Grid */}
         {loading ? (
           <div style={{ textAlign: 'center', padding: '50px', fontSize: '1.1rem', color: '#2d6a4f' }}>
-            Loading order records... 🚚
+            Synchronizing active logistics manifests... 🚚
           </div>
         ) : orders.length === 0 ? (
           <div style={{
@@ -110,12 +281,12 @@ const LogisticsDashboard = () => {
             boxShadow: '0 4px 15px rgba(0,0,0,0.05)',
             color: '#6b7280'
           }}>
-            <h3>No orders available at the moment.</h3>
+            <h3>No active fulfillment records found in the queue.</h3>
           </div>
         ) : (
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))',
             gap: '24px'
           }}>
             {orders.map((order) => {
@@ -128,373 +299,158 @@ const LogisticsDashboard = () => {
                   onClick={() => setSelectedOrder(order)}
                   style={{
                     backgroundColor: '#ffffff',
-                    borderRadius: '16px',
-                    padding: '22px',
-                    boxShadow: '0 8px 24px rgba(0, 0, 0, 0.08)',
+                    borderRadius: '12px',
+                    padding: '24px',
+                    boxShadow: '0 4px 14px rgba(0,0,0,0.06)',
                     border: isDelivered 
                       ? '2px solid #52b788' 
                       : isFailed 
                       ? '2px solid #e63946' 
-                      : '1.5px solid #e5e7eb',
+                      : '1px solid #e0e0e0',
                     cursor: 'pointer',
-                    transition: 'all 0.25s ease',
-                    position: 'relative'
+                    transition: 'transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease',
+                    position: 'relative',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    boxSizing: 'border-box',
+                    width: '100%'
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = 'translateY(-4px)';
-                    e.currentTarget.style.boxShadow = '0 12px 30px rgba(0, 0, 0, 0.12)';
+                    e.currentTarget.style.transform = 'translateY(-6px) scale(1.02)';
+                    e.currentTarget.style.boxShadow = '0 12px 28px rgba(45, 106, 79, 0.18)';
+                    e.currentTarget.style.borderColor = '#1b4332';
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = '0 8px 24px rgba(0, 0, 0, 0.08)';
+                    e.currentTarget.style.transform = 'translateY(0) scale(1)';
+                    e.currentTarget.style.boxShadow = '0 4px 14px rgba(0,0,0,0.06)';
+                    e.currentTarget.style.borderColor = isDelivered ? '#52b788' : isFailed ? '#e63946' : '#e0e0e0';
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-                    <span style={{
-                      fontWeight: '800',
-                      fontSize: '1.05rem',
-                      color: '#1b4332',
-                      backgroundColor: '#e8f5e9',
-                      padding: '4px 10px',
-                      borderRadius: '8px'
-                    }}>
-                      #{order.orderNumber}
-                    </span>
-                    
-                    <span style={{
-                      fontSize: '0.82rem',
-                      fontWeight: '800',
-                      padding: '4px 12px',
-                      borderRadius: '20px',
-                      backgroundColor: isDelivered ? '#2d6a4f' : isFailed ? '#d32f2f' : '#fef3c7',
-                      color: isDelivered || isFailed ? '#ffffff' : '#92400e'
-                    }}>
-                      {isDelivered ? '✓ Delivered' : isFailed ? '✕ Cancelled' : order.orderStatus}
-                    </span>
-                  </div>
-
-                  <div style={{ fontSize: '0.92rem', color: '#374151', lineHeight: '1.6' }}>
-                    <p style={{ margin: '4px 0' }}><strong>Buyer:</strong> {order.buyer?.name}</p>
-                    <p style={{ margin: '4px 0' }}><strong>Seller:</strong> {order.seller?.name}</p>
-                    <p style={{ margin: '4px 0' }}>
-                      <strong>Items:</strong> {order.items?.length || 0} Product(s)
-                    </p>
-                    <p style={{ margin: '6px 0', fontSize: '1.08rem', fontWeight: '800', color: '#1b4332' }}>
-                      Total Amount: ৳{order.totalAmount}
-                    </p>
-                  </div>
-
+                  {/* Strict Inner Margin Container for Absolute Alignment */}
                   <div style={{
-                    marginTop: '14px',
-                    paddingTop: '12px',
-                    borderTop: '1px solid #f3f4f6',
                     display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between'
+                    flexDirection: 'column',
+                    gap: '16px',
+                    width: '100%',
+                    boxSizing: 'border-box'
                   }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <img 
-                        src={getPaymentLogo(order.paymentMethod, order.paymentDetails?.provider)} 
-                        alt={order.paymentMethod} 
-                        style={{ height: '26px', objectFit: 'contain' }}
-                      />
-                      <span style={{ fontSize: '0.88rem', fontWeight: '700', color: '#4b5563' }}>
-                        {order.paymentDetails?.provider || order.paymentMethod}
+                    {/* Top Reference & Status Row */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: '#6b7280', fontWeight: '800', letterSpacing: '0.5px' }}>
+                          Consignment ID
+                        </span>
+                        <span style={{
+                          fontWeight: '800',
+                          fontSize: '1.02rem',
+                          color: '#1b4332',
+                          backgroundColor: '#e8f5e9',
+                          padding: '5px 10px',
+                          borderRadius: '8px',
+                          display: 'inline-block',
+                          width: 'fit-content'
+                        }}>
+                          #{order.orderNumber}
+                        </span>
+                      </div>
+                      
+                      <span style={{
+                        fontSize: '0.8rem',
+                        fontWeight: '800',
+                        padding: '6px 14px',
+                        borderRadius: '20px',
+                        backgroundColor: isDelivered ? '#2d6a4f' : isFailed ? '#d32f2f' : '#fef3c7',
+                        color: isDelivered || isFailed ? '#ffffff' : '#92400e',
+                        letterSpacing: '0.3px',
+                        boxShadow: '0 2px 6px rgba(0,0,0,0.05)',
+                        flexShrink: 0
+                      }}>
+                        {isDelivered ? '✓ Delivered Successfully' : isFailed ? '✕ Consignment Cancelled' : order.orderStatus}
                       </span>
                     </div>
 
-                    <span style={{ fontSize: '0.85rem', color: '#1b4332', fontWeight: 'bold' }}>
-                      View Details & Track →
-                    </span>
+                    {/* Parties & Details Breakdown */}
+                    <div style={{ fontSize: '0.9rem', color: '#374151', lineHeight: '1.6', backgroundColor: '#f9fafb', padding: '14px', borderRadius: '8px', border: '1px solid #f3f4f6', display: 'flex', flexDirection: 'column', gap: '6px', width: '100%', boxSizing: 'border-box' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', gap: '10px' }}>
+                        <span style={{ color: '#6b7280', fontWeight: '600', flexShrink: 0 }}>Buyer :</span>
+                        <strong style={{ color: '#1f2937', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'right' }}>{order.buyer?.name}</strong>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', gap: '10px' }}>
+                        <span style={{ color: '#6b7280', fontWeight: '600', flexShrink: 0 }}>Seller :</span>
+                        <strong style={{ color: '#1f2937', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'right' }}>{order.seller?.name}</strong>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', gap: '10px' }}>
+                        <span style={{ color: '#6b7280', fontWeight: '600', flexShrink: 0 }}>Manifest Quantity :</span>
+                        <strong style={{ color: '#1b4332', whiteSpace: 'nowrap', textAlign: 'right' }}>{order.items?.length || 0} Unit(s)</strong>
+                      </div>
+                    </div>
+
+                    {/* Financial Settlement Amount */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                      <span style={{ fontSize: '0.8rem', textTransform: 'uppercase', color: '#6b7280', fontWeight: '800', letterSpacing: '0.5px' }}>
+                        Total Settlement
+                      </span>
+                      <span style={{ fontSize: '1.25rem', fontWeight: '800', color: '#2d6a4f' }}>
+                        ৳{order.totalAmount}
+                      </span>
+                    </div>
+
+                    {/* Footer Payment & Action Indicator */}
+                    <div style={{
+                      paddingTop: '12px',
+                      borderTop: '1px solid #f3f4f6',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      width: '100%',
+                      boxSizing: 'border-box'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flexShrink: 1 }}>
+                        <img 
+                          src={getPaymentLogo(order.paymentMethod, order.paymentDetails?.provider)} 
+                          alt={order.paymentMethod} 
+                          style={{ height: '24px', objectFit: 'contain', flexShrink: 0 }}
+                        />
+                        <span style={{ fontSize: '0.84rem', fontWeight: '700', color: '#4b5563', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {order.paymentDetails?.provider || order.paymentMethod}
+                        </span>
+                      </div>
+
+                      <span 
+                        style={{ 
+                          backgroundColor: '#1b4332',
+                          color: '#ffffff',
+                          padding: '6px 12px',
+                          borderRadius: '6px',
+                          fontSize: '0.82rem', 
+                          fontWeight: 'bold',
+                          transition: 'background-color 0.2s ease',
+                          letterSpacing: '0.3px',
+                          flexShrink: 0,
+                          whiteSpace: 'nowrap'
+                        }}
+                        onMouseEnter={(e) => e.target.style.backgroundColor = '#2d6a4f'}
+                        onMouseLeave={(e) => e.target.style.backgroundColor = '#1b4332'}
+                      >
+                        Inspect & Track →
+                      </span>
+                    </div>
                   </div>
                 </div>
               );
             })}
           </div>
         )}
-
-        {/* Detailed Order Modal */}
-        {selectedOrder && (
-          <div style={{
-            position: 'fixed',
-            top: 0, left: 0, right: 0, bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.65)',
-            backdropFilter: 'blur(4px)',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            zIndex: 3000,
-            padding: '20px'
-          }}>
-            <div style={{
-              backgroundColor: '#ffffff',
-              borderRadius: '20px',
-              width: '100%',
-              maxWidth: '750px',
-              maxHeight: '90vh',
-              overflowY: 'auto',
-              padding: '32px',
-              boxShadow: '0 20px 50px rgba(0,0,0,0.3)',
-              boxSizing: 'border-box'
-            }}>
-              {/* Modal Top Bar */}
-              <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                borderBottom: '2px solid #e5e7eb',
-                paddingBottom: '16px',
-                marginBottom: '22px'
-              }}>
-                <div>
-                  <h2 style={{ margin: 0, color: '#1b4332', fontSize: '1.4rem', fontWeight: '800' }}>
-                    Order Invoice Details
-                  </h2>
-                  <span style={{ fontSize: '0.92rem', color: '#6b7280', fontWeight: '600' }}>
-                    Order Number: #{selectedOrder.orderNumber}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setSelectedOrder(null)}
-                  style={{
-                    backgroundColor: '#f3f4f6',
-                    border: 'none',
-                    fontSize: '1.3rem',
-                    fontWeight: 'bold',
-                    width: '36px',
-                    height: '36px',
-                    borderRadius: '50%',
-                    cursor: 'pointer',
-                    color: '#374151'
-                  }}
-                >
-                  ✕
-                </button>
-              </div>
-
-              {/* Full Registration & Checkout Info Section */}
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr 1fr',
-                gap: '16px',
-                marginBottom: '22px'
-              }}>
-                {/* Buyer Info */}
-                <div style={{
-                  backgroundColor: '#f8faf9',
-                  border: '1px solid #d8eddf',
-                  borderRadius: '12px',
-                  padding: '16px'
-                }}>
-                  <h4 style={{ margin: '0 0 10px 0', color: '#1b4332', fontSize: '1.02rem', borderBottom: '1px solid #d8eddf', paddingBottom: '6px' }}>
-                    👤 Buyer Information
-                  </h4>
-                  <p style={{ margin: '4px 0', fontSize: '0.88rem' }}><strong>Name:</strong> {selectedOrder.buyer?.name}</p>
-                  <p style={{ margin: '4px 0', fontSize: '0.88rem' }}><strong>Email:</strong> {selectedOrder.buyer?.email}</p>
-                  <p style={{ margin: '4px 0', fontSize: '0.88rem' }}><strong>Phone:</strong> {selectedOrder.buyer?.phone}</p>
-                  <p style={{ margin: '4px 0', fontSize: '0.88rem' }}><strong>Location:</strong> {selectedOrder.buyer?.location}</p>
-                </div>
-
-                {/* Seller Info */}
-                <div style={{
-                  backgroundColor: '#f8faf9',
-                  border: '1px solid #d8eddf',
-                  borderRadius: '12px',
-                  padding: '16px'
-                }}>
-                  <h4 style={{ margin: '0 0 10px 0', color: '#1b4332', fontSize: '1.02rem', borderBottom: '1px solid #d8eddf', paddingBottom: '6px' }}>
-                    🏪 Seller Information
-                  </h4>
-                  <p style={{ margin: '4px 0', fontSize: '0.88rem' }}><strong>Name:</strong> {selectedOrder.seller?.name}</p>
-                  <p style={{ margin: '4px 0', fontSize: '0.88rem' }}><strong>Email:</strong> {selectedOrder.seller?.email}</p>
-                  <p style={{ margin: '4px 0', fontSize: '0.88rem' }}><strong>Phone:</strong> {selectedOrder.seller?.phone}</p>
-                  <p style={{ margin: '4px 0', fontSize: '0.88rem' }}><strong>Location:</strong> {selectedOrder.seller?.location}</p>
-                </div>
-              </div>
-
-              {/* Purchased Products Breakdown */}
-              <div style={{ marginBottom: '22px' }}>
-                <h4 style={{ margin: '0 0 12px 0', color: '#1b4332', fontSize: '1.05rem' }}>
-                  📦 Purchased Items & Stock Information
-                </h4>
-                <div style={{ border: '1px solid #e5e7eb', borderRadius: '12px', overflow: 'hidden' }}>
-                  {selectedOrder.items?.map((item, idx) => (
-                    <div
-                      key={idx}
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        padding: '12px 16px',
-                        borderBottom: idx === selectedOrder.items.length - 1 ? 'none' : '1px solid #f3f4f6',
-                        backgroundColor: idx % 2 === 0 ? '#ffffff' : '#fafafa'
-                      }}
-                    >
-                      <div>
-                        <div style={{ fontWeight: '700', color: '#1f2937', fontSize: '0.95rem' }}>
-                          {item.title}
-                        </div>
-                        <div style={{ fontSize: '0.82rem', color: '#6b7280' }}>
-                          Quantity: {item.quantity} | Unit Price: ৳{item.price}
-                        </div>
-                      </div>
-                      <div style={{ fontWeight: '800', color: '#1b4332', fontSize: '1rem' }}>
-                        ৳{item.price * item.quantity}
-                      </div>
-                    </div>
-                  ))}
-                  
-                  <div style={{
-                    backgroundColor: '#e8f5e9',
-                    padding: '12px 16px',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    fontWeight: '800',
-                    fontSize: '1.08rem',
-                    color: '#1b4332'
-                  }}>
-                    <span>Total Order Amount (incl. shipping ৳70):</span>
-                    <span>৳{selectedOrder.totalAmount}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Payment Details with Official Logo */}
-              <div style={{
-                backgroundColor: '#f9fafb',
-                border: '1px solid #e5e7eb',
-                borderRadius: '12px',
-                padding: '16px',
-                marginBottom: '26px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between'
-              }}>
-                <div>
-                  <div style={{ fontSize: '0.82rem', textTransform: 'uppercase', color: '#6b7280', fontWeight: '800' }}>
-                    Payment Method
-                  </div>
-                  <div style={{ fontSize: '1.05rem', fontWeight: '800', color: '#1b4332', marginTop: '2px' }}>
-                    {selectedOrder.paymentDetails?.provider || selectedOrder.paymentMethod}
-                  </div>
-                </div>
-                <img 
-                  src={getPaymentLogo(selectedOrder.paymentMethod, selectedOrder.paymentDetails?.provider)} 
-                  alt="" 
-                  style={{ height: '36px', objectFit: 'contain' }}
-                />
-              </div>
-
-              {/* Freezable Interactive Logistics Checklist */}
-              <div>
-                <h4 style={{ margin: '0 0 14px 0', color: '#1b4332', fontSize: '1.1rem', fontWeight: '800' }}>
-                  ☑️ Execute Logistics Checklist Steps
-                </h4>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {[
-                    { key: 'collectedFromSeller', label: 'Product collected from seller' },
-                    { key: 'shipped', label: 'Product shipped' },
-                    { key: 'reachedWarehouse', label: 'Product reached Eco-Cart warehouse' },
-                    { key: 'reachedHub', label: "Product sent to your area's nearby Eco-Cart delivery hub" },
-                    { key: 'outForDelivery', label: 'Product out for delivery' }
-                  ].map((step) => {
-                    const isChecked = Boolean(selectedOrder.logisticsSteps?.[step.key]);
-
-                    return (
-                      <label
-                        key={step.key}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '12px',
-                          padding: '12px 16px',
-                          borderRadius: '10px',
-                          backgroundColor: isChecked ? '#e8f5e9' : '#ffffff',
-                          border: isChecked ? '1.5px solid #2e7d32' : '1.5px solid #d1d5db',
-                          cursor: isChecked ? 'not-allowed' : 'pointer',
-                          fontWeight: '700',
-                          fontSize: '0.95rem',
-                          color: isChecked ? '#1b4332' : '#374151',
-                          transition: 'all 0.2s ease'
-                        }}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          disabled={isChecked}
-                          onChange={() => handleStepToggle(selectedOrder._id, step.key, isChecked)}
-                          style={{ width: '20px', height: '20px', accentColor: '#1b4332', cursor: 'pointer' }}
-                        />
-                        <span>{step.label}</span>
-                        {isChecked && <span style={{ marginLeft: 'auto', fontSize: '0.85rem', color: '#2e7d32' }}>[Freezed ✓]</span>}
-                      </label>
-                    );
-                  })}
-
-                  <hr style={{ border: 'none', borderTop: '2px dashed #e5e7eb', margin: '10px 0' }} />
-
-                  {/* Mutual Exclusion: Success (Green) vs Failure (Red) */}
-                  {/* Success: Product Delivered */}
-                  <label
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '12px',
-                      padding: '14px 16px',
-                      borderRadius: '10px',
-                      backgroundColor: selectedOrder.logisticsSteps?.delivered ? '#e8f5e9' : '#ffffff',
-                      border: '2px solid #2e7d32',
-                      cursor: (selectedOrder.logisticsSteps?.delivered || selectedOrder.logisticsSteps?.failed) ? 'not-allowed' : 'pointer',
-                      fontWeight: '800',
-                      fontSize: '0.98rem',
-                      color: '#2e7d32',
-                      opacity: selectedOrder.logisticsSteps?.failed ? 0.4 : 1
-                    }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={Boolean(selectedOrder.logisticsSteps?.delivered)}
-                      disabled={Boolean(selectedOrder.logisticsSteps?.delivered || selectedOrder.logisticsSteps?.failed)}
-                      onChange={() => handleStepToggle(selectedOrder._id, 'delivered', selectedOrder.logisticsSteps?.delivered)}
-                      style={{ width: '22px', height: '22px', accentColor: '#2e7d32', cursor: 'pointer' }}
-                    />
-                    <span>for success: Product delivered</span>
-                  </label>
-
-                  {/* Failure: Product Not Delivered / Cancelled */}
-                  <label
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '12px',
-                      padding: '14px 16px',
-                      borderRadius: '10px',
-                      backgroundColor: selectedOrder.logisticsSteps?.failed ? '#ffebee' : '#ffffff',
-                      border: '2px solid #c62828',
-                      cursor: (selectedOrder.logisticsSteps?.delivered || selectedOrder.logisticsSteps?.failed) ? 'not-allowed' : 'pointer',
-                      fontWeight: '800',
-                      fontSize: '0.98rem',
-                      color: '#c62828',
-                      opacity: selectedOrder.logisticsSteps?.delivered ? 0.4 : 1
-                    }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={Boolean(selectedOrder.logisticsSteps?.failed)}
-                      disabled={Boolean(selectedOrder.logisticsSteps?.delivered || selectedOrder.logisticsSteps?.failed)}
-                      onChange={() => handleStepToggle(selectedOrder._id, 'failed', selectedOrder.logisticsSteps?.failed)}
-                      style={{ width: '22px', height: '22px', accentColor: '#c62828', cursor: 'pointer' }}
-                    />
-                    <span>for failure: Product not delivered order cancelled by {selectedOrder.buyer?.name}</span>
-                  </label>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
+
+      {/* Rendered Dedicated Inspect & Track Modal */}
+      {selectedOrder && (
+        <InspectTrackModal 
+          order={selectedOrder} 
+          onClose={() => setSelectedOrder(null)} 
+          onStepToggle={handleStepToggle} 
+        />
+      )}
     </div>
   );
 };
