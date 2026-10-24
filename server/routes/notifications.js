@@ -2,6 +2,18 @@ const express = require('express');
 const router = express.Router();
 const Notification = require('../models/Notification');
 
+// GET /api/notifications/count/:userId - Get unread notification count for a user
+router.get('/count/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const count = await Notification.countDocuments({ recipient: userId, isRead: false });
+    res.json({ count });
+  } catch (err) {
+    console.error('Error fetching unread notification count:', err);
+    res.status(500).json({ error: 'Failed to fetch count', details: err.message });
+  }
+});
+
 // GET /api/notifications/:userId - Get all notifications for a user
 router.get('/:userId', async (req, res) => {
   try {

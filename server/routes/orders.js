@@ -6,10 +6,24 @@ const User = require('../models/User');
 const Cart = require('../models/Cart');
 const Notification = require('../models/Notification');
 
+// Helper function to find or get the default Eco-Cart Delivery Team user document
+const getDeliveryTeamUser = async () => {
+  let deliveryUser = await User.findOne({ email: 'sajid019129@gmail.com' });
+  if (!deliveryUser) {
+    deliveryUser = await User.findOne({ role: 'delivery-team' });
+  }
+  return deliveryUser;
+};
+
 // GET /api/orders/all - Get all orders in the system (for Logistics Dashboard)
 router.get('/all', async (req, res) => {
   try {
-    const orders = await Order.find({}).sort({ createdAt: -1 });
+    const orders = await Order.find({})
+      .populate({
+        path: 'items.product',
+        populate: { path: 'seller', select: 'name fullName username email phone sellerAccounts' }
+      })
+      .sort({ createdAt: -1 });
     res.json(orders);
   } catch (err) {
     console.error('Error fetching all orders:', err);
@@ -33,8 +47,9 @@ router.post('/', async (req, res) => {
 
     let orderItems = [];
     let subtotal = 0;
-    let sellerInfo = null;
-    let sellerUserDoc = null;
+    let firstSellerInfo = null;
+    const uniqueSellerNames = new Set();
+    const uniqueSellerIds = new Set();
 
     for (const cartItem of items) {
       const productId = cartItem.productId || cartItem.product?._id || cartItem.product;
@@ -45,15 +60,27 @@ router.post('/', async (req, res) => {
         return res.status(404).json({ error: `Product not found: ${productId}` });
       }
 
-      sellerUserDoc = productDoc.seller ? await User.findById(productDoc.seller) : null;
+      const sellerUserDoc = productDoc.seller ? await User.findById(productDoc.seller) : null;
       
-      sellerInfo = {
+      const sName = productDoc.sellerName || (sellerUserDoc ? (sellerUserDoc.name || sellerUserDoc.fullName || sellerUserDoc.username) : 'Eco-Cart Official');
+      const sEmail = productDoc.sellerEmail || (sellerUserDoc ? sellerUserDoc.email : 'seller@ecocart.com');
+      const sPhone = productDoc.sellerPhone || (sellerUserDoc ? (sellerUserDoc.phone || sellerUserDoc.phoneNumber) : '01700000000');
+      const sLocation = productDoc.location || productDoc.sellerAddress || (sellerUserDoc ? (sellerUserDoc.address || sellerUserDoc.location) : 'Bangladesh');
+
+      uniqueSellerNames.add(sName);
+      if (sellerUserDoc) uniqueSellerIds.add(sellerUserDoc._id.toString());
+
+      const itemSellerInfo = {
         userId: sellerUserDoc ? sellerUserDoc._id : null,
-        name: productDoc.sellerName || (sellerUserDoc ? (sellerUserDoc.name || sellerUserDoc.fullName) : 'Eco-Cart Seller'),
-        email: productDoc.sellerEmail || (sellerUserDoc ? sellerUserDoc.email : 'seller@ecocart.com'),
-        phone: productDoc.sellerPhone || (sellerUserDoc ? (sellerUserDoc.phone || sellerUserDoc.phoneNumber) : '01700000000'),
-        location: productDoc.location || productDoc.sellerAddress || (sellerUserDoc ? (sellerUserDoc.address || sellerUserDoc.location) : 'Bangladesh')
+        name: sName,
+        email: sEmail,
+        phone: sPhone,
+        location: sLocation
       };
+
+      if (!firstSellerInfo) {
+        firstSellerInfo = itemSellerInfo;
+      }
 
       const itemTotal = Number(productDoc.price) * quantityOrdered;
       subtotal += itemTotal;
@@ -62,7 +89,9 @@ router.post('/', async (req, res) => {
         product: productDoc._id,
         title: productDoc.title,
         price: Number(productDoc.price),
-        quantity: quantityOrdered
+        quantity: quantityOrdered,
+        seller: sellerUserDoc ? sellerUserDoc._id : null,
+        sellerName: sName
       });
 
       if (isBuyNow) {
@@ -77,8 +106,15 @@ router.post('/', async (req, res) => {
 
     const shippingFee = 70; // Eco-Cart All-BD Flat Rate
     const totalAmount = subtotal + shippingFee;
-
     const resolvedPaymentMethod = paymentMethod || paymentDetails?.provider || 'COD';
+
+    // Handle order-level seller summary
+    const orderSellerInfo = {
+      ...firstSellerInfo,
+      name: uniqueSellerNames.size > 1 
+        ? `Multiple Sellers (${Array.from(uniqueSellerNames).join(', ')})` 
+        : (firstSellerInfo?.name || 'Eco-Cart Official')
+    };
 
     const newOrder = new Order({
       buyer: {
@@ -88,7 +124,7 @@ router.post('/', async (req, res) => {
         phone: buyerUser.phone || buyerUser.phoneNumber || shippingAddress?.phone || '01800000000',
         location: shippingAddress?.location || buyerUser.address || buyerUser.location || 'Bangladesh'
       },
-      seller: sellerInfo,
+      seller: orderSellerInfo,
       items: orderItems,
       subtotal,
       shippingFee,
@@ -106,97 +142,119 @@ router.post('/', async (req, res) => {
       await Cart.deleteMany({ $or: [{ user: buyerId }, { buyer: buyerId }] });
     }
 
-    // --- AUTOMATED NOTIFICATION TRIGGERS ---
+    // --- AUTOMATED GRANULAR TRANSACTION NOTIFICATION TRIGGERS ---
     try {
       const buyerName = newOrder.buyer.name;
-      const sellerName = newOrder.seller.name;
       const orderNum = newOrder.orderNumber;
-      const provider = paymentDetails?.provider || resolvedPaymentMethod;
-      const checkoutAccount = paymentDetails?.accountNumber || '';
+      const deliveryTeamUser = await getDeliveryTeamUser();
 
-      // 1. Invoice Notifications
+      // 1. Primary Invoice Notifications
       await Notification.create({
         recipient: buyerUser._id,
         recipientRole: 'buyer',
-        title: `Order Placed (${orderNum}) 📦`,
-        message: `You placed order ${orderNum}. Here is the invoice.`,
+        title: `Order Placed Successfully (${orderNum}) 📦`,
+        message: `Dear ${buyerName}, your order #${orderNum} with ${uniqueSellerNames.size} seller(s) has been successfully registered. Click here to view or download your official invoice.`,
         orderNumber: orderNum,
         orderId: newOrder._id,
         type: 'invoice'
       });
 
-      if (sellerInfo.userId) {
+      for (const cartItem of items) {
+        const productDoc = await Product.findById(cartItem.productId || cartItem.product?._id || cartItem.product);
+        if (productDoc && productDoc.seller) {
+          const sellerDoc = await User.findById(productDoc.seller);
+          const sellerName = sellerDoc?.name || sellerDoc?.fullName || 'Seller';
+          const itemTotal = Number(productDoc.price) * Number(cartItem.quantity || 1);
+
+          await Notification.create({
+            recipient: productDoc.seller,
+            recipientRole: 'seller',
+            title: `New Product Sale (${orderNum}) 💰`,
+            message: `Congratulations! Your product "${productDoc.title}" was purchased by ${buyerName} under order #${orderNum}. Click here to view or download your official invoice.`,
+            orderNumber: orderNum,
+            orderId: newOrder._id,
+            type: 'invoice'
+          });
+
+          // 2. Secondary Financial Settlement Notification based on Payment Method
+          const provider = (paymentDetails?.provider || resolvedPaymentMethod).trim();
+          const buyerAccount = paymentDetails?.accountNumber || paymentDetails?.cardNumber || 'Personal Account';
+          
+          // Pull exact nested bank name and account number from sellerAccounts object[cite: 21]
+          const bankName = sellerDoc?.sellerAccounts?.bank?.bankName || 'Registered Bank';
+          const sellerAccount = sellerDoc?.sellerAccounts?.bank?.accountNumber || sellerDoc?.phone || 'Registered Payout Account';
+
+          if (/bKash|Nagad|Upay|MasterCard|Card/i.test(provider)) {
+            // Buyer financial confirmation notice
+            await Notification.create({
+              recipient: buyerUser._id,
+              recipientRole: 'buyer',
+              title: `Payment Transfer Confirmation (${orderNum}) 💳`,
+              message: `You (${provider} Account Number: ${buyerAccount}) successfully transferred ৳${itemTotal.toFixed(2)} to ${sellerName} (${provider} Account Number: ${sellerAccount}) for order #${orderNum}.`,
+              orderNumber: orderNum,
+              orderId: newOrder._id,
+              type: 'payment'
+            });
+
+            // Seller financial receipt notice
+            await Notification.create({
+              recipient: productDoc.seller,
+              recipientRole: 'seller',
+              title: `Payment Received Notification (${orderNum}) 💵`,
+              message: `You received ৳${itemTotal.toFixed(2)} in your ${provider} Account Number (${sellerAccount}) from ${buyerName} (${provider} Account Number: ${buyerAccount}) for order #${orderNum}.`,
+              orderNumber: orderNum,
+              orderId: newOrder._id,
+              type: 'payment'
+            });
+          } else {
+            // Cash on Delivery Settlement Notices
+            await Notification.create({
+              recipient: buyerUser._id,
+              recipientRole: 'buyer',
+              title: `Cash on Delivery Preparation (${orderNum}) 🚚`,
+              message: `Please keep ৳${itemTotal.toFixed(2)} ready in cash before the delivery representative arrives for order #${orderNum}.`,
+              orderNumber: orderNum,
+              orderId: newOrder._id,
+              type: 'payment'
+            });
+
+            await Notification.create({
+              recipient: productDoc.seller,
+              recipientRole: 'seller',
+              title: `Bank Settlement Notice (${orderNum}) 🏦`,
+              message: `You will receive ৳${itemTotal.toFixed(2)} in your Bank Account: (${bankName}: ${sellerAccount}) upon successful delivery of order #${orderNum}.`,
+              orderNumber: orderNum,
+              orderId: newOrder._id,
+              type: 'payment'
+            });
+          }
+        }
+      }
+
+      if (deliveryTeamUser) {
         await Notification.create({
-          recipient: sellerInfo.userId,
-          recipientRole: 'seller',
-          title: `Product Sold (${orderNum}) 💰`,
-          message: `Your product got sold for order ${orderNum}. Check the invoice.`,
+          recipient: deliveryTeamUser._id,
+          recipientRole: 'delivery-team',
+          title: `New Consignment Dispatched (${orderNum}) 🚚`,
+          message: `New fulfillment consignment registered for order #${orderNum}. Buyer: ${buyerName}, Sellers: ${Array.from(uniqueSellerNames).join(', ')}. Click here to view or download your official invoice.`,
           orderNumber: orderNum,
           orderId: newOrder._id,
           type: 'invoice'
         });
       }
-
-      // 2. Payment Notifications
-      if (['bKash', 'Nagad', 'Upay', 'MasterCard', 'Digital'].includes(provider)) {
-        const regAccount = sellerUserDoc && sellerUserDoc.sellerAccounts 
-          ? (sellerUserDoc.sellerAccounts[provider.toLowerCase()] || sellerUserDoc.sellerAccounts.masterCard || 'Registered Account')
-          : 'Registered Account';
-
-        await Notification.create({
-          recipient: buyerUser._id,
-          recipientRole: 'buyer',
-          title: `${provider} Payment Sent 💸`,
-          message: `You (${provider} Account: ${checkoutAccount || 'Checkout Account'}) sent ৳${totalAmount} to seller ${sellerName} (${provider} Account: ${regAccount}) for order ${orderNum}.`,
-          orderNumber: orderNum,
-          orderId: newOrder._id,
-          type: 'payment'
-        });
-
-        if (sellerInfo.userId) {
-          await Notification.create({
-            recipient: sellerInfo.userId,
-            recipientRole: 'seller',
-            title: `${provider} Payment Received 💵`,
-            message: `You received ৳${totalAmount} in your ${provider} Account (${regAccount}) from buyer ${buyerName} (${provider} Account: ${checkoutAccount || 'Buyer Account'}) for order ${orderNum}.`,
-            orderNumber: orderNum,
-            orderId: newOrder._id,
-            type: 'payment'
-          });
-        }
-      } else {
-        const bankName = sellerUserDoc?.sellerAccounts?.bank?.bankName || 'Eco-Cart Partner Bank';
-        const bankAcc = sellerUserDoc?.sellerAccounts?.bank?.accountNumber || 'Bank Account Number';
-
-        await Notification.create({
-          recipient: buyerUser._id,
-          recipientRole: 'buyer',
-          title: `COD Order Placed 💵`,
-          message: `Please keep ৳${totalAmount} ready before the delivery man arrives for order ${orderNum}.`,
-          orderNumber: orderNum,
-          orderId: newOrder._id,
-          type: 'payment'
-        });
-
-        if (sellerInfo.userId) {
-          await Notification.create({
-            recipient: sellerInfo.userId,
-            recipientRole: 'seller',
-            title: `COD Pending Settlement 🏦`,
-            message: `You will receive ৳${totalAmount} in your Bank Account (${bankName}: ${bankAcc}) upon successful delivery of order ${orderNum}.`,
-            orderNumber: orderNum,
-            orderId: newOrder._id,
-            type: 'payment'
-          });
-        }
-      }
     } catch (notifErr) {
       console.error('Error generating automated order notifications:', notifErr);
     }
 
+    // Return newly created order populated
+    const populatedOrder = await Order.findById(newOrder._id).populate({
+      path: 'items.product',
+      populate: { path: 'seller', select: 'name fullName username email phone' }
+    });
+
     res.status(201).json({
       message: 'Order created successfully!',
-      order: newOrder
+      order: populatedOrder || newOrder
     });
   } catch (err) {
     console.error('Error creating order:', err);
@@ -204,234 +262,15 @@ router.post('/', async (req, res) => {
   }
 });
 
-// PUT /api/orders/:id/logistics - Comprehensive logistics checklist update (for Logistics Team)
-router.put('/:id/logistics', async (req, res) => {
-  try {
-    const { step, value, reason } = req.body;
-    const order = await Order.findById(req.params.id);
-    if (!order) {
-      return res.status(404).json({ error: 'Order not found' });
-    }
-
-    if (!order.logisticsSteps) {
-      order.logisticsSteps = {};
-    }
-
-    let milestoneText = '';
-    let buyerMsg = '';
-    let sellerMsg = '';
-
-    // Mutual exclusion logic for Success vs Failure
-    if (step === 'delivered' && value) {
-      order.logisticsSteps.delivered = true;
-      order.logisticsSteps.failed = false;
-      order.orderStatus = 'Delivered';
-      milestoneText = 'Product delivered';
-      buyerMsg = `Product delivered successfully for order #${order.orderNumber}`;
-      sellerMsg = `Product delivered successfully for order #${order.orderNumber}`;
-
-      if (order.paymentMethod === 'Cash on Delivery' || order.paymentMethod === 'COD') {
-        const bankName = order.seller?.bankName || 'Eco-Cart Partner Bank';
-        const bankAcc = order.seller?.bankAccountNo || 'Bank Account Number';
-        sellerMsg += `. ৳${order.totalAmount} has been added to your bank account (Bank Name: ${bankName}, Account: ${bankAcc}) for this order #${order.orderNumber}`;
-      }
-    } else if (step === 'failed' && value) {
-      order.logisticsSteps.failed = true;
-      order.logisticsSteps.delivered = false;
-      order.orderStatus = 'Cancelled';
-      order.isCancelled = true;
-      const cancellationReason = reason || `Order cancelled by buyer ${order.buyer.name}`;
-      order.logisticsSteps.failureReason = cancellationReason;
-      milestoneText = `Product not delivered order cancelled by ${order.buyer.name}`;
-      buyerMsg = `Product not delivered. Order cancelled for order #${order.orderNumber}`;
-      sellerMsg = `Product not delivered. Order cancelled for order #${order.orderNumber}`;
-
-      if (['bKash', 'Nagad', 'Upay', 'MasterCard', 'Digital'].includes(order.paymentMethod)) {
-        const sellerAcc = order.seller?.gatewayAccountNo || order.paymentDetails?.accountNumber || 'Seller Account';
-        const buyerAcc = order.buyer?.paymentAccountNo || order.paymentDetails?.accountNumber || 'Buyer Account';
-        const methodType = order.paymentMethod;
-
-        sellerMsg += `. ৳${order.totalAmount} disbursed from your account (${methodType}: ${sellerAcc}) to buyer ${order.buyer.name} (${methodType}: ${buyerAcc}) with order #${order.orderNumber}`;
-        buyerMsg += `. ৳${order.totalAmount} disbursed to your ${methodType} account (${buyerAcc}) from seller ${order.seller.name} (${methodType}: ${sellerAcc}) with order #${order.orderNumber}`;
-      }
-    } else {
-      order.logisticsSteps[step] = value;
-      if (step === 'collectedFromSeller' && value) {
-        milestoneText = 'Product collected from seller';
-        buyerMsg = `Product collected from seller for order #${order.orderNumber}`;
-      } else if (step === 'shipped' && value) {
-        milestoneText = 'Product shipped';
-        buyerMsg = `Product shipped for order #${order.orderNumber}`;
-        order.orderStatus = 'Shipped';
-      } else if (step === 'reachedWarehouse' && value) {
-        milestoneText = 'Product reached Eco-Cart warehouse';
-        buyerMsg = `Product reached Eco-Cart warehouse for order #${order.orderNumber}`;
-        order.orderStatus = 'Arrived at Facility';
-      } else if (step === 'reachedHub' && value) {
-        milestoneText = "Product sent to your area's nearby Eco-Cart delivery hub";
-        buyerMsg = `Product sent to your area's nearby Eco-Cart delivery hub for order #${order.orderNumber}`;
-      } else if (step === 'outForDelivery' && value) {
-        milestoneText = 'Product out for delivery';
-        buyerMsg = `Product out for delivery for order #${order.orderNumber}`;
-        order.orderStatus = 'Out for Delivery';
-      }
-    }
-
-    if (milestoneText && !order.completedMilestones.includes(milestoneText)) {
-      order.completedMilestones.push(milestoneText);
-    }
-
-    await order.save();
-
-    // Dispatch notifications to buyer and seller
-    try {
-      const orderNum = order.orderNumber;
-      const buyerId = order.buyer?.userId;
-      const sellerUserId = order.seller?.userId;
-
-      if (buyerMsg && buyerId) {
-        await Notification.create({
-          recipient: buyerId,
-          recipientRole: 'buyer',
-          title: `Order Update (${orderNum}) 🚚`,
-          message: buyerMsg,
-          orderNumber: orderNum,
-          orderId: order._id,
-          type: 'milestone'
-        });
-      }
-
-      if (sellerMsg && sellerUserId) {
-        await Notification.create({
-          recipient: sellerUserId,
-          recipientRole: 'seller',
-          title: `Order Update (${orderNum}) 📦`,
-          message: sellerMsg,
-          orderNumber: orderNum,
-          orderId: order._id,
-          type: 'milestone'
-        });
-      }
-    } catch (notifErr) {
-      console.error('Error generating logistics notifications:', notifErr);
-    }
-
-    res.json({ message: 'Logistics step updated successfully', order });
-  } catch (err) {
-    console.error('Error updating logistics:', err);
-    res.status(500).json({ error: 'Failed to update logistics', details: err.message });
-  }
-});
-
-// PUT /api/orders/:id/milestone - Update logistics milestone and notify buyer/seller (Backward compatibility)
-router.put('/:id/milestone', async (req, res) => {
-  try {
-    const { milestone } = req.body;
-    const order = await Order.findById(req.params.id);
-    if (!order) {
-      return res.status(404).json({ error: 'Order not found' });
-    }
-
-    if (!order.completedMilestones) {
-      order.completedMilestones = [];
-    }
-
-    if (!order.completedMilestones.includes(milestone)) {
-      order.completedMilestones.push(milestone);
-    }
-
-    if (milestone.toLowerCase().includes('delivered')) {
-      order.orderStatus = 'Delivered';
-      order.logisticsSteps.delivered = true;
-    } else if (milestone.toLowerCase().includes('shipped')) {
-      order.orderStatus = 'Shipped';
-      order.logisticsSteps.shipped = true;
-    } else if (milestone.toLowerCase().includes('out for delivery')) {
-      order.orderStatus = 'Out for Delivery';
-      order.logisticsSteps.outForDelivery = true;
-    } else {
-      order.orderStatus = 'In Transit';
-    }
-
-    await order.save();
-
-    try {
-      const orderNum = order.orderNumber;
-      if (order.buyer?.userId) {
-        await Notification.create({
-          recipient: order.buyer.userId,
-          recipientRole: 'buyer',
-          title: `Order Update (${orderNum}) 🚚`,
-          message: `Milestone reached for order ${orderNum}: "${milestone}"`,
-          orderNumber: orderNum,
-          orderId: order._id,
-          type: 'milestone'
-        });
-      }
-    } catch (notifErr) {
-      console.error('Error creating milestone notification:', notifErr);
-    }
-
-    res.json({ message: 'Milestone updated successfully', order });
-  } catch (err) {
-    console.error('Error updating milestone:', err);
-    res.status(500).json({ error: 'Failed to update milestone', details: err.message });
-  }
-});
-
-// PUT /api/orders/:id/cancel - Cancel order and notify parties
-router.put('/:id/cancel', async (req, res) => {
-  try {
-    const order = await Order.findById(req.params.id);
-    if (!order) {
-      return res.status(404).json({ error: 'Order not found' });
-    }
-
-    order.orderStatus = 'Cancelled';
-    order.isCancelled = true;
-    order.logisticsSteps.failed = true;
-    await order.save();
-
-    try {
-      const orderNum = order.orderNumber;
-      if (order.buyer?.userId) {
-        await Notification.create({
-          recipient: order.buyer.userId,
-          recipientRole: 'buyer',
-          title: `Order Cancelled (${orderNum}) ❌`,
-          message: `Order ${orderNum} has been marked as cancelled / not delivered.`,
-          orderNumber: orderNum,
-          orderId: order._id,
-          type: 'cancellation'
-        });
-      }
-      if (order.seller?.userId) {
-        await Notification.create({
-          recipient: order.seller.userId,
-          recipientRole: 'seller',
-          title: `Order Cancelled (${orderNum}) ❌`,
-          message: `Order ${orderNum} was cancelled by logistics delivery team.`,
-          orderNumber: orderNum,
-          orderId: order._id,
-          type: 'cancellation'
-        });
-      }
-    } catch (notifErr) {
-      console.error('Error creating cancellation notification:', notifErr);
-    }
-
-    res.json({ message: 'Order cancelled successfully', order });
-  } catch (err) {
-    console.error('Error cancelling order:', err);
-    res.status(500).json({ error: 'Failed to cancel order', details: err.message });
-  }
-});
-
 // GET /api/orders/track/:orderNumber - Track order by Order Number
 router.get('/track/:orderNumber', async (req, res) => {
   try {
     const { orderNumber } = req.params;
-    const order = await Order.findOne({ orderNumber: orderNumber.trim().toUpperCase() });
+    const order = await Order.findOne({ orderNumber: orderNumber.trim().toUpperCase() })
+      .populate({
+        path: 'items.product',
+        populate: { path: 'seller', select: 'name fullName username email phone' }
+      });
     
     if (!order) {
       return res.status(404).json({ error: 'Order not found with this Order Number.' });
@@ -449,30 +288,21 @@ router.get('/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
     const orders = await Order.find({
-      $or: [{ 'buyer.userId': userId }, { 'seller.userId': userId }]
-    }).sort({ createdAt: -1 });
+      $or: [
+        { 'buyer.userId': userId }, 
+        { 'seller.userId': userId },
+        { recipient: userId }
+      ]
+    })
+    .populate({
+      path: 'items.product',
+      populate: { path: 'seller', select: 'name fullName username email phone' }
+    })
+    .sort({ createdAt: -1 });
 
     res.json(orders);
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch orders', details: err.message });
-  }
-});
-
-// PUT /api/orders/:id/status - Update order tracking status
-router.put('/:id/status', async (req, res) => {
-  try {
-    const { orderStatus } = req.body;
-    const updatedOrder = await Order.findByIdAndUpdate(
-      req.params.id,
-      { orderStatus },
-      { new: true }
-    );
-    if (!updatedOrder) {
-      return res.status(404).json({ error: 'Order not found' });
-    }
-    res.json(updatedOrder);
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to update order status', details: err.message });
   }
 });
 
