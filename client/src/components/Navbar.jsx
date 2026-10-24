@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import AccountInfoModal from './AccountInfoModal';
+import InvoiceModal from './InvoiceModal';
 
 const DEFAULT_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='50' fill='%232d6a4f'/><circle cx='50' cy='38' r='18' fill='%23ffffff'/><path d='M20,88 C20,68 32,58 50,58 C68,58 80,68 80,88 Z' fill='%23ffffff'/></svg>";
 
@@ -15,6 +16,9 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
   const [notifMounted, setNotifMounted] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
+
+  // Invoice Modal state when clicking an invoice notification
+  const [selectedInvoiceOrder, setSelectedInvoiceOrder] = useState(null);
 
   const [avatarAlertOpen, setAvatarAlertOpen] = useState(false);
   const [avatarAlertMounted, setAvatarAlertMounted] = useState(false);
@@ -54,8 +58,20 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
   const userId = user?._id || user?.id;
   const isDeliveryTeam = user?.email === 'sajid019129@gmail.com' || user?.role === 'delivery-team';
 
-  // Fetch notifications whenever user logs in or changes
-  useEffect(() => {
+  // Helper to determine notification logo based on title or content
+  const getNotificationLogo = (notif) => {
+    const text = (notif.title + ' ' + notif.message).toLowerCase();
+    if (text.includes('bkash')) return '/bKash.jpg';
+    if (text.includes('nagad')) return '/Nagad.jpg';
+    if (text.includes('upay')) return '/Upay.jpg';
+    if (text.includes('mastercard') || text.includes('card')) return '/MasterCard.png';
+    if (text.includes('cod') || text.includes('cash on delivery') || text.includes('delivery man')) return '/Cash on Delivery.jpg';
+    if (text.includes('bank') || text.includes('settlement')) return '/Bank.png';
+    return '/Eco-Cart Profile Picture.jpg';
+  };
+
+  // Fetch notifications helper function
+  const fetchNotifications = () => {
     if (userId) {
       axios.get(`http://localhost:5000/api/notifications/${userId}`)
         .then(res => {
@@ -70,6 +86,21 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
       setNotifications([]);
       setUnreadCount(0);
     }
+  };
+
+  // Fetch notifications whenever user logs in or changes, and listen for live orderPlaced events
+  useEffect(() => {
+    fetchNotifications();
+
+    const handleOrderPlaced = () => {
+      fetchNotifications();
+    };
+
+    window.addEventListener('orderPlaced', handleOrderPlaced);
+
+    return () => {
+      window.removeEventListener('orderPlaced', handleOrderPlaced);
+    };
   }, [userId]);
 
   const closeAllDropdowns = () => {
@@ -145,6 +176,63 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
       closeAllDropdowns();
       openNotif();
     }
+  };
+
+  const handleFetchOrderInvoice = async (notif, e) => {
+    if (e) e.stopPropagation();
+    let queryVal = notif.orderNumber || notif.orderId;
+
+    if (!queryVal) {
+      const fullText = (notif.title || '') + ' ' + (notif.message || '');
+      const match = fullText.match(/ECO-\d+-\d+/i);
+      if (match) {
+        queryVal = match[0];
+      }
+    }
+
+    if (queryVal) {
+      try {
+        const endpoint = queryVal.startsWith('ECO-') 
+          ? `http://localhost:5000/api/orders/track/${encodeURIComponent(queryVal)}`
+          : `http://localhost:5000/api/orders/id/${encodeURIComponent(queryVal)}`;
+
+        const res = await axios.get(endpoint);
+        if (res.data) {
+          closeNotif();
+          const orderData = Array.isArray(res.data) ? res.data[0] : res.data;
+          setSelectedInvoiceOrder(orderData);
+          return;
+        }
+      } catch (err) {
+        console.error('API order lookup failed for notification click:', err);
+      }
+    }
+
+    closeNotif();
+    navigate('/track-order');
+  };
+
+  // Helper to split message and wrap full phrase in hyperlink
+  const renderMessageWithHyperlink = (notif) => {
+    const msg = notif.message || '';
+    const targetPhrase = "Click here to view or download your official invoice.";
+    
+    if (msg.includes(targetPhrase)) {
+      const parts = msg.split(targetPhrase);
+      return (
+        <span>
+          {parts[0]}
+          <span 
+            className="notif-invoice-link" 
+            onClick={(e) => handleFetchOrderInvoice(notif, e)}
+          >
+            {targetPhrase}
+          </span>
+          {parts[1]}
+        </span>
+      );
+    }
+    return msg;
   };
 
   const triggerAvatarAlert = () => {
@@ -396,6 +484,7 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
         closeAllDropdowns();
         if (showAccountModal) setShowAccountModal(false);
         if (confirmDeleteModal) setConfirmDeleteModal(false);
+        if (selectedInvoiceOrder) setSelectedInvoiceOrder(null);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -412,7 +501,7 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
       if (trackAlertTimerRef.current) clearTimeout(trackAlertTimerRef.current);
       if (successModalTimerRef.current) clearTimeout(successModalTimerRef.current);
     };
-  }, [dropdownOpen, notifOpen, avatarAlertOpen, sellerAlertOpen, cartAlertOpen, trackAlertOpen, showAccountModal, confirmDeleteModal]);
+  }, [dropdownOpen, notifOpen, avatarAlertOpen, sellerAlertOpen, cartAlertOpen, trackAlertOpen, showAccountModal, confirmDeleteModal, selectedInvoiceOrder]);
 
   const isActive = (path) => location.pathname === path;
 
@@ -422,7 +511,6 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
 
   const formattedBellBadge = unreadCount > 99 ? '99+' : unreadCount;
 
-  // Delivery team avatar setup
   const deliveryTeamAvatar = "/Eco-Cart Delivery Team.jpg";
   const displayAvatar = isDeliveryTeam ? deliveryTeamAvatar : (user?.avatar || DEFAULT_AVATAR);
 
@@ -689,7 +777,7 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
           position: absolute;
           right: 0;
           top: calc(100% + 14px);
-          width: 320px;
+          width: 360px;
           background: #ffffff;
           border-radius: 13px;
           box-shadow: 0 14px 36px rgba(0, 0, 0, 0.23), 0 3px 8px rgba(0, 0, 0, 0.08);
@@ -719,7 +807,7 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
         }
 
         .notification-body-scroll {
-          max-height: 360px;
+          max-height: 400px;
           overflow-y: auto;
           padding: 8px 10px;
         }
@@ -734,26 +822,71 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
         }
 
         .notif-item {
-          padding: 10px;
+          display: flex;
+          gap: 12px;
+          align-items: flex-start;
+          padding: 12px;
           margin-bottom: 8px;
           background: #f8f9fa;
           border: 1px solid #e5e7eb;
+          border-radius: 10px;
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .notif-item:hover {
+          background: #eaf4ef;
+          border-color: #52b788;
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(27, 67, 50, 0.08);
+        }
+
+        .notif-invoice-link {
+          color: #2d6a4f;
+          font-weight: 800;
+          cursor: pointer;
+          display: inline-block;
+          transition: all 0.2s ease;
+          text-decoration: underline;
+          text-underline-offset: 2px;
+        }
+
+        .notif-invoice-link:hover {
+          color: #1b4332;
+          transform: scale(1.03);
+          text-decoration-thickness: 2px;
+        }
+
+        .notif-logo-img {
+          width: 36px;
+          height: 36px;
+          object-fit: contain;
           border-radius: 8px;
+          background: #ffffff;
+          border: 1px solid #e5e7eb;
+          padding: 3px;
+          flex-shrink: 0;
+          margin-top: 2px;
+        }
+
+        .notif-content-area {
+          flex: 1;
         }
 
         .notif-title {
-          font-weight: 750;
+          font-weight: 800;
           font-size: 0.9rem;
           color: #1b4332;
-          margin-bottom: 3px;
+          margin-bottom: 4px;
           display: flex;
           justify-content: space-between;
+          align-items: center;
         }
 
         .notif-msg {
-          font-size: 0.85rem;
+          font-size: 0.84rem;
           color: #4b5563;
-          font-weight: normal;
+          font-weight: 600;
+          line-height: 1.4;
         }
 
         @keyframes dropdownEnter {
@@ -1233,18 +1366,28 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
                 {user ? (
                   notifications.length > 0 ? (
                     <div className="notification-body-scroll">
-                      <div style={{ fontWeight: '800', marginBottom: '8px', borderBottom: '1px solid #e5e7eb', paddingBottom: '6px', color: '#1b4332' }}>
-                        Notifications ({notifications.length})
+                      <div style={{ fontWeight: '800', marginBottom: '8px', borderBottom: '1px solid #e5e7eb', paddingBottom: '6px', color: '#1b4332', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span>Notifications ({notifications.length})</span>
                       </div>
                       {notifications.map((n, idx) => (
-                        <div key={n._id || idx} className="notif-item">
-                          <div className="notif-title">
-                            <span>{n.title}</span>
-                            <span style={{ fontSize: '0.7rem', color: '#6b7280', fontWeight: 'normal' }}>
-                              {new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                            </span>
+                        <div 
+                          key={n._id || idx} 
+                          className="notif-item"
+                        >
+                          <img 
+                            src={getNotificationLogo(n)} 
+                            alt="" 
+                            className="notif-logo-img" 
+                          />
+                          <div className="notif-content-area">
+                            <div className="notif-title">
+                              <span>{n.title}</span>
+                              <span style={{ fontSize: '0.7rem', color: '#6b7280', fontWeight: 'normal' }}>
+                                {new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </div>
+                            <div className="notif-msg">{renderMessageWithHyperlink(n)}</div>
                           </div>
-                          <div className="notif-msg">{n.message}</div>
                         </div>
                       ))}
                     </div>
@@ -1498,6 +1641,10 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
 
       {showAccountModal && (
         <AccountInfoModal user={user} onClose={() => setShowAccountModal(false)} />
+      )}
+
+      {selectedInvoiceOrder && (
+        <InvoiceModal order={selectedInvoiceOrder} onClose={() => setSelectedInvoiceOrder(null)} />
       )}
     </>
   );
