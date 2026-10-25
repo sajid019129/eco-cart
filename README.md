@@ -1,4 +1,5 @@
 # Eco-Cart
+# From Surplus To Sustainable
 
 ## Setup & Running Locally
 
