@@ -1,8 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
+import axios from 'axios';
 
-const InspectTrackModal = ({ order, onClose, onStepToggle }) => {
+const InspectTrackModal = ({ order: initialOrder, onClose, onUpdateOrder }) => {
+  const [order, setOrder] = useState(initialOrder);
   const [isClosing, setIsClosing] = useState(false);
+
+  useEffect(() => {
+    setOrder(initialOrder);
+  }, [initialOrder]);
 
   useEffect(() => {
     if (order) {
@@ -32,6 +38,68 @@ const InspectTrackModal = ({ order, onClose, onStepToggle }) => {
     return '/Bank.png';
   };
 
+  const buyerName = order.buyer?.name || order.shippingAddress?.fullName || 'Customer';
+  const steps = order.logisticsSteps || {};
+  const isDeliveredChecked = Boolean(steps.delivered);
+  const isFailedChecked = Boolean(steps.failed);
+
+  // Check if all 5 main supply chain milestones are completed
+  const areAllMilestonesCompleted = 
+    Boolean(steps.collectedFromSeller) &&
+    Boolean(steps.shipped) &&
+    Boolean(steps.reachedWarehouse) &&
+    Boolean(steps.reachedHub) &&
+    Boolean(steps.outForDelivery);
+
+  // Strict sequential dependency rule for milestones & final actions
+  const isStepAccessible = (stepKey) => {
+    if (steps[stepKey]) return true; // Already checked
+    if (isDeliveredChecked || isFailedChecked) return false; // Locked if final decision reached
+
+    if (stepKey === 'collectedFromSeller') return true;
+    if (stepKey === 'shipped') return Boolean(steps.collectedFromSeller);
+    if (stepKey === 'reachedWarehouse') return Boolean(steps.shipped);
+    if (stepKey === 'reachedHub') return Boolean(steps.reachedWarehouse);
+    if (stepKey === 'outForDelivery') return Boolean(steps.reachedHub);
+    
+    // Final two options require ALL 5 supply chain steps to be ticked first
+    if (stepKey === 'delivered' || stepKey === 'failed') {
+      return areAllMilestonesCompleted;
+    }
+    return false;
+  };
+
+  const handleStepToggle = async (stepKey, currentVal) => {
+    if (currentVal) return;
+    
+    if (!isStepAccessible(stepKey)) {
+      if (stepKey === 'delivered' || stepKey === 'failed') {
+        alert('You must complete and verify all 5 preceding supply chain milestones before selecting final fulfillment status!');
+      } else {
+        alert('You must complete the previous supply chain milestones in sequential order first!');
+      }
+      return;
+    }
+
+    if (stepKey === 'delivered' && isFailedChecked) return;
+    if (stepKey === 'failed' && isDeliveredChecked) return;
+
+    try {
+      const res = await axios.put(`http://localhost:5000/api/orders/logistics/${order._id}`, {
+        logisticsSteps: { [stepKey]: true }
+      });
+      
+      const updatedOrder = res.data.order;
+      setOrder(updatedOrder);
+      if (onUpdateOrder) {
+        onUpdateOrder(updatedOrder);
+      }
+    } catch (err) {
+      console.error('Error updating logistics steps:', err);
+      alert(err.response?.data?.error || 'Failed to update logistics steps.');
+    }
+  };
+
   return ReactDOM.createPortal(
     (
       <>
@@ -59,7 +127,7 @@ const InspectTrackModal = ({ order, onClose, onStepToggle }) => {
           .inspect-card {
             background: #ffffff;
             width: 100%;
-            max-width: 580px;
+            max-width: 620px;
             border-radius: 12px;
             padding: 24px;
             box-shadow: 0 15px 40px rgba(0,0,0,0.3);
@@ -73,6 +141,26 @@ const InspectTrackModal = ({ order, onClose, onStepToggle }) => {
             margin: auto;
           }
 
+          .smallest-close-x {
+            position: absolute;
+            top: 10px;
+            right: 12px;
+            background: transparent;
+            border: none;
+            font-size: 1.15rem;
+            font-weight: 800;
+            color: #6b7280;
+            cursor: pointer;
+            padding: 2px;
+            line-height: 1;
+            transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), color 0.2s ease;
+          }
+
+          .smallest-close-x:hover {
+            color: #d32f2f;
+            transform: scale(1.25);
+          }
+
           .inspect-header {
             display: flex;
             justify-content: space-between;
@@ -80,6 +168,7 @@ const InspectTrackModal = ({ order, onClose, onStepToggle }) => {
             border-bottom: 2px solid #1b4332;
             padding-bottom: 14px;
             margin-bottom: 16px;
+            padding-right: 20px;
           }
 
           .brand-title {
@@ -104,11 +193,11 @@ const InspectTrackModal = ({ order, onClose, onStepToggle }) => {
 
           .inspect-details-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: 1fr;
             gap: 12px;
             margin-bottom: 16px;
             font-size: 0.88rem;
-            color: #4b5563;
+            color: #374151;
             background: #ffffff;
             padding: 14px;
             border-radius: 10px;
@@ -186,6 +275,64 @@ const InspectTrackModal = ({ order, onClose, onStepToggle }) => {
             justify-content: space-between;
           }
 
+          .milestone-field-box {
+            position: relative;
+            background: #ffffff;
+            border: 1.5px solid #d1d5db;
+            border-radius: 8px;
+            padding: 10px 14px;
+            transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            cursor: pointer;
+            font-weight: 650;
+            font-size: 0.88rem;
+            color: #374151;
+          }
+
+          .milestone-field-box:hover {
+            border-color: #2d6a4f;
+            background: #ffffff;
+            transform: translateY(-3px) scale(1.01);
+            box-shadow: 0 8px 24px rgba(45, 106, 79, 0.18);
+          }
+
+          .milestone-field-box input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: #1b4332;
+            cursor: pointer;
+            pointer-events: auto;
+            transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), filter 0.2s ease;
+          }
+
+          .milestone-field-box.is-checked {
+            background: #e8f5e9;
+            border-color: #2e7d32;
+            color: #1b4332;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+          }
+
+          .milestone-field-box.is-failed {
+            background: #ffebee;
+            border-color: #c62828;
+            color: #c62828;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+          }
+
+          .milestone-field-box.is-disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+            pointer-events: none;
+            background: #f3f4f6;
+          }
+
           .btn-close-inspect {
             width: 100%;
             background: transparent;
@@ -229,7 +376,15 @@ const InspectTrackModal = ({ order, onClose, onStepToggle }) => {
 
         <div className="inspect-overlay" onClick={handleClose}>
           <div className="inspect-card" onClick={(e) => e.stopPropagation()}>
-            {/* Modal Header */}
+            <button 
+              type="button" 
+              className="smallest-close-x" 
+              onClick={handleClose}
+              title="Close"
+            >
+              ✕
+            </button>
+
             <div className="inspect-header">
               <div>
                 <h2 className="brand-title">Official Consignment Manifest</h2>
@@ -242,55 +397,91 @@ const InspectTrackModal = ({ order, onClose, onStepToggle }) => {
               </div>
             </div>
 
-            {/* Buyer & Seller Info Grid */}
             <div className="inspect-details-grid">
-              <div>
-                <strong>Buyer Credentials:</strong><br />
-                Name: {order.buyer?.name}<br />
-                Email: {order.buyer?.email}<br />
-                Phone: {order.buyer?.phone}<br />
-                Destination: {order.buyer?.location}
-              </div>
-              <div>
-                <strong>Seller Partner Details:</strong><br />
-                Name: {order.seller?.name}<br />
-                Email: {order.seller?.email}<br />
-                Phone: {order.seller?.phone}<br />
-                Origin Hub: {order.seller?.location}
+              <div style={{ fontWeight: '600', lineHeight: '1.6' }}>
+                <strong style={{ color: '#1b4332', fontSize: '0.92rem' }}>Buyer Credentials:</strong><br />
+                <span>Name: {buyerName}</span><br />
+                <span>Email Address: {order.buyer?.email || 'N/A'}</span><br />
+                <span>Phone Number: {order.buyer?.phone || order.shippingAddress?.phone}</span><br />
+                <span>Destination: {order.buyer?.location || order.shippingAddress?.location}</span>
               </div>
             </div>
 
-            {/* Purchased Products Breakdown Table */}
             <div className="inspect-table-container">
               <table className="inspect-table">
                 <thead>
                   <tr>
-                    <th>Item Description</th>
+                    <th>Item Description & Seller</th>
                     <th>Price</th>
                     <th>Qty</th>
                     <th>Total</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {order.items?.map((item, idx) => (
-                    <tr key={idx}>
-                      <td style={{ fontWeight: 600, color: '#1b4332' }}>{item.title}</td>
-                      <td>৳{item.price}</td>
-                      <td>{item.quantity}</td>
-                      <td style={{ fontWeight: 600, color: '#1b4332' }}>৳{item.price * item.quantity}</td>
-                    </tr>
-                  ))}
+                  {order.items?.map((item, idx) => {
+                    const sellerObj = item.seller || item.product?.seller || {};
+
+                    const itemSellerName = 
+                      sellerObj.name || 
+                      sellerObj.fullName || 
+                      item.sellerName || 
+                      item.product?.sellerName || 
+                      'Eco-Cart Official Partner';
+
+                    const itemSellerEmail = 
+                      sellerObj.email || 
+                      item.sellerEmail || 
+                      item.product?.sellerEmail || 
+                      'support@ecocart.com';
+
+                    const itemSellerPhone = 
+                      sellerObj.phone || 
+                      item.phoneNumber || 
+                      item.sellerPhone || 
+                      item.product?.sellerPhone || 
+                      '+880 1700-000000';
+
+                    const itemSellerHub = 
+                      sellerObj.location || 
+                      sellerObj.address || 
+                      item.sellerLocation || 
+                      item.product?.location || 
+                      'Eco-Cart Central Hub, Dhaka';
+
+                    return (
+                      <tr key={idx}>
+                        <td style={{ fontWeight: 600, color: '#1b4332' }}>
+                          {item.title || item.product?.title || 'Product'}
+                          <div style={{ fontSize: '0.78rem', color: '#059669', fontWeight: '600', marginTop: '5px' }}>
+                            <span>Seller:</span> {itemSellerName}
+                          </div>
+                          <div style={{ fontSize: '0.75rem', color: '#374151', fontWeight: '600', marginTop: '2px' }}>
+                            <span>Email Address:</span> {itemSellerEmail}
+                          </div>
+                          <div style={{ fontSize: '0.75rem', color: '#374151', fontWeight: '600', marginTop: '2px' }}>
+                            <span>Phone Number:</span> {itemSellerPhone}
+                          </div>
+                          <div style={{ fontSize: '0.75rem', color: '#374151', fontWeight: '600', marginTop: '2px' }}>
+                            <span>Origin Hub:</span> {itemSellerHub}
+                          </div>
+                        </td>
+                        <td>৳{item.price || item.product?.price}</td>
+                        <td>{item.quantity || 1}</td>
+                        <td style={{ fontWeight: 600, color: '#1b4332' }}>
+                          ৳{(item.price || item.product?.price || 0) * (item.quantity || 1)}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
 
-            {/* Total Settlement Amount */}
             <div className="inspect-summary">
-              <span>Total Settlement (incl. shipping ৳70):</span>
+              <span>Total Settlement (including shipping fee of ৳70):</span>
               <span style={{ fontSize: '1.2rem', color: '#2d6a4f' }}>৳{order.totalAmount}</span>
             </div>
 
-            {/* Payment Details with Official Logo */}
             <div className="payment-gateway-box">
               <div>
                 <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: '#6b7280', fontWeight: '800' }}>
@@ -307,108 +498,85 @@ const InspectTrackModal = ({ order, onClose, onStepToggle }) => {
               />
             </div>
 
-            {/* Freezable Interactive Logistics Checklist */}
             <div>
               <div style={{ fontWeight: '700', color: '#1b4332', fontSize: '0.95rem', marginBottom: '10px' }}>
-                ☑️ Supply Chain Execution Milestones
+                Supply Chain Execution Milestones <span style={{ color: '#d32f2f' }}>*</span>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {[
-                  { key: 'collectedFromSeller', label: 'Consignment successfully collected from seller' },
+                  { key: 'collectedFromSeller', label: 'Consignment successfully collected from seller(s)' },
                   { key: 'shipped', label: 'Consignment dispatched into line-haul transit' },
                   { key: 'reachedWarehouse', label: 'Consignment arrived at Eco-Cart main sorting warehouse' },
                   { key: 'reachedHub', label: "Consignment sorted and routed to destination delivery hub" },
                   { key: 'outForDelivery', label: 'Consignment assigned to field courier for final delivery' }
                 ].map((step) => {
-                  const isChecked = Boolean(order.logisticsSteps?.[step.key]);
+                  const isChecked = Boolean(steps[step.key]);
+                  const accessible = isStepAccessible(step.key);
 
                   return (
-                    <label
+                    <div
                       key={step.key}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '10px',
-                        padding: '10px 14px',
-                        borderRadius: '8px',
-                        backgroundColor: isChecked ? '#e8f5e9' : '#ffffff',
-                        border: isChecked ? '1.5px solid #2e7d32' : '1.5px solid #d1d5db',
-                        cursor: isChecked ? 'not-allowed' : 'pointer',
-                        fontWeight: '650',
-                        fontSize: '0.88rem',
-                        color: isChecked ? '#1b4332' : '#374151',
-                        transition: 'all 0.2s ease'
-                      }}
+                      className={`milestone-field-box ${isChecked ? 'is-checked' : ''} ${!accessible && !isChecked ? 'is-disabled' : ''}`}
+                      onClick={() => accessible && !isChecked && handleStepToggle(step.key, isChecked)}
                     >
                       <input
                         type="checkbox"
                         checked={isChecked}
-                        disabled={isChecked}
-                        onChange={() => onStepToggle(order._id, step.key, isChecked)}
-                        style={{ width: '18px', height: '18px', accentColor: '#1b4332', cursor: 'pointer' }}
+                        disabled={isChecked || !accessible}
+                        onChange={() => accessible && !isChecked && handleStepToggle(step.key, isChecked)}
                       />
                       <span>{step.label}</span>
-                      {isChecked && <span style={{ marginLeft: 'auto', fontSize: '0.8rem', color: '#2e7d32' }}>[Verified ✓]</span>}
-                    </label>
+                      {isChecked && <span style={{ marginLeft: 'auto', fontSize: '0.8rem', color: '#2e7d32' }}>Verified</span>}
+                    </div>
                   );
                 })}
 
                 <hr style={{ border: 'none', borderTop: '1.5px dashed #e5e7eb', margin: '8px 0' }} />
 
-                {/* Success: Product Delivered */}
-                <label
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '10px',
-                    padding: '12px 14px',
-                    borderRadius: '8px',
-                    backgroundColor: order.logisticsSteps?.delivered ? '#e8f5e9' : '#ffffff',
-                    border: '1.5px solid #2e7d32',
-                    cursor: (order.logisticsSteps?.delivered || order.logisticsSteps?.failed) ? 'not-allowed' : 'pointer',
-                    fontWeight: '750',
-                    fontSize: '0.9rem',
-                    color: '#2e7d32',
-                    opacity: order.logisticsSteps?.failed ? 0.4 : 1
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={Boolean(order.logisticsSteps?.delivered)}
-                    disabled={Boolean(order.logisticsSteps?.delivered || order.logisticsSteps?.failed)}
-                    onChange={() => onStepToggle(order._id, 'delivered', order.logisticsSteps?.delivered)}
-                    style={{ width: '20px', height: '20px', accentColor: '#2e7d32', cursor: 'pointer' }}
-                  />
-                  <span>Fulfillment Status : Consignment Successfully Delivered</span>
-                </label>
+                {/* Fulfillment Status: Success */}
+                {(() => {
+                  const accessible = isStepAccessible('delivered');
+                  return (
+                    <div
+                      className={`milestone-field-box ${isDeliveredChecked ? 'is-checked' : ''} ${isFailedChecked || !accessible ? 'is-disabled' : ''}`}
+                      onClick={() => accessible && !isDeliveredChecked && !isFailedChecked && handleStepToggle('delivered', isDeliveredChecked)}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isDeliveredChecked}
+                        disabled={isDeliveredChecked || isFailedChecked || !accessible}
+                        onChange={() => accessible && !isDeliveredChecked && !isFailedChecked && handleStepToggle('delivered', isDeliveredChecked)}
+                      />
+                      <span style={{ fontWeight: '800', color: isFailedChecked || !accessible ? '#9ca3af' : '#2e7d32' }}>
+                        Fulfillment Status : Consignment Successfully Delivered
+                      </span>
+                      {isDeliveredChecked && <span style={{ marginLeft: 'auto', fontSize: '0.8rem', color: '#2e7d32' }}>Verified</span>}
+                    </div>
+                  );
+                })()}
 
-                {/* Failure: Product Not Delivered / Cancelled */}
-                <label
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '10px',
-                    padding: '12px 14px',
-                    borderRadius: '8px',
-                    backgroundColor: order.logisticsSteps?.failed ? '#ffebee' : '#ffffff',
-                    border: '1.5px solid #c62828',
-                    cursor: (order.logisticsSteps?.delivered || order.logisticsSteps?.failed) ? 'not-allowed' : 'pointer',
-                    fontWeight: '750',
-                    fontSize: '0.9rem',
-                    color: '#c62828',
-                    opacity: order.logisticsSteps?.delivered ? 0.4 : 1
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={Boolean(order.logisticsSteps?.failed)}
-                    disabled={Boolean(order.logisticsSteps?.delivered || order.logisticsSteps?.failed)}
-                    onChange={() => onStepToggle(order._id, 'failed', order.logisticsSteps?.failed)}
-                    style={{ width: '20px', height: '20px', accentColor: '#c62828', cursor: 'pointer' }}
-                  />
-                  <span>Fulfillment Exception : Delivery Failed / Cancelled by {order.buyer?.name}</span>
-                </label>
+                {/* Fulfillment Exception: Failed / Cancelled */}
+                {(() => {
+                  const accessible = isStepAccessible('failed');
+                  return (
+                    <div
+                      className={`milestone-field-box ${isFailedChecked ? 'is-failed' : ''} ${isDeliveredChecked || !accessible ? 'is-disabled' : ''}`}
+                      onClick={() => accessible && !isFailedChecked && !isDeliveredChecked && handleStepToggle('failed', isFailedChecked)}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isFailedChecked}
+                        disabled={isFailedChecked || isDeliveredChecked || !accessible}
+                        onChange={() => accessible && !isFailedChecked && !isDeliveredChecked && handleStepToggle('failed', isFailedChecked)}
+                      />
+                      <span style={{ fontWeight: '800', color: isDeliveredChecked || !accessible ? '#9ca3af' : '#c62828' }}>
+                        Fulfillment Exception : Delivery Failed / Cancelled by {buyerName}
+                      </span>
+                      {isFailedChecked && <span style={{ marginLeft: 'auto', fontSize: '0.8rem', color: '#c62828' }}>Cancelled</span>}
+                    </div>
+                  );
+                })()}
               </div>
             </div>
 

@@ -32,7 +32,7 @@ const OrderSchema = new mongoose.Schema({
   subtotal: { type: Number, required: true },
   shippingFee: { type: Number, default: 70 },
   totalAmount: { type: Number, required: true },
-  paymentMethod: { type: String, enum: ['Digital', 'COD', 'bKash', 'Nagad', 'Upay', 'MasterCard', 'Cash on Delivery'], required: true },
+  paymentMethod: { type: String, required: true },
   paymentDetails: {
     provider: { type: String, default: '' },
     accountNumber: { type: String, default: '' },
@@ -40,19 +40,8 @@ const OrderSchema = new mongoose.Schema({
   },
   orderStatus: {
     type: String,
-    enum: [
-      'Order Placed',
-      'Seller Started Packing',
-      'Product Packed',
-      'Handed to Logistics',
-      'Arrived at Facility',
-      'Out for Delivery',
-      'Delivered',
-      'Cancelled'
-    ],
     default: 'Order Placed'
   },
-  // Logistics checklist state machine (freezable once checked, mutual exclusion for success/failure)
   logisticsSteps: {
     collectedFromSeller: { type: Boolean, default: false },
     shipped: { type: Boolean, default: false },

@@ -2,11 +2,17 @@ const express = require('express');
 const router = express.Router();
 const Notification = require('../models/Notification');
 
-// GET /api/notifications/count/:userId - Get unread notification count for a user
+// GET /api/notifications/count/:userId - Get unread notification count for a user or role
 router.get('/count/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
-    const count = await Notification.countDocuments({ recipient: userId, isRead: false });
+    const count = await Notification.countDocuments({ 
+      $or: [
+        { recipient: userId }, 
+        { recipientRole: userId }
+      ], 
+      isRead: false 
+    });
     res.json({ count });
   } catch (err) {
     console.error('Error fetching unread notification count:', err);
@@ -14,11 +20,16 @@ router.get('/count/:userId', async (req, res) => {
   }
 });
 
-// GET /api/notifications/:userId - Get all notifications for a user
+// GET /api/notifications/:userId - Get all notifications for a user or role
 router.get('/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
-    const notifications = await Notification.find({ recipient: userId }).sort({ createdAt: -1 });
+    const notifications = await Notification.find({ 
+      $or: [
+        { recipient: userId }, 
+        { recipientRole: userId }
+      ] 
+    }).sort({ createdAt: -1 });
     res.json(notifications);
   } catch (err) {
     console.error('Error fetching notifications:', err);
@@ -26,11 +37,20 @@ router.get('/:userId', async (req, res) => {
   }
 });
 
-// PUT /api/notifications/read/:userId - Mark all notifications as read for a user
+// PUT /api/notifications/read/:userId - Mark all notifications as read for a user or role
 router.put('/read/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
-    await Notification.updateMany({ recipient: userId, isRead: false }, { isRead: true });
+    await Notification.updateMany(
+      { 
+        $or: [
+          { recipient: userId }, 
+          { recipientRole: userId }
+        ], 
+        isRead: false 
+      }, 
+      { isRead: true }
+    );
     res.json({ message: 'Notifications marked as read' });
   } catch (err) {
     console.error('Error updating notifications:', err);

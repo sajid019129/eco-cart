@@ -6,16 +6,18 @@ const User = require('../models/User');
 const Cart = require('../models/Cart');
 const Notification = require('../models/Notification');
 
-// Helper function to find or get the default Eco-Cart Delivery Team user document
 const getDeliveryTeamUser = async () => {
-  let deliveryUser = await User.findOne({ email: 'sajid019129@gmail.com' });
-  if (!deliveryUser) {
-    deliveryUser = await User.findOne({ role: 'delivery-team' });
-  }
+  let deliveryUser = await User.findOne({ 
+    $or: [
+      { role: 'delivery-team' },
+      { email: 'sajid019129@gmail.com' },
+      { name: /delivery team/i }
+    ]
+  });
   return deliveryUser;
 };
 
-// GET /api/orders/all - Get all orders in the system (for Logistics Dashboard)
+// GET /api/orders/all - Get all orders
 router.get('/all', async (req, res) => {
   try {
     const orders = await Order.find({})
@@ -31,7 +33,7 @@ router.get('/all', async (req, res) => {
   }
 });
 
-// POST /api/orders - Create a new order (from Cart or Buy Now)
+// POST /api/orders - Create new order
 router.post('/', async (req, res) => {
   try {
     const { buyerId, items, paymentMethod, paymentDetails, shippingAddress, isBuyNow } = req.body;
@@ -49,7 +51,6 @@ router.post('/', async (req, res) => {
     let subtotal = 0;
     let firstSellerInfo = null;
     const uniqueSellerNames = new Set();
-    const uniqueSellerIds = new Set();
 
     for (const cartItem of items) {
       const productId = cartItem.productId || cartItem.product?._id || cartItem.product;
@@ -68,7 +69,6 @@ router.post('/', async (req, res) => {
       const sLocation = productDoc.location || productDoc.sellerAddress || (sellerUserDoc ? (sellerUserDoc.address || sellerUserDoc.location) : 'Bangladesh');
 
       uniqueSellerNames.add(sName);
-      if (sellerUserDoc) uniqueSellerIds.add(sellerUserDoc._id.toString());
 
       const itemSellerInfo = {
         userId: sellerUserDoc ? sellerUserDoc._id : null,
@@ -104,11 +104,10 @@ router.post('/', async (req, res) => {
       }
     }
 
-    const shippingFee = 70; // Eco-Cart All-BD Flat Rate
+    const shippingFee = 70;
     const totalAmount = subtotal + shippingFee;
     const resolvedPaymentMethod = paymentMethod || paymentDetails?.provider || 'COD';
 
-    // Handle order-level seller summary
     const orderSellerInfo = {
       ...firstSellerInfo,
       name: uniqueSellerNames.size > 1 
@@ -137,18 +136,17 @@ router.post('/', async (req, res) => {
 
     await newOrder.save();
 
-    // If it was a Cart checkout, clear user's cart from database
     if (!isBuyNow) {
       await Cart.deleteMany({ $or: [{ user: buyerId }, { buyer: buyerId }] });
     }
 
-    // --- AUTOMATED GRANULAR TRANSACTION NOTIFICATION TRIGGERS ---
+    // --- AUTOMATED NOTIFICATIONS FOR ORDER PLACEMENT ---
     try {
       const buyerName = newOrder.buyer.name;
       const orderNum = newOrder.orderNumber;
       const deliveryTeamUser = await getDeliveryTeamUser();
 
-      // 1. Primary Invoice Notifications
+      // 1. Buyer Notification
       await Notification.create({
         recipient: buyerUser._id,
         recipientRole: 'buyer',
@@ -166,6 +164,7 @@ router.post('/', async (req, res) => {
           const sellerName = sellerDoc?.name || sellerDoc?.fullName || 'Seller';
           const itemTotal = Number(productDoc.price) * Number(cartItem.quantity || 1);
 
+          // Seller Notification
           await Notification.create({
             recipient: productDoc.seller,
             recipientRole: 'seller',
@@ -176,16 +175,12 @@ router.post('/', async (req, res) => {
             type: 'invoice'
           });
 
-          // 2. Secondary Financial Settlement Notification based on Payment Method
           const provider = (paymentDetails?.provider || resolvedPaymentMethod).trim();
           const buyerAccount = paymentDetails?.accountNumber || paymentDetails?.cardNumber || 'Personal Account';
-          
-          // Pull exact nested bank name and account number from sellerAccounts object[cite: 21]
           const bankName = sellerDoc?.sellerAccounts?.bank?.bankName || 'Registered Bank';
           const sellerAccount = sellerDoc?.sellerAccounts?.bank?.accountNumber || sellerDoc?.phone || 'Registered Payout Account';
 
           if (/bKash|Nagad|Upay|MasterCard|Card/i.test(provider)) {
-            // Buyer financial confirmation notice
             await Notification.create({
               recipient: buyerUser._id,
               recipientRole: 'buyer',
@@ -196,7 +191,6 @@ router.post('/', async (req, res) => {
               type: 'payment'
             });
 
-            // Seller financial receipt notice
             await Notification.create({
               recipient: productDoc.seller,
               recipientRole: 'seller',
@@ -207,7 +201,6 @@ router.post('/', async (req, res) => {
               type: 'payment'
             });
           } else {
-            // Cash on Delivery Settlement Notices
             await Notification.create({
               recipient: buyerUser._id,
               recipientRole: 'buyer',
@@ -231,12 +224,17 @@ router.post('/', async (req, res) => {
         }
       }
 
+      // 2. Delivery Team Notification
       if (deliveryTeamUser) {
+        const firstItemTitle = items[0]?.title || items[0]?.product?.title || 'Selected Products';
+        const paymentTypeDisplay = /bKash|Nagad|Upay|MasterCard|Card/i.test(resolvedPaymentMethod) ? resolvedPaymentMethod : 'Cash on Delivery (COD)';
+        const sellersFormatted = Array.from(uniqueSellerNames).join(', ');
+        
         await Notification.create({
           recipient: deliveryTeamUser._id,
           recipientRole: 'delivery-team',
           title: `New Consignment Dispatched (${orderNum}) 🚚`,
-          message: `New fulfillment consignment registered for order #${orderNum}. Buyer: ${buyerName}, Sellers: ${Array.from(uniqueSellerNames).join(', ')}. Click here to view or download your official invoice.`,
+          message: `Consignment ID: #${orderNum} | Buyer: ${buyerName} | Seller(s): ${sellersFormatted} | Product: ${firstItemTitle} | Payment Method: ${paymentTypeDisplay}. Total Settlement: ৳${totalAmount.toFixed(2)}.`,
           orderNumber: orderNum,
           orderId: newOrder._id,
           type: 'invoice'
@@ -246,7 +244,6 @@ router.post('/', async (req, res) => {
       console.error('Error generating automated order notifications:', notifErr);
     }
 
-    // Return newly created order populated
     const populatedOrder = await Order.findById(newOrder._id).populate({
       path: 'items.product',
       populate: { path: 'seller', select: 'name fullName username email phone' }
@@ -262,7 +259,215 @@ router.post('/', async (req, res) => {
   }
 });
 
-// GET /api/orders/track/:orderNumber - Track order by Order Number
+// LOGISTICS CHECKBOX UPDATE HANDLER
+const handleLogisticsUpdate = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { step, value, logisticsSteps } = req.body;
+
+    const order = await Order.findById(id).populate({
+      path: 'items.product',
+      populate: { path: 'seller', select: 'name fullName email phone sellerAccounts' }
+    });
+
+    if (!order) {
+      return res.status(404).json({ error: 'Order not found.' });
+    }
+
+    const buyerId = order.buyer?.userId;
+    const buyerName = order.buyer?.name || 'Customer';
+    const orderNum = order.orderNumber;
+    const deliveryTeamUser = await getDeliveryTeamUser();
+
+    if (!order.logisticsSteps) {
+      order.logisticsSteps = {};
+    }
+
+    const previousSteps = {
+      collectedFromSeller: order.logisticsSteps.collectedFromSeller,
+      shipped: order.logisticsSteps.shipped,
+      reachedWarehouse: order.logisticsSteps.reachedWarehouse,
+      reachedHub: order.logisticsSteps.reachedHub,
+      outForDelivery: order.logisticsSteps.outForDelivery,
+      delivered: order.logisticsSteps.delivered,
+      failed: order.logisticsSteps.failed
+    };
+
+    const stepsToApply = logisticsSteps || (step ? { [step]: value !== undefined ? value : true } : {});
+    
+    for (const [k, v] of Object.entries(stepsToApply)) {
+      order.logisticsSteps[k] = v;
+    }
+
+    if (order.logisticsSteps.delivered) {
+      order.orderStatus = 'Delivered';
+      order.isCancelled = false;
+      order.logisticsSteps.failed = false;
+    } else if (order.logisticsSteps.failed) {
+      order.orderStatus = `Cancelled by ${buyerName}`;
+      order.isCancelled = true;
+      order.logisticsSteps.delivered = false;
+    }
+
+    order.markModified('logisticsSteps');
+    await order.save();
+
+    // --- NOTIFICATIONS ---
+    try {
+      for (const [stepKey, isChecked] of Object.entries(stepsToApply)) {
+        if (isChecked && !previousSteps[stepKey] && stepKey !== 'delivered' && stepKey !== 'failed') {
+          let stepTitle = '';
+          let stepMessage = '';
+
+          if (stepKey === 'collectedFromSeller') {
+            stepTitle = `Consignment Successfully Collected (${orderNum}) 📦`;
+            stepMessage = `Dear ${buyerName}, your package for order #${orderNum} has been successfully collected from the designated merchant(s) and logged into the Eco-Cart fulfillment network.`;
+          } else if (stepKey === 'shipped') {
+            stepTitle = `Consignment in Transit (${orderNum}) 🚚`;
+            stepMessage = `Dear ${buyerName}, your consignment for order #${orderNum} has been dispatched into line-haul transit toward your regional processing center.`;
+          } else if (stepKey === 'reachedWarehouse') {
+            stepTitle = `Arrival at Central Sorting Facility (${orderNum}) 🏢`;
+            stepMessage = `Dear ${buyerName}, your consignment for order #${orderNum} has arrived safely at the Eco-Cart main sorting warehouse for rigorous quality inspection and routing.`;
+          } else if (stepKey === 'reachedHub') {
+            stepTitle = `Consignment at Local Delivery Hub (${orderNum}) 📍`;
+            stepMessage = `Dear ${buyerName}, your consignment for order #${orderNum} has been successfully sorted and routed to your destination local delivery hub.`;
+          } else if (stepKey === 'outForDelivery') {
+            stepTitle = `Out for Final Delivery (${orderNum}) 🛵`;
+            stepMessage = `Dear ${buyerName}, your consignment for order #${orderNum} is now out for final delivery with our designated field courier. Please stay available to receive your package.`;
+          }
+
+          if (stepTitle && buyerId) {
+            await Notification.create({
+              recipient: buyerId,
+              recipientRole: 'buyer',
+              title: stepTitle,
+              message: stepMessage,
+              orderNumber: orderNum,
+              orderId: order._id,
+              type: 'invoice'
+            });
+          }
+
+          if (stepTitle && deliveryTeamUser) {
+            await Notification.create({
+              recipient: deliveryTeamUser._id,
+              recipientRole: 'delivery-team',
+              title: `Milestone Verified (${orderNum}) 📍`,
+              message: `Consignment #${orderNum} milestone "${stepKey}" has been verified and logged successfully.`,
+              orderNumber: orderNum,
+              orderId: order._id,
+              type: 'invoice'
+            });
+          }
+        }
+      }
+
+      if (order.logisticsSteps.delivered && !previousSteps.delivered) {
+        if (buyerId) {
+          await Notification.create({
+            recipient: buyerId,
+            recipientRole: 'buyer',
+            title: `Consignment Successfully Delivered (${orderNum}) ✨`,
+            message: `Dear ${buyerName}, order #${orderNum} has been successfully delivered. Thank you for shopping with Eco-Cart!`,
+            orderNumber: orderNum,
+            orderId: order._id,
+            type: 'invoice'
+          });
+        }
+
+        for (const item of (order.items || [])) {
+          const sellerId = item.seller || item.product?.seller;
+          if (sellerId) {
+            const sellerDoc = await User.findById(sellerId);
+            const itemTotal = Number(item.price || 0) * Number(item.quantity || 1);
+            const paymentProv = (order.paymentDetails?.provider || order.paymentMethod || '').trim();
+            const bankName = sellerDoc?.sellerAccounts?.bank?.bankName || 'Registered Bank Account';
+            const bankAcc = sellerDoc?.sellerAccounts?.bank?.accountNumber || sellerDoc?.phone || 'Primary Payout Account';
+
+            await Notification.create({
+              recipient: sellerId,
+              recipientRole: 'seller',
+              title: `Successful Fulfillment Notice (${orderNum}) ✅`,
+              message: `Order #${orderNum} containing your product "${item.title}" has been successfully delivered to ${buyerName}.`,
+              orderNumber: orderNum,
+              orderId: order._id,
+              type: 'invoice'
+            });
+
+            if (/COD|Cash on Delivery/i.test(paymentProv)) {
+              await Notification.create({
+                recipient: sellerId,
+                recipientRole: 'seller',
+                title: `Bank Payout Credited Notice (${orderNum}) 🏦`,
+                message: `Following successful delivery and cash on delivery (COD) collection for order #${orderNum}, the net proceeds of ৳${itemTotal.toFixed(2)} have been successfully credited to your ${bankName} account (${bankAcc}).`,
+                orderNumber: orderNum,
+                orderId: order._id,
+                type: 'payment'
+              });
+            }
+          }
+        }
+      }
+
+      if (order.logisticsSteps.failed && !previousSteps.failed) {
+        const paymentProv = (order.paymentDetails?.provider || order.paymentMethod || '').trim();
+        const isDigitalPayment = /bKash|Nagad|Upay|MasterCard|Card/i.test(paymentProv);
+
+        if (buyerId) {
+          // Grammatically corrected to "cancelled by you" instead of repeating full name
+          let buyerMsg = `Dear ${buyerName}, delivery for order #${orderNum} has failed / been cancelled by you.`;
+          if (isDigitalPayment) {
+            buyerMsg += ` Since payment was completed digitally via ${paymentProv}, your transferred funds have been instantly reversed and refunded to your source account.`;
+          }
+
+          await Notification.create({
+            recipient: buyerId,
+            recipientRole: 'buyer',
+            title: `Delivery Exception & Refund Notice (${orderNum}) ❌`,
+            message: buyerMsg,
+            orderNumber: orderNum,
+            orderId: order._id,
+            type: 'payment'
+          });
+        }
+
+        for (const item of (order.items || [])) {
+          const sellerId = item.seller || item.product?.seller;
+          if (sellerId) {
+            const itemTotal = Number(item.price || 0) * Number(item.quantity || 1);
+            let sellerMsg = `Order #${orderNum} for your product "${item.title}" encountered a delivery exception and was cancelled by ${buyerName}.`;
+            
+            if (isDigitalPayment) {
+              sellerMsg += ` Because payment was completed digitally via ${paymentProv}, the amount of ৳${itemTotal.toFixed(2)} which was transferred instantly has now been given back (reversed and refunded) to the buyer.`;
+            }
+
+            await Notification.create({
+              recipient: sellerId,
+              recipientRole: 'seller',
+              title: `Delivery Failure & Reverse Transfer Notice (${orderNum}) ⚠️`,
+              message: sellerMsg,
+              orderNumber: orderNum,
+              orderId: order._id,
+              type: 'payment'
+            });
+          }
+        }
+      }
+    } catch (notifErr) {
+      console.error('Error generating notification:', notifErr);
+    }
+
+    res.json({ message: 'Logistics updated successfully', order });
+  } catch (err) {
+    console.error('Error updating logistics steps:', err);
+    res.status(500).json({ error: 'Failed to update logistics steps', details: err.message });
+  }
+};
+
+router.put('/logistics/:id', handleLogisticsUpdate);
+router.put('/:id/logistics', handleLogisticsUpdate);
+
+// GET /api/orders/track/:orderNumber
 router.get('/track/:orderNumber', async (req, res) => {
   try {
     const { orderNumber } = req.params;
@@ -283,7 +488,7 @@ router.get('/track/:orderNumber', async (req, res) => {
   }
 });
 
-// GET /api/orders/:userId - Get all orders for a buyer or seller
+// GET /api/orders/:userId
 router.get('/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
