@@ -144,7 +144,6 @@ router.post('/', async (req, res) => {
     try {
       const buyerName = newOrder.buyer.name;
       const orderNum = newOrder.orderNumber;
-      const deliveryTeamUser = await getDeliveryTeamUser();
 
       // 1. Buyer Notification
       await Notification.create({
@@ -223,23 +222,6 @@ router.post('/', async (req, res) => {
           }
         }
       }
-
-      // 2. Delivery Team Notification
-      if (deliveryTeamUser) {
-        const firstItemTitle = items[0]?.title || items[0]?.product?.title || 'Selected Products';
-        const paymentTypeDisplay = /bKash|Nagad|Upay|MasterCard|Card/i.test(resolvedPaymentMethod) ? resolvedPaymentMethod : 'Cash on Delivery (COD)';
-        const sellersFormatted = Array.from(uniqueSellerNames).join(', ');
-        
-        await Notification.create({
-          recipient: deliveryTeamUser._id,
-          recipientRole: 'delivery-team',
-          title: `New Consignment Dispatched (${orderNum}) 🚚`,
-          message: `Consignment ID: #${orderNum} | Buyer: ${buyerName} | Seller(s): ${sellersFormatted} | Product: ${firstItemTitle} | Payment Method: ${paymentTypeDisplay}. Total Settlement: ৳${totalAmount.toFixed(2)}.`,
-          orderNumber: orderNum,
-          orderId: newOrder._id,
-          type: 'invoice'
-        });
-      }
     } catch (notifErr) {
       console.error('Error generating automated order notifications:', notifErr);
     }
@@ -277,7 +259,6 @@ const handleLogisticsUpdate = async (req, res) => {
     const buyerId = order.buyer?.userId;
     const buyerName = order.buyer?.name || 'Customer';
     const orderNum = order.orderNumber;
-    const deliveryTeamUser = await getDeliveryTeamUser();
 
     if (!order.logisticsSteps) {
       order.logisticsSteps = {};
@@ -347,18 +328,6 @@ const handleLogisticsUpdate = async (req, res) => {
               type: 'invoice'
             });
           }
-
-          if (stepTitle && deliveryTeamUser) {
-            await Notification.create({
-              recipient: deliveryTeamUser._id,
-              recipientRole: 'delivery-team',
-              title: `Milestone Verified (${orderNum}) 📍`,
-              message: `Consignment #${orderNum} milestone "${stepKey}" has been verified and logged successfully.`,
-              orderNumber: orderNum,
-              orderId: order._id,
-              type: 'invoice'
-            });
-          }
         }
       }
 
@@ -414,7 +383,6 @@ const handleLogisticsUpdate = async (req, res) => {
         const isDigitalPayment = /bKash|Nagad|Upay|MasterCard|Card/i.test(paymentProv);
 
         if (buyerId) {
-          // Grammatically corrected to "cancelled by you" instead of repeating full name
           let buyerMsg = `Dear ${buyerName}, delivery for order #${orderNum} has failed / been cancelled by you.`;
           if (isDigitalPayment) {
             buyerMsg += ` Since payment was completed digitally via ${paymentProv}, your transferred funds have been instantly reversed and refunded to your source account.`;

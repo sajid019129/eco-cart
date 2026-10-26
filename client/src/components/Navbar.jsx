@@ -72,7 +72,7 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
 
   // Fetch notifications helper function
   const fetchNotifications = () => {
-    if (userId) {
+    if (userId && !isDeliveryTeam) {
       axios.get(`http://localhost:5000/api/notifications/${userId}`)
         .then(res => {
           if (Array.isArray(res.data)) {
@@ -101,7 +101,7 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
     return () => {
       window.removeEventListener('orderPlaced', handleOrderPlaced);
     };
-  }, [userId]);
+  }, [userId, isDeliveryTeam]);
 
   const closeAllDropdowns = () => {
     if (dropdownOpen) closeDropdown();
@@ -212,7 +212,6 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
     navigate('/track-order');
   };
 
-  // Helper to split message and wrap full phrase in hyperlink
   const renderMessageWithHyperlink = (notif) => {
     const msg = notif.message || '';
     const targetPhrase = "Click here to view or download your official invoice.";
@@ -1345,61 +1344,64 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
         </div>
 
         <div className="right-actions-group">
-          <div className="notification-container" ref={notifRef}>
-            <button 
-              type="button" 
-              className="notification-btn" 
-              title="Notifications"
-              aria-label="Notifications"
-              onClick={toggleNotif}
-            >
-              🔔
-              {unreadCount > 0 && user && (
-                <span key={unreadCount} className="bell-badge-abs">
-                  {formattedBellBadge}
-                </span>
-              )}
-            </button>
-
-            {notifMounted && (
-              <div className={user && notifications.length > 0 ? `notification-dropdown ${notifOpen ? 'open' : 'closing'}` : `nav-alert-bubble ${notifOpen ? 'open' : 'closing'}`}>
-                {user ? (
-                  notifications.length > 0 ? (
-                    <div className="notification-body-scroll">
-                      <div style={{ fontWeight: '800', marginBottom: '8px', borderBottom: '1px solid #e5e7eb', paddingBottom: '6px', color: '#1b4332', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span>Notifications ({notifications.length})</span>
-                      </div>
-                      {notifications.map((n, idx) => (
-                        <div 
-                          key={n._id || idx} 
-                          className="notif-item"
-                        >
-                          <img 
-                            src={getNotificationLogo(n)} 
-                            alt="" 
-                            className="notif-logo-img" 
-                          />
-                          <div className="notif-content-area">
-                            <div className="notif-title">
-                              <span>{n.title}</span>
-                              <span style={{ fontSize: '0.7rem', color: '#6b7280', fontWeight: 'normal' }}>
-                                {new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                              </span>
-                            </div>
-                            <div className="notif-msg">{renderMessageWithHyperlink(n)}</div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div>You have no new notifications</div>
-                  )
-                ) : (
-                  <div>Please login to see your notifications</div>
+          {/* Notification bell hidden entirely for delivery team */}
+          {!isDeliveryTeam && (
+            <div className="notification-container" ref={notifRef}>
+              <button 
+                type="button" 
+                className="notification-btn" 
+                title="Notifications"
+                aria-label="Notifications"
+                onClick={toggleNotif}
+              >
+                🔔
+                {unreadCount > 0 && user && (
+                  <span key={unreadCount} className="bell-badge-abs">
+                    {formattedBellBadge}
+                  </span>
                 )}
-              </div>
-            )}
-          </div>
+              </button>
+
+              {notifMounted && (
+                <div className={user && notifications.length > 0 ? `notification-dropdown ${notifOpen ? 'open' : 'closing'}` : `nav-alert-bubble ${notifOpen ? 'open' : 'closing'}`}>
+                  {user ? (
+                    notifications.length > 0 ? (
+                      <div className="notification-body-scroll">
+                        <div style={{ fontWeight: '800', marginBottom: '8px', borderBottom: '1px solid #e5e7eb', paddingBottom: '6px', color: '#1b4332', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span>Notifications ({notifications.length})</span>
+                        </div>
+                        {notifications.map((n, idx) => (
+                          <div 
+                            key={n._id || idx} 
+                            className="notif-item"
+                          >
+                            <img 
+                              src={getNotificationLogo(n)} 
+                              alt="" 
+                              className="notif-logo-img" 
+                            />
+                            <div className="notif-content-area">
+                              <div className="notif-title">
+                                <span>{n.title}</span>
+                                <span style={{ fontSize: '0.7rem', color: '#6b7280', fontWeight: 'normal' }}>
+                                  {new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                              </div>
+                              <div className="notif-msg">{renderMessageWithHyperlink(n)}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div>You have no new notifications</div>
+                    )
+                  ) : (
+                    <div>Please login to see your notifications</div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {!isDeliveryTeam && (
             <div className="notification-container" ref={sellerAlertRef}>
