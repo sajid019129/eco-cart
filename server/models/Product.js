@@ -59,7 +59,12 @@ const ProductSchema = new mongoose.Schema({
   },
   ecoTags: [{
     type: String
-  }]
+  }],
+  isDonation: {
+    type: Boolean,
+    default: false,
+    index: true
+  }
 }, { timestamps: true });
 
 ProductSchema.index({ createdAt: -1 });

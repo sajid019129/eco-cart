@@ -30,7 +30,7 @@ const upload = multer({
   storage: storage
 });
 
-// POST /api/products - Create a new product listing
+// POST /api/products - Create a new product listing (or donation item)
 router.post('/', upload.array('media', 5), async (req, res) => {
   try {
     const {
@@ -51,20 +51,23 @@ router.post('/', upload.array('media', 5), async (req, res) => {
       image,
       imageUrl,
       ecoRating,
-      ecoTags
+      ecoTags,
+      isDonation
     } = req.body;
 
-    if (!title || price === undefined || price === null || !category) {
+    const isDonationFlag = isDonation === 'true' || isDonation === true;
+
+    if (!title || (!isDonationFlag && price === undefined) || !category) {
       return res.status(400).json({ error: 'Title, price, and category are required fields.' });
     }
 
-    const numericPrice = Number(price);
-    if (isNaN(numericPrice) || numericPrice < 0) {
+    const numericPrice = isDonationFlag ? 0 : Number(price);
+    if (!isDonationFlag && (isNaN(numericPrice) || numericPrice < 0)) {
       return res.status(400).json({ error: 'Price must be a valid non-negative number.' });
     }
 
     let parsedOriginalPrice = null;
-    if (originalPrice !== undefined && originalPrice !== null && originalPrice !== '') {
+    if (!isDonationFlag && originalPrice !== undefined && originalPrice !== null && originalPrice !== '') {
       parsedOriginalPrice = Number(originalPrice);
       if (isNaN(parsedOriginalPrice) || parsedOriginalPrice <= numericPrice) {
         return res.status(400).json({ error: 'Previous price must be greater than current price.' });
@@ -113,7 +116,8 @@ router.post('/', upload.array('media', 5), async (req, res) => {
       sellerAddress: sellerAddress || (userRecord ? (userRecord.address || userRecord.location) : ''),
       location: location || sellerAddress || (userRecord ? (userRecord.address || userRecord.location) : ''),
       ecoRating: ecoRating ? Number(ecoRating) : 5,
-      ecoTags: ecoTags || []
+      ecoTags: ecoTags || [],
+      isDonation: isDonationFlag
     };
 
     if (sellerId) {
@@ -184,7 +188,8 @@ router.put('/:id', async (req, res) => {
       sellerAddress,
       location,
       ecoRating,
-      ecoTags
+      ecoTags,
+      isDonation
     } = req.body;
 
     let updateFields = {};
@@ -197,6 +202,7 @@ router.put('/:id', async (req, res) => {
     if (stock !== undefined) updateFields.stock = Math.max(0, Number(stock));
     if (ecoRating !== undefined) updateFields.ecoRating = Number(ecoRating);
     if (ecoTags !== undefined) updateFields.ecoTags = ecoTags;
+    if (isDonation !== undefined) updateFields.isDonation = isDonation === 'true' || isDonation === true;
 
     if (sellerName !== undefined) updateFields.sellerName = sellerName;
     if (sellerPhone !== undefined) updateFields.sellerPhone = sellerPhone;

@@ -17,6 +17,8 @@ import CheckoutModal from './components/CheckoutModal';
 import OrderSuccessModal from './components/OrderSuccessModal';
 import InvoiceModal from './components/InvoiceModal';
 import ProductSearch from './components/ProductSearch';
+import DonateProduct from './components/DonateProduct';
+import DonationsPage from './components/DonationMarketplace';
 
 const formatMediaSrc = (img) => {
   if (!img) return null;
@@ -1882,6 +1884,8 @@ function App() {
               setProducts={setProducts}
             />
           } />
+          <Route path="/donate-item" element={<DonateProduct user={user} setProducts={setProducts} />} />
+          <Route path="/donations" element={<DonationsPage user={user} />} />
           <Route path="/add-product" element={
             <ProtectedRoute user={user}>
               <AddProduct user={user} setProducts={setProducts} />

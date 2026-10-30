@@ -51,6 +51,7 @@ router.post('/', async (req, res) => {
     let subtotal = 0;
     let firstSellerInfo = null;
     const uniqueSellerNames = new Set();
+    let hasDonationItem = false;
 
     for (const cartItem of items) {
       const productId = cartItem.productId || cartItem.product?._id || cartItem.product;
@@ -59,6 +60,15 @@ router.post('/', async (req, res) => {
       const productDoc = await Product.findById(productId);
       if (!productDoc) {
         return res.status(404).json({ error: `Product not found: ${productId}` });
+      }
+
+      // Check if product is a donation item
+      if (productDoc.isDonation) {
+        hasDonationItem = true;
+        // Verify that the buyer is NOT the donor (seller)
+        if (productDoc.seller && productDoc.seller.toString() === buyerId.toString()) {
+          return res.status(400).json({ error: `You cannot claim your own donated item (${productDoc.title}).` });
+        }
       }
 
       const sellerUserDoc = productDoc.seller ? await User.findById(productDoc.seller) : null;
@@ -82,26 +92,26 @@ router.post('/', async (req, res) => {
         firstSellerInfo = itemSellerInfo;
       }
 
-      const itemTotal = Number(productDoc.price) * quantityOrdered;
+      const itemPrice = productDoc.isDonation ? 0 : Number(productDoc.price);
+      const itemTotal = itemPrice * quantityOrdered;
       subtotal += itemTotal;
 
       orderItems.push({
         product: productDoc._id,
         title: productDoc.title,
-        price: Number(productDoc.price),
+        price: itemPrice,
         quantity: quantityOrdered,
         seller: sellerUserDoc ? sellerUserDoc._id : null,
         sellerName: sName
       });
 
-      if (isBuyNow) {
-        const currentStock = Number(productDoc.stock ?? productDoc.stockAvailable ?? 100);
-        if (currentStock < quantityOrdered) {
-          return res.status(400).json({ error: `Insufficient stock for ${productDoc.title}. Available: ${currentStock}` });
-        }
-        productDoc.stock = Math.max(0, currentStock - quantityOrdered);
-        await productDoc.save();
+      // Deduct stock
+      const currentStock = Number(productDoc.stock ?? productDoc.stockAvailable ?? 100);
+      if (currentStock < quantityOrdered) {
+        return res.status(400).json({ error: `Insufficient stock for ${productDoc.title}. Available: ${currentStock}` });
       }
+      productDoc.stock = Math.max(0, currentStock - quantityOrdered);
+      await productDoc.save();
     }
 
     const shippingFee = 70;
@@ -115,7 +125,13 @@ router.post('/', async (req, res) => {
         : (firstSellerInfo?.name || 'Eco-Cart Official')
     };
 
+    // Generate unique order number with DON prefix if donation order
+    const prefix = hasDonationItem ? 'DON' : 'ECO';
+    const generatedOrderNumber = `${prefix}-${Date.now().toString().slice(-6)}-${Math.floor(1000 + Math.random() * 9000)}`;
+
     const newOrder = new Order({
+      orderNumber: generatedOrderNumber,
+      isDonationOrder: hasDonationItem,
       buyer: {
         userId: buyerUser._id,
         name: buyerUser.name || buyerUser.fullName || 'Valued Buyer',
@@ -149,8 +165,8 @@ router.post('/', async (req, res) => {
       await Notification.create({
         recipient: buyerUser._id,
         recipientRole: 'buyer',
-        title: `Order Placed Successfully (${orderNum}) 📦`,
-        message: `Dear ${buyerName}, your order #${orderNum} with ${uniqueSellerNames.size} seller(s) has been successfully registered. Click here to view or download your official invoice.`,
+        title: `${hasDonationItem ? 'Donation Claim' : 'Order Placed'} Successfully (${orderNum}) 📦`,
+        message: `Dear ${buyerName}, your ${hasDonationItem ? 'donation claim' : 'order'} #${orderNum} has been successfully registered. Click here to view or download your official invoice.`,
         orderNumber: orderNum,
         orderId: newOrder._id,
         type: 'invoice'
@@ -161,14 +177,16 @@ router.post('/', async (req, res) => {
         if (productDoc && productDoc.seller) {
           const sellerDoc = await User.findById(productDoc.seller);
           const sellerName = sellerDoc?.name || sellerDoc?.fullName || 'Seller';
-          const itemTotal = Number(productDoc.price) * Number(cartItem.quantity || 1);
+          const itemTotal = Number(productDoc.isDonation ? 0 : productDoc.price) * Number(cartItem.quantity || 1);
 
           // Seller Notification
           await Notification.create({
             recipient: productDoc.seller,
             recipientRole: 'seller',
-            title: `New Product Sale (${orderNum}) 💰`,
-            message: `Congratulations! Your product "${productDoc.title}" was purchased by ${buyerName} under order #${orderNum}. Click here to view or download your official invoice.`,
+            title: `${productDoc.isDonation ? 'Donation Item Claimed' : 'New Product Sale'} (${orderNum}) 💰`,
+            message: productDoc.isDonation
+              ? `Your donated item "${productDoc.title}" has been claimed by ${buyerName} under order #${orderNum}. Shipping fee applies.`
+              : `Congratulations! Your product "${productDoc.title}" was purchased by ${buyerName} under order #${orderNum}. Click here to view or download your official invoice.`,
             orderNumber: orderNum,
             orderId: newOrder._id,
             type: 'invoice'
@@ -179,7 +197,7 @@ router.post('/', async (req, res) => {
           const bankName = sellerDoc?.sellerAccounts?.bank?.bankName || 'Registered Bank';
           const sellerAccount = sellerDoc?.sellerAccounts?.bank?.accountNumber || sellerDoc?.phone || 'Registered Payout Account';
 
-          if (/bKash|Nagad|Upay|MasterCard|Card/i.test(provider)) {
+          if (!productDoc.isDonation && /bKash|Nagad|Upay|MasterCard|Card/i.test(provider)) {
             await Notification.create({
               recipient: buyerUser._id,
               recipientRole: 'buyer',
@@ -203,22 +221,24 @@ router.post('/', async (req, res) => {
             await Notification.create({
               recipient: buyerUser._id,
               recipientRole: 'buyer',
-              title: `Cash on Delivery Preparation (${orderNum}) 🚚`,
-              message: `Please keep ৳${itemTotal.toFixed(2)} ready in cash before the delivery representative arrives for order #${orderNum}.`,
+              title: `Shipping Fee Payment Preparation (${orderNum}) 🚚`,
+              message: `Please keep ৳${(itemTotal + shippingFee).toFixed(2)} ready in cash (Shipping Fee + Item Cost) before the delivery representative arrives for order #${orderNum}.`,
               orderNumber: orderNum,
               orderId: newOrder._id,
               type: 'payment'
             });
 
-            await Notification.create({
-              recipient: productDoc.seller,
-              recipientRole: 'seller',
-              title: `Bank Settlement Notice (${orderNum}) 🏦`,
-              message: `You will receive ৳${itemTotal.toFixed(2)} in your Bank Account: (${bankName}: ${sellerAccount}) upon successful delivery of order #${orderNum}.`,
-              orderNumber: orderNum,
-              orderId: newOrder._id,
-              type: 'payment'
-            });
+            if (!productDoc.isDonation) {
+              await Notification.create({
+                recipient: productDoc.seller,
+                recipientRole: 'seller',
+                title: `Bank Settlement Notice (${orderNum}) 🏦`,
+                message: `You will receive ৳${itemTotal.toFixed(2)} in your Bank Account: (${bankName}: ${sellerAccount}) upon successful delivery of order #${orderNum}.`,
+                orderNumber: orderNum,
+                orderId: newOrder._id,
+                type: 'payment'
+              });
+            }
           }
         }
       }
@@ -363,7 +383,7 @@ const handleLogisticsUpdate = async (req, res) => {
               type: 'invoice'
             });
 
-            if (/COD|Cash on Delivery/i.test(paymentProv)) {
+            if (itemTotal > 0 && /COD|Cash on Delivery/i.test(paymentProv)) {
               await Notification.create({
                 recipient: sellerId,
                 recipientRole: 'seller',
@@ -405,7 +425,7 @@ const handleLogisticsUpdate = async (req, res) => {
             const itemTotal = Number(item.price || 0) * Number(item.quantity || 1);
             let sellerMsg = `Order #${orderNum} for your product "${item.title}" encountered a delivery exception and was cancelled by ${buyerName}.`;
             
-            if (isDigitalPayment) {
+            if (isDigitalPayment && itemTotal > 0) {
               sellerMsg += ` Because payment was completed digitally via ${paymentProv}, the amount of ৳${itemTotal.toFixed(2)} which was transferred instantly has now been given back (reversed and refunded) to the buyer.`;
             }
 

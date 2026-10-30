@@ -7,6 +7,11 @@ const OrderSchema = new mongoose.Schema({
     required: true,
     default: () => `ECO-${Date.now().toString().slice(-6)}-${Math.floor(1000 + Math.random() * 9000)}`
   },
+  isDonationOrder: {
+    type: Boolean,
+    default: false,
+    index: true
+  },
   buyer: {
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     name: { type: String, required: true },
