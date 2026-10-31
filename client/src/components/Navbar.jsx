@@ -17,7 +17,6 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  // Invoice Modal state when clicking an invoice notification
   const [selectedInvoiceOrder, setSelectedInvoiceOrder] = useState(null);
 
   const [avatarAlertOpen, setAvatarAlertOpen] = useState(false);
@@ -33,11 +32,7 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
   const [trackAlertMounted, setTrackAlertMounted] = useState(false);
 
   const [showAccountModal, setShowAccountModal] = useState(false);
-
-  // Custom center success modal state
   const [successModal, setSuccessModal] = useState({ show: false, closing: false, message: '' });
-
-  // Delete account confirmation modal state
   const [confirmDeleteModal, setConfirmDeleteModal] = useState(false);
 
   const dropdownRef = useRef(null);
@@ -58,7 +53,6 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
   const userId = user?._id || user?.id;
   const isDeliveryTeam = user?.email === 'sajid019129@gmail.com' || user?.role === 'delivery-team';
 
-  // Helper to determine notification logo based on title or content
   const getNotificationLogo = (notif) => {
     const text = (notif.title + ' ' + notif.message).toLowerCase();
     if (text.includes('bkash')) return '/bKash.jpg';
@@ -70,7 +64,6 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
     return '/Eco-Cart Profile Picture.jpg';
   };
 
-  // Fetch notifications helper function
   const fetchNotifications = () => {
     if (userId && !isDeliveryTeam) {
       axios.get(`http://localhost:5000/api/notifications/${userId}`)
@@ -88,16 +81,12 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
     }
   };
 
-  // Fetch notifications whenever user logs in or changes, and listen for live orderPlaced events
   useEffect(() => {
     fetchNotifications();
-
     const handleOrderPlaced = () => {
       fetchNotifications();
     };
-
     window.addEventListener('orderPlaced', handleOrderPlaced);
-
     return () => {
       window.removeEventListener('orderPlaced', handleOrderPlaced);
     };
@@ -237,10 +226,8 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
   const triggerAvatarAlert = () => {
     closeAllDropdowns();
     if (avatarAlertTimerRef.current) clearTimeout(avatarAlertTimerRef.current);
-
     setAvatarAlertMounted(true);
     setAvatarAlertOpen(true);
-
     avatarAlertTimerRef.current = setTimeout(() => {
       closeAvatarAlert();
     }, 3500);
@@ -258,10 +245,8 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
   const triggerSellerAlert = () => {
     closeAllDropdowns();
     if (sellerAlertTimerRef.current) clearTimeout(sellerAlertTimerRef.current);
-
     setSellerAlertMounted(true);
     setSellerAlertOpen(true);
-
     sellerAlertTimerRef.current = setTimeout(() => {
       closeSellerAlert();
     }, 3500);
@@ -279,10 +264,8 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
   const triggerCartAlert = () => {
     closeAllDropdowns();
     if (cartAlertTimerRef.current) clearTimeout(cartAlertTimerRef.current);
-
     setCartAlertMounted(true);
     setCartAlertOpen(true);
-
     cartAlertTimerRef.current = setTimeout(() => {
       closeCartAlert();
     }, 3500);
@@ -300,10 +283,8 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
   const triggerTrackAlert = () => {
     closeAllDropdowns();
     if (trackAlertTimerRef.current) clearTimeout(trackAlertTimerRef.current);
-
     setTrackAlertMounted(true);
     setTrackAlertOpen(true);
-
     trackAlertTimerRef.current = setTimeout(() => {
       closeTrackAlert();
     }, 3500);
@@ -321,7 +302,6 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
   const showSuccessPopup = (msg, callback) => {
     if (successModalTimerRef.current) clearTimeout(successModalTimerRef.current);
     setSuccessModal({ show: true, closing: false, message: msg });
-
     successModalTimerRef.current = setTimeout(() => {
       setSuccessModal(prev => ({ ...prev, closing: true }));
       setTimeout(() => {
@@ -396,6 +376,15 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
       e.preventDefault();
       if (sellerAlertOpen) closeSellerAlert();
       else triggerSellerAlert();
+    }
+  };
+
+  const handleDonateClick = (e) => {
+    if (!user) {
+      e.preventDefault();
+      navigate('/login');
+    } else {
+      navigate('/donate-item');
     }
   };
 
@@ -1318,7 +1307,6 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
       `}</style>
 
       <nav className="navbar-container">
-        {/* TOP ROW: Logo on left, Profile/Auth & Notifications on right */}
         <div className="nav-top-row">
           {isDeliveryTeam ? (
             <span className="nav-logo" style={{ cursor: 'default' }}>
@@ -1331,7 +1319,6 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
           )}
 
           <div className="right-actions-group">
-            {/* Notification bell */}
             {!isDeliveryTeam && (
               <div className="notification-container" ref={notifRef}>
                 <button 
@@ -1390,7 +1377,6 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
               </div>
             )}
 
-            {/* User Profile Dropdown or Auth Buttons */}
             {user ? (
               <div className="profile-container" ref={dropdownRef}>
                 <button
@@ -1560,7 +1546,6 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
           </div>
         </div>
 
-        {/* BOTTOM ROW: Navigation Links (Home, Buy Products, Cart, Track Order, Donations, Sell Items) */}
         {!isDeliveryTeam && (
           <div className="nav-bottom-row">
             <Link to="/" className={`nav-link ${isActive('/') ? 'active' : ''}`}>
@@ -1612,10 +1597,10 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
               to="/donations" 
               className={`btn-donate-pro ${isActive('/donations') ? 'active' : ''}`}
             >
-              ❤️ Donations
+              🎁 Donations
             </Link>
 
-            <div className="notification-container" ref={sellerAlertRef} style={{ marginLeft: 'auto' }}>
+            <div className="notification-container" ref={sellerAlertRef} style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
               <Link 
                 to="/add-product" 
                 className={`btn-sell-pro ${isActive('/add-product') ? 'active' : ''} ${user && !isSellerUser ? 'faded-non-seller' : ''}`} 
@@ -1624,15 +1609,13 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
                 💰 Sell Items
               </Link>
 
-              {sellerAlertMounted && (
-                <div className={`nav-alert-bubble ${sellerAlertOpen ? 'open' : 'closing'}`}>
-                  <div>
-                    {!user 
-                      ? 'Please login to sell your products' 
-                      : 'You are not eligible for selling products'}
-                  </div>
-                </div>
-              )}
+              <Link 
+                to="/donate-item" 
+                onClick={handleDonateClick}
+                className={`btn-donate-pro ${isActive('/donate-item') ? 'active' : ''}`}
+              >
+                🤝 Donate Items
+              </Link>
             </div>
           </div>
         )}

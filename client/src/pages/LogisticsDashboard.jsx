@@ -434,7 +434,7 @@ const LogisticsDashboard = () => {
 
                       <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', gap: '10px', alignItems: 'flex-start' }}>
                         <span style={{ color: '#6b7280', fontWeight: '600', flexShrink: 0, paddingTop: '1px' }}>
-                          Seller(s) :
+                          {order.orderNumber?.startsWith('DON-') ? 'Donor(s) :' : 'Seller(s) :'}
                         </span>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', textAlign: 'right', flexGrow: 1 }}>
                           {sellersList.map((sName, sIdx) => (

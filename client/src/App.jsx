@@ -503,6 +503,7 @@ function Home({ user, setUser, cart, onAddToCart, onViewDetails, featuredProduct
 
   const filteredHomeProducts = featuredProducts.filter((item) => {
     if (!item) return false;
+    if (item.isDonation) return false;
     const itemCat = getCategoryName(item.category).toLowerCase();
     const category = selectedCategory.toLowerCase();
     const matchesCat = selectedCategory === 'All' || itemCat === category || itemCat.includes(category);
@@ -974,6 +975,7 @@ function ProductsPage({ user, cart, onAddToCart, onBuyNow, viewProductDetails, s
 
   const filteredProducts = products.filter((item) => {
     if (!item) return false;
+    if (item.isDonation) return false;
     const itemCat = getCategoryName(item.category).toLowerCase();
     const matchesCat = selectedCategory === 'All' || itemCat === selectedCategory.toLowerCase() || itemCat.includes(selectedCategory.toLowerCase());
 

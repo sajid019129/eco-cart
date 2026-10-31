@@ -289,7 +289,7 @@ const InvoiceModal = ({ order, onClose }) => {
               <div className="invoice-header">
                 <div>
                   <h2 className="brand-title">Eco-Cart 🛍️</h2>
-                  <div style={{ fontSize: '0.8rem', color: '#6b7280', marginTop: '2px' }}>Official Marketplace Invoice</div>
+                  <div style={{ fontSize: '0.8rem', color: '#6b7280', marginTop: '2px' }}>Official Eco-Cart Invoice</div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
                   <div className="invoice-badge">Order ID: {order.orderNumber}</div>
@@ -316,7 +316,7 @@ const InvoiceModal = ({ order, onClose }) => {
                 <table className="invoice-table">
                   <thead>
                     <tr>
-                      <th>Item Description & Seller</th>
+                      <th>Item Description & Provider</th>
                       <th>Price</th>
                       <th>Qty</th>
                       <th>Total</th>
@@ -324,8 +324,10 @@ const InvoiceModal = ({ order, onClose }) => {
                   </thead>
                   <tbody>
                     {order.items?.map((item, idx) => {
-                      // Exhaustive check to pull the registered seller's actual name
-                      const itemSellerName = 
+                      const isDonation = order.orderNumber?.startsWith('DON-') || Number(item.price || item.product?.price || 0) === 0;
+                      const providerLabel = isDonation ? 'Donor' : 'Seller';
+
+                      const itemProviderName = 
                         item.sellerName || 
                         item.product?.sellerName ||
                         (typeof item.seller === 'object' && item.seller?.name) ||
@@ -337,7 +339,7 @@ const InvoiceModal = ({ order, onClose }) => {
                           <td style={{ fontWeight: 600, color: '#1b4332' }}>
                             {item.title || item.product?.title || 'Product'}
                             <div style={{ fontSize: '0.75rem', color: '#059669', fontWeight: '700', marginTop: '2px' }}>
-                              Seller: {itemSellerName}
+                              {providerLabel}: {itemProviderName}
                             </div>
                           </td>
                           <td>৳ {Number(item.price || item.product?.price || 0).toFixed(2)}</td>

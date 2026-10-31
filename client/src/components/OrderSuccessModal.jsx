@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
+import { useNavigate } from 'react-router-dom';
 import InvoiceModal from './InvoiceModal';
 
 const OrderSuccessModal = ({ order, onClose, onViewTrack, onBackToHome }) => {
+  const navigate = useNavigate();
   const [showInvoice, setShowInvoice] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
 
@@ -24,9 +26,10 @@ const OrderSuccessModal = ({ order, onClose, onViewTrack, onBackToHome }) => {
     setTimeout(() => {
       if (onBackToHome) {
         onBackToHome();
-      } else {
+      } else if (onClose) {
         onClose();
       }
+      navigate('/');
     }, 250);
   };
 
