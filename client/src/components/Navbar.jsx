@@ -3,6 +3,8 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import AccountInfoModal from './AccountInfoModal';
 import InvoiceModal from './InvoiceModal';
+import OfferPopup from './OfferPopup';
+import EcoCartWhyModal from './EcoCartWhyModal';
 
 const DEFAULT_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='50' fill='%232d6a4f'/><circle cx='50' cy='38' r='18' fill='%23ffffff'/><path d='M20,88 C20,68 32,58 50,58 C68,58 80,68 80,88 Z' fill='%23ffffff'/></svg>";
 
@@ -18,6 +20,8 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
   const [unreadCount, setUnreadCount] = useState(0);
 
   const [selectedInvoiceOrder, setSelectedInvoiceOrder] = useState(null);
+  const [showOfferModal, setShowOfferModal] = useState(false);
+  const [showWhyModal, setShowWhyModal] = useState(false);
 
   const [avatarAlertOpen, setAvatarAlertOpen] = useState(false);
   const [avatarAlertMounted, setAvatarAlertMounted] = useState(false);
@@ -64,6 +68,23 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
   const userId = user?._id || user?.id;
   const isDeliveryTeam = user?.email === 'sajid019129@gmail.com' || user?.role === 'delivery-team';
   const isNgoRep = Boolean(user?.isNgoRep || user?.role === 'ngo' || (user?.dob && String(user.dob).includes('NGO')));
+
+  // Trigger offer popup automatically 0.5s after page load (Daraz style)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowOfferModal(true);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const handleLogoHomeClick = (e, path) => {
+    e.preventDefault();
+    setShowOfferModal(true);
+    if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+    setDropdownOpen(false);
+    setDropdownMounted(false);
+    navigate(path);
+  };
 
   const getNotificationLogo = (notif) => {
     const text = (notif.title + ' ' + notif.message).toLowerCase();
@@ -532,6 +553,7 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
         if (showAccountModal) setShowAccountModal(false);
         if (confirmDeleteModal) setConfirmDeleteModal(false);
         if (selectedInvoiceOrder) setSelectedInvoiceOrder(null);
+        if (showWhyModal) setShowWhyModal(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -550,7 +572,7 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
       if (donateAlertTimerRef.current) clearTimeout(donateAlertTimerRef.current);
       if (successModalTimerRef.current) clearTimeout(successModalTimerRef.current);
     };
-  }, [dropdownOpen, notifOpen, avatarAlertOpen, sellerAlertOpen, cartAlertOpen, trackAlertOpen, sellAlertOpen, donateAlertOpen, showAccountModal, confirmDeleteModal, selectedInvoiceOrder]);
+  }, [dropdownOpen, notifOpen, avatarAlertOpen, sellerAlertOpen, cartAlertOpen, trackAlertOpen, sellAlertOpen, donateAlertOpen, showAccountModal, confirmDeleteModal, selectedInvoiceOrder, showWhyModal]);
 
   const isActive = (path) => location.pathname === path;
 
@@ -616,6 +638,7 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
           gap: 6px;
           letter-spacing: 0.4px;
           transition: transform 0.2s ease, opacity 0.2s ease;
+          cursor: pointer;
         }
 
         .nav-logo:hover {
@@ -627,6 +650,43 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
           display: flex;
           align-items: center;
           gap: 10px;
+        }
+
+        .social-logos-group {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          margin-right: 4px;
+        }
+
+        .social-logo-btn {
+          width: 32px;
+          height: 32px;
+          border-radius: 6px;
+          border: 1.5px solid #52b788;
+          background-color: #2d6a4f;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          color: #ffffff;
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+          box-shadow: 0 2px 4px rgba(0,0,0,0.06);
+          text-decoration: none;
+        }
+
+        .social-logo-btn:hover {
+          background-color: #52b788;
+          border-color: #74c69d;
+          color: #081c15;
+          transform: translateY(-1px);
+          box-shadow: 0 3px 10px rgba(82, 183, 136, 0.4);
+        }
+
+        .social-logo-svg {
+          width: 16px;
+          height: 16px;
+          fill: currentColor;
+          display: block;
         }
 
         .nav-link {
@@ -645,6 +705,7 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
           position: relative;
           white-space: nowrap;
           box-shadow: 0 2px 4px rgba(0,0,0,0.06);
+          cursor: pointer;
         }
 
         .nav-link:hover {
@@ -751,40 +812,6 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
           border-color: #8fae9d;
           color: #ffffff;
           box-shadow: 0 3px 12px rgba(107, 142, 123, 0.3);
-        }
-
-        .btn-donate-pro {
-          background-color: #2d6a4f;
-          color: #ffffff;
-          padding: 5px 11px;
-          border-radius: 6px;
-          text-decoration: none;
-          font-weight: 600;
-          font-size: 0.84rem;
-          border: 1.5px solid #52b788;
-          cursor: pointer;
-          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-          display: inline-flex;
-          align-items: center;
-          gap: 5px;
-          white-space: nowrap;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.06);
-        }
-
-        .btn-donate-pro:hover {
-          background-color: #52b788;
-          border-color: #74c69d;
-          color: #081c15;
-          transform: translateY(-1px);
-          box-shadow: 0 3px 10px rgba(82, 183, 136, 0.3);
-        }
-
-        .btn-donate-pro.active {
-          background-color: #52b788;
-          color: #081c15;
-          border: 1.5px solid #74c69d;
-          font-weight: 800;
-          box-shadow: 0 3px 10px rgba(82, 183, 136, 0.4);
         }
 
         .notification-container {
@@ -1374,12 +1401,54 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
               Eco-Cart 🛍️
             </span>
           ) : (
-            <Link to={isNgoRep ? "/donations" : "/"} className="nav-logo">
+            <span 
+              onClick={(e) => handleLogoHomeClick(e, isNgoRep ? "/donations" : "/")} 
+              className="nav-logo"
+            >
               Eco-Cart 🛍️
-            </Link>
+            </span>
           )}
 
           <div className="right-actions-group">
+            <div className="social-logos-group">
+              <a 
+                href="https://www.facebook.com/profile.php?id=61596250734500" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="social-logo-btn" 
+                title="Facebook"
+                aria-label="Facebook"
+              >
+                <svg className="social-logo-svg" viewBox="0 0 24 24">
+                  <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                </svg>
+              </a>
+              <a 
+                href="https://www.instagram.com/_eco_cart_/" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="social-logo-btn" 
+                title="Instagram"
+                aria-label="Instagram"
+              >
+                <svg className="social-logo-svg" viewBox="0 0 24 24">
+                  <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+                </svg>
+              </a>
+              <a 
+                href="https://www.youtube.com/channel/UCVlmiQnLEM1pPeTNHpdoj7A" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="social-logo-btn" 
+                title="YouTube"
+                aria-label="YouTube"
+              >
+                <svg className="social-logo-svg" viewBox="0 0 24 24">
+                  <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                </svg>
+              </a>
+            </div>
+
             {!isDeliveryTeam && (
               <div className="notification-container" ref={notifRef}>
                 <button 
@@ -1611,7 +1680,7 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
           <div className="nav-bottom-row">
             {isNgoRep ? (
               <>
-                <Link to="/donations" className={`btn-donate-pro ${isActive('/donations') ? 'active' : ''}`}>
+                <Link to="/donations" className={`nav-link ${isActive('/donations') ? 'active' : ''}`}>
                   🎁 Donations
                 </Link>
 
@@ -1621,9 +1690,12 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
               </>
             ) : (
               <>
-                <Link to="/" className={`nav-link ${isActive('/') ? 'active' : ''}`}>
+                <span 
+                  onClick={(e) => handleLogoHomeClick(e, "/")} 
+                  className={`nav-link ${isActive('/') ? 'active' : ''}`}
+                >
                   🏠 Home
-                </Link>
+                </span>
 
                 <Link to="/products" className={`nav-link ${isActive('/products') ? 'active' : ''}`}>
                   📦 Buy Products
@@ -1668,10 +1740,18 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
 
                 <Link 
                   to="/donations" 
-                  className={`btn-donate-pro ${isActive('/donations') ? 'active' : ''}`}
+                  className={`nav-link ${isActive('/donations') ? 'active' : ''}`}
                 >
                   🎁 Donations
                 </Link>
+
+                <button
+                  type="button"
+                  onClick={() => setShowWhyModal(true)}
+                  className="nav-link"
+                >
+                  💁‍♂️ Why Eco-Cart?
+                </button>
 
                 <div className="notification-container" ref={sellerAlertRef} style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
                   <div className="notification-container" ref={sellAlertRef} style={{ display: 'inline-block' }}>
@@ -1694,7 +1774,7 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
                     <Link 
                       to="/donate-item" 
                       onClick={handleDonateClick}
-                      className={`btn-donate-pro ${isActive('/donate-item') ? 'active' : ''}`}
+                      className={`nav-link ${isActive('/donate-item') ? 'active' : ''}`}
                     >
                       🤝 Donate Items
                     </Link>
@@ -1711,6 +1791,9 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
           </div>
         )}
       </nav>
+
+      <OfferPopup isOpen={showOfferModal} onClose={() => setShowOfferModal(false)} />
+      {showWhyModal && <EcoCartWhyModal onClose={() => setShowWhyModal(false)} />}
 
       {confirmDeleteModal && (
         <div className="success-overlay">
