@@ -51,14 +51,14 @@ const getFirstImageThumbnail = (product) => {
   return list[0] || null;
 };
 
-const CheckoutModal = ({ user, cart = [], isBuyNow = false, onClose, onSuccess }) => {
+const CheckoutModal = ({ user, cart = [], isBuyNow = false, isDonationCheckout = false, onClose, onSuccess }) => {
   const [isClosing, setIsClosing] = useState(false);
   const [cartItems, setCartItems] = useState(cart);
   const [quantities, setQuantities] = useState(() => {
     const initial = {};
     cart.forEach((item, idx) => {
       const id = item.product?._id || item.product?.id || item._id || idx;
-      initial[id] = item.quantity || 1;
+      initial[id] = item.isDonationOrder || isDonationCheckout ? 1 : (item.quantity || 1);
     });
     return initial;
   });
@@ -95,6 +95,8 @@ const CheckoutModal = ({ user, cart = [], isBuyNow = false, onClose, onSuccess }
   };
 
   const handleQtyChange = async (item, delta) => {
+    if (item.isDonationOrder || isDonationCheckout) return; // Fixed quantity for donations
+
     const prod = item.product || item;
     const id = prod._id || prod.id;
     const currentQty = quantities[id] || item.quantity || 1;
@@ -131,6 +133,9 @@ const CheckoutModal = ({ user, cart = [], isBuyNow = false, onClose, onSuccess }
 
   const calculateSubtotal = () => {
     return cartItems.reduce((acc, item) => {
+      if (item.isDonationOrder || isDonationCheckout) {
+        return acc + 0; // Donation products price is ৳0
+      }
       const prod = item.product || item;
       const id = prod._id || prod.id;
       const qty = quantities[id] || item.quantity || 1;
@@ -205,7 +210,7 @@ const CheckoutModal = ({ user, cart = [], isBuyNow = false, onClose, onSuccess }
       const orderItems = cartItems.map(item => {
         const prod = item.product || item;
         const id = prod._id || prod.id;
-        const qty = quantities[id] || item.quantity || 1;
+        const qty = item.isDonationOrder || isDonationCheckout ? 1 : (quantities[id] || item.quantity || 1);
         return { productId: id, quantity: qty };
       });
 
@@ -222,7 +227,8 @@ const CheckoutModal = ({ user, cart = [], isBuyNow = false, onClose, onSuccess }
             trxId: ['bKash', 'Nagad', 'Upay'].includes(paymentMethod) ? 'ONLINE-OTP-PAID' : (paymentMethod === 'MasterCard' ? 'CARD-SECURE-PAY' : 'COD')
           },
           shippingAddress: { phone: phoneVal, location: shippingLocation },
-          isBuyNow: Boolean(isBuyNow)
+          isBuyNow: Boolean(isBuyNow),
+          isDonationOrder: Boolean(isDonationCheckout || cartItems.some(i => i.isDonationOrder))
         })
       });
 
@@ -322,7 +328,7 @@ const CheckoutModal = ({ user, cart = [], isBuyNow = false, onClose, onSuccess }
           .prod-summary-container {
             max-height: 220px;
             overflow-y: auto;
-            padding-right: 4px;
+            padding: 4px;
             margin-bottom: 18px;
           }
 
@@ -342,12 +348,15 @@ const CheckoutModal = ({ user, cart = [], isBuyNow = false, onClose, onSuccess }
             border: 1px solid #e5e7eb;
             box-shadow: 0 4px 14px rgba(0,0,0,0.03);
             transition: all 0.25s ease;
+            position: relative;
+            z-index: 1;
           }
 
           .prod-summary-item:hover {
             transform: translateY(-2px);
             box-shadow: 0 6px 18px rgba(27, 67, 50, 0.1);
             border-color: #2d6a4f;
+            z-index: 2;
           }
 
           .prod-img {
@@ -392,6 +401,18 @@ const CheckoutModal = ({ user, cart = [], isBuyNow = false, onClose, onSuccess }
             font-weight: bold;
             color: #1f2937;
             font-size: 0.9rem;
+          }
+
+          .fixed-qty-badge {
+            background-color: #e8f5e9;
+            color: #2d6a4f;
+            padding: 4px 12px;
+            border-radius: 6px;
+            font-weight: 800;
+            font-size: 0.85rem;
+            margin-top: 4px;
+            display: inline-block;
+            border: 1px solid #c8e6c9;
           }
 
           .form-section-box {
@@ -735,10 +756,11 @@ const CheckoutModal = ({ user, cart = [], isBuyNow = false, onClose, onSuccess }
                 <div className="prod-summary-container">
                   <div className="prod-summary-list">
                     {cartItems.map((item, idx) => {
+                      const isDonationItem = item.isDonationOrder || isDonationCheckout;
                       const prod = item.product || item;
                       const id = prod._id || prod.id || idx;
-                      const qty = quantities[id] || item.quantity || 1;
-                      const price = Number(prod.price || 0);
+                      const qty = isDonationItem ? 1 : (quantities[id] || item.quantity || 1);
+                      const price = isDonationItem ? 0 : Number(prod.price || 0);
                       const thumb = getFirstImageThumbnail(prod);
 
                       return (
@@ -747,23 +769,28 @@ const CheckoutModal = ({ user, cart = [], isBuyNow = false, onClose, onSuccess }
                           <div style={{ flex: 1 }}>
                             <div style={{ fontWeight: 600, color: '#2b2b2b', fontSize: '1rem' }}>{prod.title || prod.name}</div>
                             <div style={{ color: '#2d6a4f', fontSize: '0.95rem', fontWeight: 'bold', marginTop: '2px' }}>৳ {price.toFixed(2)}</div>
-                            <div className="qty-box">
-                              <button 
-                                type="button"
-                                className="qty-btn" 
-                                onClick={() => handleQtyChange(item, -1)}
-                              >
-                                -
-                              </button>
-                              <span className="qty-text">{qty}</span>
-                              <button 
-                                type="button"
-                                className="qty-btn" 
-                                onClick={() => handleQtyChange(item, 1)}
-                              >
-                                +
-                              </button>
-                            </div>
+                            
+                            {isDonationItem ? (
+                              <span className="fixed-qty-badge">(Donation Item)</span>
+                            ) : (
+                              <div className="qty-box">
+                                <button 
+                                  type="button"
+                                  className="qty-btn" 
+                                  onClick={() => handleQtyChange(item, -1)}
+                                >
+                                  -
+                                </button>
+                                <span className="qty-text">{qty}</span>
+                                <button 
+                                  type="button"
+                                  className="qty-btn" 
+                                  onClick={() => handleQtyChange(item, 1)}
+                                >
+                                  +
+                                </button>
+                              </div>
+                            )}
                           </div>
                         </div>
                       );

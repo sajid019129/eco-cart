@@ -138,14 +138,29 @@ router.post('/', upload.array('media', 5), async (req, res) => {
   }
 });
 
-// GET /api/products - Get all products with optional search and category filters
+// GET /api/products/donations - Get ONLY donation items for the Donation Hub
+router.get('/donations', async (req, res) => {
+  try {
+    const donations = await Product.find({ isDonation: true })
+      .populate('category', 'name')
+      .populate('seller', 'name email phone address')
+      .sort({ createdAt: -1 });
+    res.json(donations);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to retrieve donations', details: err.message });
+  }
+});
+
+// GET /api/products - Get all products with optional search and category filters (Excludes donations from marketplace)
 router.get('/', async (req, res) => {
   try {
     const { searchTerm, category } = req.query;
-    let filter = {};
+    
+    // Automatically filter out donation items from the general marketplace feed
+    let filter = { isDonation: { $ne: true } };
 
     if (searchTerm) {
-      filter.title = { $regex: searchTerm,$options: 'i' };
+      filter.title = { $regex: searchTerm, $options: 'i' };
     }
 
     if (category && category !== 'All') {

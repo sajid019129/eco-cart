@@ -503,6 +503,7 @@ function Home({ user, setUser, cart, onAddToCart, onViewDetails, featuredProduct
 
   const filteredHomeProducts = featuredProducts.filter((item) => {
     if (!item) return false;
+    if (item.isDonation) return false;
     const itemCat = getCategoryName(item.category).toLowerCase();
     const category = selectedCategory.toLowerCase();
     const matchesCat = selectedCategory === 'All' || itemCat === category || itemCat.includes(category);
@@ -974,6 +975,7 @@ function ProductsPage({ user, cart, onAddToCart, onBuyNow, viewProductDetails, s
 
   const filteredProducts = products.filter((item) => {
     if (!item) return false;
+    if (item.isDonation) return false;
     const itemCat = getCategoryName(item.category).toLowerCase();
     const matchesCat = selectedCategory === 'All' || itemCat === selectedCategory.toLowerCase() || itemCat.includes(selectedCategory.toLowerCase());
 
@@ -1525,6 +1527,20 @@ function App() {
 
   const currentUserId = user?._id || user?.id || user?.userId;
 
+  // Redirect NGO representatives to the donations marketplace when a saved
+  // session is restored and they open the site at the home page.
+  useEffect(() => {
+    const isNgoRep = Boolean(
+      user?.isNgoRep ||
+      user?.role === 'ngo' ||
+      (user?.dob && String(user.dob).includes('NGO'))
+    );
+
+    if (isNgoRep && location.pathname === '/') {
+      navigate('/donations', { replace: true });
+    }
+  }, [user, location.pathname, navigate]);
+
   const [cart, setCart] = useState(() => {
     if (!currentUserId) return [];
     const savedCart = localStorage.getItem(`cart_${currentUserId}`);
@@ -1553,6 +1569,17 @@ function App() {
     if (newUser) {
       const newUserId = newUser._id || newUser.id || newUser.userId;
       localStorage.setItem('user', JSON.stringify(newUser));
+
+      const isNgoRep = Boolean(
+        newUser.isNgoRep ||
+        newUser.role === 'ngo' ||
+        (newUser.dob && String(newUser.dob).includes('NGO'))
+      );
+
+      if (isNgoRep && location.pathname === '/') {
+        navigate('/donations');
+      }
+
       const savedCart = localStorage.getItem(`cart_${newUserId}`);
       if (savedCart) {
         try {

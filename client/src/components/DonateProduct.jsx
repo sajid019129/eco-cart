@@ -182,7 +182,7 @@ const DonateProduct = ({ user, setProducts }) => {
         setProducts(prev => [res.data, ...prev]);
       }
 
-      navigate('/products');
+      navigate('/donations');
     } catch (err) {
       console.error(err);
       setError(err.response?.data?.error || err.response?.data?.message || 'Failed to list donation item. Please try again.');
@@ -451,6 +451,17 @@ const DonateProduct = ({ user, setProducts }) => {
           font-weight: 700;
         }
 
+        .eco-readonly-box {
+          background-color: #f3f4f6 !important;
+          border-color: #d1d5db !important;
+          cursor: not-allowed;
+        }
+
+        .eco-readonly-field {
+          color: #6b7280 !important;
+          cursor: not-allowed;
+        }
+
         .eco-submit-btn {
           width: 100%;
           background-color: #2d6a4f;
@@ -481,12 +492,17 @@ const DonateProduct = ({ user, setProducts }) => {
 
       <div className="eco-post-container">
         <div className="eco-post-card">
-          <h2 className="eco-post-title">Donate an Item ❤️</h2>
-          <p className="eco-post-subtitle">Contribute items for community donation. Recipients only pay the shipping fee!</p>
+          <h2 className="eco-post-title">Post Items for Donation 🎁</h2>
+          <p className="eco-post-subtitle">Donate your pre-owned or new items to the community marketplace</p>
 
           {error && <div className="eco-error-banner">{error}</div>}
 
           <form onSubmit={handleSubmit}>
+            {/* Notice for Free Price */}
+            <div style={{ backgroundColor: '#e8f5e9', border: '1px solid #a5d6a7', borderRadius: '8px', padding: '12px 16px', marginBottom: '16px', color: '#1b4332', fontSize: '0.9rem', fontWeight: '600' }}>
+              💡 <strong>Donation Notice:</strong> The item price is automatically set to ৳0. Anyone who claims this item will only pay the standard shipping fee.
+            </div>
+
             {/* Title */}
             <div className={`eco-field-box ${formData.title ? 'has-value' : ''}`}>
               <label className="eco-field-label">
@@ -497,15 +513,10 @@ const DonateProduct = ({ user, setProducts }) => {
                 name="title"
                 value={formData.title}
                 onChange={handleChange}
-                placeholder="Enter item title for donation"
+                placeholder="Enter item title"
                 className="eco-input-field"
                 required
               />
-            </div>
-
-            {/* Notice for Free Price */}
-            <div style={{ backgroundColor: '#e8f5e9', border: '1px solid #a5d6a7', borderRadius: '8px', padding: '12px 16px', marginBottom: '16px', color: '#1b4332', fontSize: '0.9rem', fontWeight: '600' }}>
-              💡 <strong>Donation Notice:</strong> The item price is automatically set to ৳0. Anyone who claims this item will only pay the standard shipping fee.
             </div>
 
             {/* Category Dropdown */}
@@ -598,7 +609,7 @@ const DonateProduct = ({ user, setProducts }) => {
                 rows="3"
                 value={formData.description}
                 onChange={handleChange}
-                placeholder="Describe the item you wish to donate"
+                placeholder="Provide adequate descriptions of the item"
                 className="eco-textarea-field"
                 required
               />
@@ -667,7 +678,7 @@ const DonateProduct = ({ user, setProducts }) => {
             <div className="eco-seller-section">
               <h3 className="eco-seller-title">Donor Contact Details</h3>
 
-              <div className={`eco-field-box ${formData.donorName ? 'has-value' : ''}`}>
+              <div className="eco-field-box eco-readonly-box">
                 <label className="eco-field-label">
                   <span>👤</span> Full Name <span className="eco-required">*</span>
                 </label>
@@ -675,14 +686,13 @@ const DonateProduct = ({ user, setProducts }) => {
                   type="text"
                   name="donorName"
                   value={formData.donorName}
-                  onChange={handleChange}
-                  placeholder="Enter your name"
-                  className="eco-input-field"
-                  required
+                  className="eco-input-field eco-readonly-field"
+                  readOnly
+                  disabled
                 />
               </div>
 
-              <div className={`eco-field-box ${formData.phone ? 'has-value' : ''}`}>
+              <div className="eco-field-box eco-readonly-box">
                 <label className="eco-field-label">
                   <span>📞</span> Phone Number <span className="eco-required">*</span>
                 </label>
@@ -690,14 +700,13 @@ const DonateProduct = ({ user, setProducts }) => {
                   type="tel"
                   name="phone"
                   value={formData.phone}
-                  onChange={handleChange}
-                  placeholder="Enter your phone number"
-                  className="eco-input-field"
-                  required
+                  className="eco-input-field eco-readonly-field"
+                  readOnly
+                  disabled
                 />
               </div>
 
-              <div className={`eco-field-box ${formData.email ? 'has-value' : ''}`}>
+              <div className="eco-field-box eco-readonly-box">
                 <label className="eco-field-label">
                   <span>✉️</span> Email Address <span className="eco-required">*</span>
                 </label>
@@ -705,23 +714,22 @@ const DonateProduct = ({ user, setProducts }) => {
                   type="email"
                   name="email"
                   value={formData.email}
-                  onChange={handleChange}
-                  placeholder="Enter your email"
-                  className="eco-input-field"
-                  required
+                  className="eco-input-field eco-readonly-field"
+                  readOnly
+                  disabled
                 />
               </div>
 
               <div className={`eco-field-box ${formData.location ? 'has-value' : ''}`} style={{ marginBottom: 0 }}>
                 <label className="eco-field-label">
-                  <span>📍</span> Pickup Location / Address <span className="eco-required">*</span>
+                  <span>📍</span> Location / Address <span className="eco-required">*</span>
                 </label>
                 <input
                   type="text"
                   name="location"
                   value={formData.location}
                   onChange={handleChange}
-                  placeholder="Enter pickup address"
+                  placeholder="Enter your current location"
                   className="eco-input-field"
                   required
                 />
@@ -729,7 +737,7 @@ const DonateProduct = ({ user, setProducts }) => {
             </div>
 
             <button type="submit" className="eco-submit-btn" disabled={loading}>
-              {loading ? 'Submitting Donation...' : 'Post Donation Item'}
+              {loading ? 'Submitting Donation...' : 'Post Item'}
             </button>
           </form>
         </div>

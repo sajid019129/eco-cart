@@ -61,6 +61,7 @@ function Home({ user, cart, onAddToCart, onViewDetails, featuredProducts }) {
 
   const filteredHomeProducts = featuredProducts.filter((item) => {
     if (!item) return false;
+    if (item.isDonation) return false; // Exclude donation items from Home feed
     const itemCat = getCategoryName(item.category).toLowerCase();
     const category = selectedCategory.toLowerCase();
     const matchesCat = selectedCategory === 'All' || itemCat === category || itemCat.includes(category);

@@ -33,7 +33,14 @@ function Login({ setUser }) {
       }
 
       if (setUser) setUser(userData);
-      navigate('/');
+
+      // Check if user is an NGO representative and redirect accordingly
+      const isNgoRep = Boolean(userData.isNgoRep || userData.role === 'ngo' || (userData.dob && String(userData.dob).includes('NGO')));
+      if (isNgoRep) {
+        navigate('/donations');
+      } else {
+        navigate('/');
+      }
     } catch (err) {
       console.error('Login Error:', err.response || err.message);
       setError(err.response?.data?.message || 'Invalid email or password');
@@ -174,7 +181,6 @@ function Login({ setUser }) {
           font-family: inherit;
         }
 
-        /* Hide browser native password reveal icons */
         input[type="password"]::-ms-reveal,
         input[type="password"]::-ms-clear {
           display: none;
@@ -235,7 +241,6 @@ function Login({ setUser }) {
           {error && <div className="eco-error-banner">{error}</div>}
 
           <form onSubmit={handleSubmit}>
-            {/* Email Address */}
             <div className={`eco-field-box ${formData.email ? 'has-value' : ''}`}>
               <label className="eco-field-label">
                 <span>✉️</span> Email Address <span className="eco-required">*</span>
@@ -250,7 +255,6 @@ function Login({ setUser }) {
               />
             </div>
 
-            {/* Password */}
             <div className={`eco-field-box ${formData.password ? 'has-value' : ''}`}>
               <label className="eco-field-label">
                 <span>🔑</span> Password <span className="eco-required">*</span>
@@ -349,7 +353,7 @@ function Login({ setUser }) {
                 e.target.style.transform = 'scale(1.03)';
               }}
               onMouseLeave={(e) => {
-                e.target.style.color = '#2d6a4f';
+                e.target.style.color = '#1b4332';
                 e.target.style.textDecoration = 'none';
                 e.target.style.transform = 'scale(1)';
               }}

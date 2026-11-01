@@ -15,6 +15,8 @@ function Register({ setUser }) {
   });
 
   const [isSeller, setIsSeller] = useState(false);
+  const [isNgoRep, setIsNgoRep] = useState(false);
+
   const [sellerAccounts, setSellerAccounts] = useState({
     bKash: '',
     nagad: '',
@@ -55,7 +57,7 @@ function Register({ setUser }) {
   const years = Array.from({ length: 100 }, (_, i) => currentYear - i);
 
   useEffect(() => {
-    if (dobDay && dobMonth && dobYear) {
+    if (!isNgoRep && dobDay && dobMonth && dobYear) {
       const today = new Date();
       const birthDate = new Date(Number(dobYear), Number(dobMonth) - 1, Number(dobDay));
       let age = today.getFullYear() - birthDate.getFullYear();
@@ -67,7 +69,7 @@ function Register({ setUser }) {
     } else {
       setCalculatedAge(null);
     }
-  }, [dobDay, dobMonth, dobYear]);
+  }, [dobDay, dobMonth, dobYear, isNgoRep]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -86,6 +88,26 @@ function Register({ setUser }) {
     }
   };
 
+  const handleNgoCheckboxChange = (e) => {
+    const checked = e.target.checked;
+    setIsNgoRep(checked);
+    if (checked) {
+      setDobDay('');
+      setDobMonth('');
+      setDobYear('');
+      setCalculatedAge(null);
+      setIsSeller(false);
+    }
+  };
+
+  const handleSellerCheckboxChange = (e) => {
+    const checked = e.target.checked;
+    if (isNgoRep) {
+      return;
+    }
+    setIsSeller(checked);
+  };
+
   const handleRequestRegister = async (e) => {
     e.preventDefault();
     setError('');
@@ -96,7 +118,7 @@ function Register({ setUser }) {
       return;
     }
 
-    if (calculatedAge === null || calculatedAge < 18) {
+    if (!isNgoRep && (calculatedAge === null || calculatedAge < 18)) {
       setError('You must be at least 18 years old to register an account.');
       return;
     }
@@ -132,7 +154,7 @@ function Register({ setUser }) {
 
     setLoading(true);
     const avatarUrl = preview || DEFAULT_AVATAR;
-    const formattedDob = `${dobDay}/${dobMonth}/${dobYear}`;
+    const formattedDob = isNgoRep ? 'N/A (NGO Representative)' : `${dobDay}/${dobMonth}/${dobYear}`;
 
     try {
       const res = await axios.post('http://localhost:5000/api/auth/register', {
@@ -141,9 +163,10 @@ function Register({ setUser }) {
         password: formData.password,
         phone: formData.phone,
         dob: formattedDob,
-        age: calculatedAge,
+        age: isNgoRep ? 25 : calculatedAge,
         avatar: avatarUrl,
         isSeller,
+        isNgoRep,
         sellerAccounts: isSeller ? {
           bKash: sellerAccounts.bKash,
           nagad: sellerAccounts.nagad,
@@ -594,8 +617,34 @@ function Register({ setUser }) {
                 />
               </div>
 
+              {/* NGO Representative Checkbox Toggle */}
+              <div 
+                className="eco-seller-toggle-box"
+                style={{
+                  backgroundColor: isNgoRep ? '#e8f5e9' : '#eaf4ef',
+                  borderColor: isNgoRep ? '#2d6a4f' : '#2d6a4f'
+                }}
+              >
+                <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.95rem', fontWeight: '700', color: '#1b4332', cursor: 'pointer', width: '100%' }}>
+                  <input
+                    type="checkbox"
+                    checked={isNgoRep}
+                    onChange={handleNgoCheckboxChange}
+                    style={{ width: '18px', height: '18px', accentColor: '#1b4332', cursor: 'pointer', transform: 'scale(1.15)', transition: 'transform 0.2s ease' }}
+                  />
+                  <span>I am an NGO representative and want to claim donations</span>
+                </label>
+              </div>
+
               {/* Date of Birth */}
-              <div className="eco-field-box">
+              <div 
+                className="eco-field-box"
+                style={{
+                  opacity: isNgoRep ? 0.45 : 1,
+                  pointerEvents: isNgoRep ? 'none' : 'auto',
+                  backgroundColor: isNgoRep ? '#f3f4f6' : '#f9fafb'
+                }}
+              >
                 <label className="eco-field-label">
                   <span>📅</span> Date of Birth (Must be 18+) <span className="eco-required">*</span>
                 </label>
@@ -604,7 +653,8 @@ function Register({ setUser }) {
                     value={dobDay}
                     onChange={(e) => setDobDay(e.target.value)}
                     className="eco-select-dropdown"
-                    required
+                    required={!isNgoRep}
+                    disabled={isNgoRep}
                   >
                     <option value="" disabled>Day</option>
                     {days.map((d) => (
@@ -616,7 +666,8 @@ function Register({ setUser }) {
                     value={dobMonth}
                     onChange={(e) => setDobMonth(e.target.value)}
                     className="eco-select-dropdown"
-                    required
+                    required={!isNgoRep}
+                    disabled={isNgoRep}
                   >
                     <option value="" disabled>Month</option>
                     {months.map((m) => (
@@ -628,7 +679,8 @@ function Register({ setUser }) {
                     value={dobYear}
                     onChange={(e) => setDobYear(e.target.value)}
                     className="eco-select-dropdown"
-                    required
+                    required={!isNgoRep}
+                    disabled={isNgoRep}
                   >
                     <option value="" disabled>Year</option>
                     {years.map((y) => (
@@ -637,7 +689,7 @@ function Register({ setUser }) {
                   </select>
                 </div>
 
-                {calculatedAge !== null && calculatedAge < 18 && (
+                {!isNgoRep && calculatedAge !== null && calculatedAge < 18 && (
                   <div style={{ fontSize: '0.85rem', fontWeight: 'bold', marginTop: '6px', color: '#d90429' }}>
                     (Must be 18+ to register an account)
                   </div>
@@ -666,20 +718,27 @@ function Register({ setUser }) {
               </div>
 
               {/* Seller Checkbox Toggle */}
-              <div className="eco-seller-toggle-box">
-                <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.95rem', fontWeight: '700', color: '#1b4332', cursor: 'pointer', width: '100%' }}>
+              <div 
+                className="eco-seller-toggle-box"
+                style={{
+                  opacity: isNgoRep ? 0.5 : 1,
+                  cursor: isNgoRep ? 'not-allowed' : 'pointer'
+                }}
+              >
+                <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.95rem', fontWeight: '700', color: '#1b4332', cursor: isNgoRep ? 'not-allowed' : 'pointer', width: '100%' }}>
                   <input
                     type="checkbox"
                     checked={isSeller}
-                    onChange={(e) => setIsSeller(e.target.checked)}
-                    style={{ width: '18px', height: '18px', accentColor: '#1b4332', cursor: 'pointer', transform: 'scale(1.15)', transition: 'transform 0.2s ease' }}
+                    disabled={isNgoRep}
+                    onChange={handleSellerCheckboxChange}
+                    style={{ width: '18px', height: '18px', accentColor: '#1b4332', cursor: isNgoRep ? 'not-allowed' : 'pointer', transform: 'scale(1.15)', transition: 'transform 0.2s ease' }}
                   />
                   <span>I want to sell products on Eco-Cart 🛍️</span>
                 </label>
               </div>
 
               {/* Dynamic Seller Financial & Payout Accounts */}
-              {isSeller && (
+              {isSeller && !isNgoRep && (
                 <div className="eco-seller-section">
                   <h3 style={{ fontSize: '1.1rem', fontWeight: '700', color: '#1b4332', margin: '0 0 6px 0' }}>
                     Seller Payout & Cash-Out Accounts 💸
@@ -809,11 +868,11 @@ function Register({ setUser }) {
 
               <button 
                 type="submit" 
-                disabled={loading || (calculatedAge !== null && calculatedAge < 18)} 
+                disabled={loading || (!isNgoRep && calculatedAge !== null && calculatedAge < 18)} 
                 className="eco-submit-btn"
                 style={{
-                  opacity: (calculatedAge !== null && calculatedAge < 18) ? 0.6 : 1,
-                  cursor: (calculatedAge !== null && calculatedAge < 18) ? 'not-allowed' : 'pointer'
+                  opacity: (!isNgoRep && calculatedAge !== null && calculatedAge < 18) ? 0.6 : 1,
+                  cursor: (!isNgoRep && calculatedAge !== null && calculatedAge < 18) ? 'not-allowed' : 'pointer'
                 }}
               >
                 {loading ? 'Sending Verification Code...' : 'Continue & Send Verification Code'}

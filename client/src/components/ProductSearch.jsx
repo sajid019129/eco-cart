@@ -86,7 +86,8 @@ const ProductSearch = ({
   selectedPriceRange: externalPriceRange = 'All Prices',
   onSearchTermChange,
   onLocationChange,
-  onPriceRangeChange
+  onPriceRangeChange,
+  hidePriceFilter = false 
 }) => {
   const [searchTerm, setSearchTerm] = useState(externalSearchTerm);
   const [locationTerm, setLocationTerm] = useState(externalLocationTerm);
@@ -484,46 +485,48 @@ const ProductSearch = ({
       `}</style>
 
       <div className="search-filter-container">
-        {/* PRICE BOX */}
-        <div 
-          className={`filter-box custom-dropdown-container ${selectedPriceRange !== 'All Prices' ? 'active-box active-pulse' : ''}`}
-          ref={priceDropdownRef}
-          onClick={togglePriceDropdown}
-        >
-          <span className="filter-label">
-            <span className="filter-icon">💵</span> FILTER BY PRICE
-          </span>
-          <div className="custom-trigger-display">
-            <span>
-              {selectedPriceRange === 'All Prices' ? '✨ All Prices' : `💵 ${formatPriceDisplay(selectedPriceRange)}`}
+        {/* PRICE BOX (Hidden when hidePriceFilter is true) */}
+        {!hidePriceFilter && (
+          <div 
+            className={`filter-box custom-dropdown-container ${selectedPriceRange !== 'All Prices' ? 'active-box active-pulse' : ''}`}
+            ref={priceDropdownRef}
+            onClick={togglePriceDropdown}
+          >
+            <span className="filter-label">
+              <span className="filter-icon">💵</span> FILTER BY PRICE
             </span>
-            <span className={`custom-arrow ${priceDropdownOpen ? 'is-open' : ''}`}>
-              ▾
-            </span>
-          </div>
-
-          {priceDropdownMounted && (
-            <div className={`custom-dropdown-menu ${priceDropdownOpen ? 'open' : 'closing'}`}>
-              {PRICE_RANGES.map((range, idx) => {
-                const isSelected = selectedPriceRange === range;
-                return (
-                  <button
-                    key={idx}
-                    type="button"
-                    className={`custom-dropdown-item ${isSelected ? 'selected' : ''}`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleSelectPrice(range);
-                    }}
-                  >
-                    <span>{range === 'All Prices' ? '✨' : '💵'}</span>
-                    <span>{range === 'All Prices' ? 'All Prices' : formatPriceDisplay(range)}</span>
-                  </button>
-                );
-              })}
+            <div className="custom-trigger-display">
+              <span>
+                {selectedPriceRange === 'All Prices' ? '✨ All Prices' : `💵 ${formatPriceDisplay(selectedPriceRange)}`}
+              </span>
+              <span className={`custom-arrow ${priceDropdownOpen ? 'is-open' : ''}`}>
+                ▾
+              </span>
             </div>
-          )}
-        </div>
+
+            {priceDropdownMounted && (
+              <div className={`custom-dropdown-menu ${priceDropdownOpen ? 'open' : 'closing'}`}>
+                {PRICE_RANGES.map((range, idx) => {
+                  const isSelected = selectedPriceRange === range;
+                  return (
+                    <button
+                      key={idx}
+                      type="button"
+                      className={`custom-dropdown-item ${isSelected ? 'selected' : ''}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSelectPrice(range);
+                      }}
+                    >
+                      <span>{range === 'All Prices' ? '✨' : '💵'}</span>
+                      <span>{range === 'All Prices' ? 'All Prices' : formatPriceDisplay(range)}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* CATEGORY BOX */}
         <div 

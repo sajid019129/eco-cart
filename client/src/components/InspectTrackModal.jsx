@@ -38,6 +38,9 @@ const InspectTrackModal = ({ order: initialOrder, onClose, onUpdateOrder }) => {
     return '/Bank.png';
   };
 
+  const isDonation = order.orderNumber?.startsWith('DON-');
+  const providerLabel = isDonation ? 'Donor' : 'Seller';
+
   const buyerName = order.buyer?.name || order.shippingAddress?.fullName || 'Customer';
   const steps = order.logisticsSteps || {};
   const isDeliveredChecked = Boolean(steps.delivered);
@@ -411,7 +414,7 @@ const InspectTrackModal = ({ order: initialOrder, onClose, onUpdateOrder }) => {
               <table className="inspect-table">
                 <thead>
                   <tr>
-                    <th>Item Description & Seller</th>
+                    <th>Item Description & {providerLabel}</th>
                     <th>Price</th>
                     <th>Qty</th>
                     <th>Total</th>
@@ -453,7 +456,7 @@ const InspectTrackModal = ({ order: initialOrder, onClose, onUpdateOrder }) => {
                         <td style={{ fontWeight: 600, color: '#1b4332' }}>
                           {item.title || item.product?.title || 'Product'}
                           <div style={{ fontSize: '0.78rem', color: '#059669', fontWeight: '600', marginTop: '5px' }}>
-                            <span>Seller:</span> {itemSellerName}
+                            <span>{providerLabel}:</span> {itemSellerName}
                           </div>
                           <div style={{ fontSize: '0.75rem', color: '#374151', fontWeight: '600', marginTop: '2px' }}>
                             <span>Email Address:</span> {itemSellerEmail}
@@ -505,7 +508,7 @@ const InspectTrackModal = ({ order: initialOrder, onClose, onUpdateOrder }) => {
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {[
-                  { key: 'collectedFromSeller', label: 'Consignment successfully collected from seller(s)' },
+                  { key: 'collectedFromSeller', label: `Consignment successfully collected from ${isDonation ? 'donor(s)' : 'seller(s)'}` },
                   { key: 'shipped', label: 'Consignment dispatched into line-haul transit' },
                   { key: 'reachedWarehouse', label: 'Consignment arrived at Eco-Cart main sorting warehouse' },
                   { key: 'reachedHub', label: "Consignment sorted and routed to destination delivery hub" },

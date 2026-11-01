@@ -15,6 +15,13 @@ const AccountInfoModal = ({ user, onClose }) => {
   };
 
   const userFullName = user.name || user.username || 'Valued User';
+  
+  // Robust check: true if explicit flag is set OR if dob/role indicates NGO
+  const isNgoRep = Boolean(
+    user.isNgoRep || 
+    user.role === 'ngo' || 
+    (user.dob && String(user.dob).includes('NGO'))
+  );
 
   // Strict check to determine if the user is truly registered as a seller
   const hasActiveSellerAccounts = user.sellerAccounts && Object.values(user.sellerAccounts).some(val => {
@@ -26,16 +33,6 @@ const AccountInfoModal = ({ user, onClose }) => {
   });
 
   const isSellerUser = Boolean(user.isSeller && hasActiveSellerAccounts);
-
-  const getFormattedDob = () => {
-    if (user.dob) return user.dob;
-    if (user.dateOfBirth) return user.dateOfBirth;
-    if (user.birthDate) return user.birthDate;
-    if (user.dobDay && user.dobMonth && user.dobYear) {
-      return `${user.dobDay}/${user.dobMonth}/${user.dobYear}`;
-    }
-    return 'N/A';
-  };
 
   return (
     <>
@@ -299,9 +296,11 @@ const AccountInfoModal = ({ user, onClose }) => {
           </div>
 
           <div className="eligibility-badge">
-            {isSellerUser 
-              ? '✨ Eligible for both buying and selling products ✨' 
-              : '✨ Eligible for only buying products ✨'}
+            {isNgoRep 
+              ? '✨ Eligible for only claiming donations ✨' 
+              : isSellerUser 
+                ? '✨ Eligible for both buying and selling products ✨' 
+                : '✨ Eligible for only buying products ✨'}
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -320,24 +319,32 @@ const AccountInfoModal = ({ user, onClose }) => {
               <span className="account-field-value">{user.phone || 'N/A'}</span>
             </div>
 
-            <div className="account-field-box">
-              <span className="account-field-label">📅 Date of Birth</span>
-              <span className="account-field-value">{getFormattedDob()}</span>
-            </div>
+            {!isNgoRep && (
+              <>
+                <div className="account-field-box">
+                  <span className="account-field-label">📅 Date of Birth</span>
+                  <span className="account-field-value">
+                    {user.dob || user.dateOfBirth || user.birthDate || (user.dobDay && user.dobMonth && user.dobYear ? `${user.dobDay}/${user.dobMonth}/${user.dobYear}` : 'N/A')}
+                  </span>
+                </div>
 
-            <div className="account-field-box">
-              <span className="account-field-label">🎂 Age</span>
-              <span className="account-field-value">{user.age ? `${user.age} years` : 'N/A'}</span>
-            </div>
+                <div className="account-field-box">
+                  <span className="account-field-label">🎂 Age</span>
+                  <span className="account-field-value">{user.age ? `${user.age} years` : 'N/A'}</span>
+                </div>
+              </>
+            )}
 
             <div className="account-field-box">
               <span className="account-field-label">🛡️ Account Role</span>
-              <span className="account-field-value">{isSellerUser ? 'Buyer & Seller' : 'Buyer'}</span>
+              <span className="account-field-value">
+                {isNgoRep ? 'NGO Representative' : isSellerUser ? 'Buyer & Seller' : 'Buyer'}
+              </span>
             </div>
           </div>
 
           {/* Seller Payout Accounts Displayed ONLY if user is a registered seller with active accounts */}
-          {isSellerUser && user.sellerAccounts && (
+          {isSellerUser && !isNgoRep && user.sellerAccounts && (
             <>
               <div className="payout-section-title">
                 💸 Payout & Cash-Out Accounts 💸
