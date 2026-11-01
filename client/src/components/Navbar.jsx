@@ -691,7 +691,7 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
 
         .nav-link {
           background-color: #2d6a4f;
-          color: #d8f3dc;
+          color: #ffffff;
           text-decoration: none;
           font-weight: 600;
           padding: 5px 11px;
@@ -804,7 +804,7 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
           background-color: #3b5247;
           color: #ffffff;
           border: 1.5px solid #6b8e7b;
-          opacity: 0.75;
+          opacity: 0.9;
         }
 
         .btn-sell-pro.faded-non-seller:hover {
@@ -1106,7 +1106,7 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
           flex: 0 0 20px;
           margin-left: 1px;
           border-radius: 50%;
-          color: #d8f3dc;
+          color: #ffffff;
           background: transparent;
           transition: color 0.2s ease, background-color 0.2s ease,
             box-shadow 0.2s ease, transform 0.22s ease;
@@ -1750,7 +1750,7 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
                   onClick={() => setShowWhyModal(true)}
                   className="nav-link"
                 >
-                  💁‍♂️ Why Eco-Cart?
+                  💁‍♂️ Why Choose Eco-Cart?
                 </button>
 
                 <div className="notification-container" ref={sellerAlertRef} style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
