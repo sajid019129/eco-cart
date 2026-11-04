@@ -19,6 +19,9 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
+  const [authDropdownOpen, setAuthDropdownOpen] = useState(false);
+  const [authDropdownMounted, setAuthDropdownMounted] = useState(false);
+
   const [selectedInvoiceOrder, setSelectedInvoiceOrder] = useState(null);
   const [showOfferModal, setShowOfferModal] = useState(false);
   const [showWhyModal, setShowWhyModal] = useState(false);
@@ -46,6 +49,7 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
   const [confirmDeleteModal, setConfirmDeleteModal] = useState(false);
 
   const dropdownRef = useRef(null);
+  const authDropdownRef = useRef(null);
   const notifRef = useRef(null);
   const sellerAlertRef = useRef(null);
   const cartAlertRef = useRef(null);
@@ -55,6 +59,7 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
   const fileInputRef = useRef(null);
 
   const closeTimerRef = useRef(null);
+  const authCloseTimerRef = useRef(null);
   const notifCloseTimerRef = useRef(null);
   const autoHideTimerRef = useRef(null);
   const avatarAlertTimerRef = useRef(null);
@@ -69,13 +74,7 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
   const isDeliveryTeam = user?.email === 'sajid019129@gmail.com' || user?.role === 'delivery-team';
   const isNgoRep = Boolean(user?.isNgoRep || user?.role === 'ngo' || (user?.dob && String(user.dob).includes('NGO')));
 
-  // Trigger offer popup automatically 0.5s after page load (Daraz style)
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setShowOfferModal(true);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, []);
+  const showVerifyPhones = !user || (!isNgoRep && !isDeliveryTeam);
 
   const handleLogoHomeClick = (e, path) => {
     e.preventDefault();
@@ -127,6 +126,7 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
 
   const closeAllDropdowns = () => {
     if (dropdownOpen) closeDropdown();
+    if (authDropdownOpen) closeAuthDropdown();
     if (notifOpen) closeNotif();
     if (avatarAlertOpen) closeAvatarAlert();
     if (sellerAlertOpen) closeSellerAlert();
@@ -156,6 +156,29 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
     else {
       closeAllDropdowns();
       openDropdown();
+    }
+  };
+
+  const openAuthDropdown = () => {
+    if (authCloseTimerRef.current) clearTimeout(authCloseTimerRef.current);
+    setAuthDropdownMounted(true);
+    setAuthDropdownOpen(true);
+  };
+
+  const closeAuthDropdown = () => {
+    setAuthDropdownOpen(false);
+    if (authCloseTimerRef.current) clearTimeout(authCloseTimerRef.current);
+    authCloseTimerRef.current = setTimeout(() => {
+      setAuthDropdownMounted(false);
+      authCloseTimerRef.current = null;
+    }, 180);
+  };
+
+  const toggleAuthDropdown = () => {
+    if (authDropdownOpen) closeAuthDropdown();
+    else {
+      closeAllDropdowns();
+      openAuthDropdown();
     }
   };
 
@@ -528,6 +551,9 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         if (dropdownOpen) closeDropdown();
       }
+      if (authDropdownRef.current && !authDropdownRef.current.contains(event.target)) {
+        if (authDropdownOpen) closeAuthDropdown();
+      }
       if (notifRef.current && !notifRef.current.contains(event.target)) {
         if (notifOpen) closeNotif();
       }
@@ -562,6 +588,7 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('keydown', handleKeyDown);
       if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+      if (authCloseTimerRef.current) clearTimeout(authCloseTimerRef.current);
       if (notifCloseTimerRef.current) clearTimeout(notifCloseTimerRef.current);
       if (autoHideTimerRef.current) clearTimeout(autoHideTimerRef.current);
       if (avatarAlertTimerRef.current) clearTimeout(avatarAlertTimerRef.current);
@@ -572,7 +599,7 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
       if (donateAlertTimerRef.current) clearTimeout(donateAlertTimerRef.current);
       if (successModalTimerRef.current) clearTimeout(successModalTimerRef.current);
     };
-  }, [dropdownOpen, notifOpen, avatarAlertOpen, sellerAlertOpen, cartAlertOpen, trackAlertOpen, sellAlertOpen, donateAlertOpen, showAccountModal, confirmDeleteModal, selectedInvoiceOrder, showWhyModal]);
+  }, [dropdownOpen, authDropdownOpen, notifOpen, avatarAlertOpen, sellerAlertOpen, cartAlertOpen, trackAlertOpen, sellAlertOpen, donateAlertOpen, showAccountModal, confirmDeleteModal, selectedInvoiceOrder, showWhyModal]);
 
   const isActive = (path) => location.pathname === path;
 
@@ -584,6 +611,65 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
 
   const deliveryTeamAvatar = "/Eco-Cart Delivery Team.jpg";
   const displayAvatar = isDeliveryTeam ? deliveryTeamAvatar : (user?.avatar || DEFAULT_AVATAR);
+
+  // Phone Brands List
+  const phoneBrands = [
+    {
+      name: 'Honor',
+      url: 'https://smart-honor.com/serial/verify',
+      logo: 'https://cdn.simpleicons.org/honor'
+    },
+    {
+      name: 'Huawei',
+      url: 'https://consumer.huawei.com/bd/support/warranty-query/',
+      logo: 'https://cdn.simpleicons.org/huawei'
+    },
+    {
+      name: 'Itel',
+      url: 'https://www.itel-life.com/bd/support/imei-check',
+      logo: 'https://www.google.com/s2/favicons?domain=itel-life.com&sz=128'
+    },
+    {
+      name: 'Motorola',
+      url: 'https://en-us.support.motorola.com/app/warranty/check/',
+      logo: 'https://cdn.simpleicons.org/motorola'
+    },
+    {
+      name: 'OnePlus',
+      url: 'https://service.oneplus.com/in/check#/',
+      logo: 'https://cdn.simpleicons.org/oneplus'
+    },
+    {
+      name: 'Oppo',
+      url: 'https://support.oppo.com/bd/check/',
+      logo: 'https://cdn.simpleicons.org/oppo'
+    },
+    {
+      name: 'Realme',
+      url: 'https://www.realme.com/bd/support/phonecheck',
+      logo: 'https://www.google.com/s2/favicons?domain=realme.com&sz=128'
+    },
+    {
+      name: 'Symphony',
+      url: 'https://symphony-mobile.com/imei',
+      logo: 'https://www.google.com/s2/favicons?domain=symphony-mobile.com&sz=128'
+    },
+    {
+      name: 'Tecno',
+      url: 'https://www.tecno-mobile.com/bd/warranty/',
+      logo: 'https://www.google.com/s2/favicons?domain=tecno-mobile.com&sz=128'
+    },
+    {
+      name: 'Vivo',
+      url: 'https://www.vivo.com/bd/support/IMEI',
+      logo: 'https://cdn.simpleicons.org/vivo'
+    },
+    {
+      name: 'Xiaomi',
+      url: 'https://www.mi.com/global/verify#/en/tab/imei',
+      logo: 'https://cdn.simpleicons.org/xiaomi'
+    }
+  ];
 
   return (
     <>
@@ -644,6 +730,40 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
         .nav-logo:hover {
           opacity: 0.9;
           transform: scale(1.02);
+        }
+
+        /* Continuous Infinite Marquee Ticker Styles */
+        .nav-ticker-container {
+          flex: 1;
+          margin: 0 20px;
+          overflow: hidden;
+          white-space: nowrap;
+          position: relative;
+          background: rgba(255, 255, 255, 0.06);
+          border-radius: 6px;
+          padding: 4px 10px;
+          border: 1px solid rgba(82, 183, 136, 0.3);
+        }
+
+        .nav-ticker-track {
+          display: inline-block;
+          white-space: nowrap;
+          animation: marqueeScroll 18s linear infinite;
+          will-change: transform;
+        }
+
+        .nav-ticker-text {
+          font-size: 0.92rem;
+          font-weight: 700;
+          font-style: italic;
+          color: #ffffff;
+          letter-spacing: 0.4px;
+          display: inline-block;
+        }
+
+        @keyframes marqueeScroll {
+          0% { transform: translateX(0%); }
+          100% { transform: translateX(-50%); }
         }
 
         .right-actions-group {
@@ -847,7 +967,7 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
         .nav-alert-bubble {
           position: absolute;
           right: 0;
-          top: calc(100% + 12px);
+          top: calc(100% + 14px);
           width: auto;
           white-space: nowrap;
           padding: 8px 14px;
@@ -866,15 +986,15 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
         .nav-alert-bubble::before {
           content: '';
           position: absolute;
-          top: -6px;
+          top: -5px;
           right: 16px;
-          width: 10px;
-          height: 10px;
+          width: 9px;
+          height: 9px;
           background: #ffffff;
           border-top: 1px solid #e5e7eb;
           border-left: 1px solid #e5e7eb;
           transform: rotate(45deg);
-          border-radius: 2px;
+          border-radius: 1px;
         }
 
         .nav-alert-bubble.open {
@@ -889,7 +1009,7 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
         .notification-dropdown {
           position: absolute;
           right: 0;
-          top: calc(100% + 12px);
+          top: calc(100% + 14px);
           width: 340px;
           background: #ffffff;
           border-radius: 12px;
@@ -908,15 +1028,15 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
         .notification-dropdown::before {
           content: '';
           position: absolute;
-          top: -6px;
+          top: -5px;
           right: 16px;
-          width: 10px;
-          height: 10px;
+          width: 9px;
+          height: 9px;
           background: #ffffff;
           border-top: 1px solid #e5e7eb;
           border-left: 1px solid #e5e7eb;
           transform: rotate(45deg);
-          border-radius: 2px;
+          border-radius: 1px;
         }
 
         .notification-body-scroll {
@@ -1128,7 +1248,7 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
         .dropdown-menu {
           position: absolute;
           right: 0;
-          top: calc(100% + 12px);
+          top: calc(100% + 14px);
           width: 240px;
           min-width: 220px;
           padding: 6px;
@@ -1145,15 +1265,15 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
         .dropdown-menu::before {
           content: '';
           position: absolute;
-          top: -6px;
+          top: -5px;
           right: 24px;
-          width: 10px;
-          height: 10px;
+          width: 9px;
+          height: 9px;
           background: #ffffff;
           border-top: 1px solid #e5e7eb;
           border-left: 1px solid #e5e7eb;
           transform: rotate(45deg);
-          border-radius: 2px;
+          border-radius: 1px;
         }
 
         .dropdown-menu.open {
@@ -1197,7 +1317,7 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
         .dropdown-item {
           display: flex;
           align-items: center;
-          gap: 9px;
+          gap: 10px;
           width: 100%;
           box-sizing: border-box;
           padding: 8px 10px;
@@ -1239,6 +1359,73 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
           border-color: #d9363e;
           box-shadow: 0 4px 10px rgba(217, 54, 62, 0.2);
           padding-left: 13px;
+        }
+
+        .auth-phones-dropdown {
+          position: absolute;
+          right: 0;
+          top: calc(100% + 14px);
+          width: 200px;
+          padding: 6px 5px 5px 5px;
+          background: #ffffff;
+          border-radius: 12px;
+          box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2), 0 2px 6px rgba(0, 0, 0, 0.06);
+          border: 1px solid #e5e7eb;
+          z-index: 1001;
+          transform-origin: top right;
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+        }
+
+        .auth-phones-dropdown::before {
+          content: '';
+          position: absolute;
+          top: -5px;
+          right: 24px;
+          width: 9px;
+          height: 9px;
+          background: #ffffff;
+          border-top: 1px solid #e5e7eb;
+          border-left: 1px solid #e5e7eb;
+          transform: rotate(45deg);
+          border-radius: 1px;
+          z-index: 1002;
+        }
+
+        .auth-phones-dropdown.open {
+          animation: dropdownEnter 0.2s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+        }
+
+        .auth-phones-dropdown.closing {
+          animation: dropdownExit 0.18s ease-in both;
+          pointer-events: none;
+        }
+
+        .auth-phones-dropdown .dropdown-item {
+          padding: 5px 8px;
+          margin: 1px 0;
+          font-size: 0.82rem;
+          gap: 12px;
+        }
+
+        .brand-logo-frame {
+          width: 20px;
+          height: 20px;
+          flex: 0 0 20px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: transparent;
+        }
+
+        .brand-logo-img {
+          max-width: 20px;
+          max-height: 20px;
+          width: 100%;
+          height: 100%;
+          object-fit: contain;
+          display: block;
         }
 
         .success-overlay {
@@ -1408,6 +1595,15 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
               Eco-Cart 🛍️
             </span>
           )}
+
+          {/* Continuous Infinite Marquee with 32 Leading Non-Breaking Spaces */}
+          <div className="nav-ticker-container">
+            <div className="nav-ticker-track">
+              <span className="nav-ticker-text">
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Welcome to Eco-Cart! Your all-in-one destination to buy, sell and donate with ease. Enjoy convenient delivery and seamless tracking while making a meaningful difference.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Welcome to Eco-Cart! Your all-in-one destination to buy, sell and donate with ease. Enjoy convenient delivery and seamless tracking while making a meaningful difference.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+              </span>
+            </div>
+          </div>
 
           <div className="right-actions-group">
             <div className="social-logos-group">
@@ -1785,6 +1981,52 @@ const Navbar = ({ user, setUser, setCart, cartCount = 0 }) => {
                       </div>
                     )}
                   </div>
+
+                  {showVerifyPhones && (
+                    <div className="profile-container" ref={authDropdownRef}>
+                      <button
+                        type="button"
+                        className="user-badge"
+                        onClick={toggleAuthDropdown}
+                        aria-haspopup="menu"
+                        aria-expanded={authDropdownOpen}
+                      >
+                        <span className="user-name" style={{ marginLeft: '4px' }}>📱 Verify Phones</span>
+                        <span className={`profile-arrow ${authDropdownOpen ? 'is-open' : ''}`} aria-hidden="true">
+                          ▾
+                        </span>
+                      </button>
+
+                      {authDropdownMounted && (
+                        <div
+                          className={`auth-phones-dropdown ${authDropdownOpen ? 'open' : 'closing'}`}
+                          role="menu"
+                          aria-label="Phone verification portals"
+                        >
+                          {phoneBrands.map((brand) => (
+                            <a
+                              key={brand.name}
+                              href={brand.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              role="menuitem"
+                              className="dropdown-item"
+                              onClick={() => closeAuthDropdown()}
+                            >
+                              <div className="brand-logo-frame">
+                                <img 
+                                  src={brand.logo} 
+                                  alt={`${brand.name} logo`} 
+                                  className="brand-logo-img" 
+                                />
+                              </div>
+                              <span>{brand.name}</span>
+                            </a>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </>
             )}

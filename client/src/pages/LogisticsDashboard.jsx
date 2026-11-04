@@ -319,7 +319,7 @@ const LogisticsDashboard = () => {
                 e.currentTarget.style.transform = 'translateY(0)';
               }}
             >
-              Active Consignments: {orders.length}
+              Total Consignments: {orders.length}
             </div>
 
             {activeOrdersAlertMounted && (
